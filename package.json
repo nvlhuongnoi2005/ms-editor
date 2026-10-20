@@ -1,0 +1,8 @@
+{
+  "name": "map-service-editor-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix editor-web start"
+  }
+}
