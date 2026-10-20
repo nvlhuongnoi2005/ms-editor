@@ -13,3 +13,9 @@ npm start
 ```
 
 Then open `http://127.0.0.1:4173`.
+
+## Data infrastructure
+
+The local PostGIS, Render DB and Canonical PBF importer live in
+[`infra`](infra). Follow [its setup guide](infra/README.md) before connecting
+the editor to real data.

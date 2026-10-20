@@ -1,0 +1,6 @@
+# Large source extracts and local database credentials never belong in Git.
+data/*.osm.pbf
+data/*.pbf
+infra/.env
+__pycache__/
+*.pyc

@@ -1,0 +1,51 @@
+name: map-service
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.6
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+      CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD:?Set CANONICAL_DB_PASSWORD in .env}
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD:?Set RENDER_DB_PASSWORD in .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgis-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  canonical-importer:
+    build:
+      context: ../canonical-importer
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: canonical
+      DB_USER: canonical_owner
+      DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+    volumes:
+      - ../data:/data:ro
+
+  osm2pgsql:
+    image: iboates/osm2pgsql:latest
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${RENDER_DB_PASSWORD}
+    volumes:
+      - ../data:/data:ro
+
+volumes:
+  postgis-data:
