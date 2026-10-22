@@ -18,6 +18,46 @@
    docker compose run --rm canonical-importer --pbf /data/vietnam-260901.osm.pbf --dataset-name vietnam-260901
    ```
 
+To inspect primitive counts without writing to PostgreSQL:
+
+```powershell
+docker compose run --rm canonical-importer --count-only --pbf /data/vietnam-260901.osm.pbf
+```
+
+## Vietnam OSM editor dataset
+
+`data/vietnam-260901.osm.pbf` is mounted in the importer container as
+`/data/vietnam-260901.osm.pbf`. Load it into the Canonical DB with:
+
+```powershell
+docker compose up -d postgres
+docker compose run --rm canonical-importer --pbf /data/vietnam-260901.osm.pbf --dataset-name vietnam-260901
+```
+
+The editor is configured to request this dataset name. The command prints the
+dataset UUID and may take a while because it imports nationwide OSM primitives.
+It creates a new dataset alongside existing samples; it does not replace them.
+
+## Satellite tile service
+
+Start the tile server used by the editor's satellite background with:
+
+```powershell
+docker compose --profile tiles up -d tile-server
+```
+
+It serves TileJSON at:
+
+```text
+http://localhost:8081/datas/satellite.json
+```
+
+Stop only this local tile service with:
+
+```powershell
+docker compose --profile tiles stop tile-server
+```
+
 ## Verification
 
 ```powershell

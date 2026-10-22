@@ -1,0 +1,33 @@
+{
+  "options": {
+    "listenPort": 8080,
+    "serveFrontPage": false,
+    "serveSwagger": true,
+    "process": 1,
+    "thread": 2
+  },
+  "styles": {},
+  "geojsons": {},
+  "datas": {
+    "hanoi-sample": {
+      "mbtiles": "hanoi-sample.mbtiles"
+    },
+    "satellite": {
+      "xyz": "https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+      "cache": {
+        "forward": true,
+        "store": false
+      },
+      "tilejson": {
+        "name": "Satellite basemap",
+        "type": "baselayer",
+        "scheme": "xyz",
+        "format": "jpg",
+        "minzoom": 0,
+        "maxzoom": 22
+      }
+    }
+  },
+  "sprites": {},
+  "fonts": {}
+}

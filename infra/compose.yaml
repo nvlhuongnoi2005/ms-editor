@@ -47,5 +47,19 @@ services:
     volumes:
       - ../data:/data:ro
 
+  tile-server:
+    image: ghcr.io/nvlhuongnoi2005/webgis/tile-server:26.9
+    profiles: ["tiles"]
+    environment:
+      DATA_DIR: /tile-server/data
+      LISTEN_PORT: 8080
+      NUM_OF_PROCESS: 1
+      NUM_OF_THREAD: 2
+      RESTART_AFTER_CONFIG_CHANGE: "false"
+    ports:
+      - "${TILE_SERVER_PORT:-8081}:8080"
+    volumes:
+      - ./tile-server-data:/tile-server/data
+
 volumes:
   postgis-data:

@@ -203,6 +203,21 @@ class CanonicalImporter(osmium.SimpleHandler):
         self.batch.clear()
 
 
+class PrimitiveCounter(osmium.SimpleHandler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.counts = {"node": 0, "way": 0, "relation": 0}
+
+    def node(self, node: Any) -> None:
+        self.counts["node"] += 1
+
+    def way(self, way: Any) -> None:
+        self.counts["way"] += 1
+
+    def relation(self, relation: Any) -> None:
+        self.counts["relation"] += 1
+
+
 def connection() -> psycopg.Connection:
     conninfo = make_conninfo(
         host=os.environ.get("DB_HOST", "127.0.0.1"),
@@ -252,11 +267,12 @@ def mark_failed(conn: psycopg.Connection, dataset_id: uuid.UUID) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pbf", required=True, type=Path, help="PBF path inside the container")
-    parser.add_argument("--dataset-name", required=True)
+    parser.add_argument("--dataset-name")
     parser.add_argument("--dataset-id", type=uuid.UUID, help="Stable UUID; generated and printed when omitted")
     parser.add_argument("--replace", action="store_true", help="Delete an existing dataset with this UUID before import")
     parser.add_argument("--batch-size", type=int, default=5_000)
     parser.add_argument("--location-index", default="flex_mem", help="pyosmium node-location index for way bbox calculation")
+    parser.add_argument("--count-only", action="store_true", help="Read PBF and report primitive counts without connecting to PostgreSQL")
     return parser.parse_args()
 
 
@@ -267,6 +283,16 @@ def main() -> int:
         raise FileNotFoundError(f"PBF file does not exist: {args.pbf}")
     if args.batch_size < 1:
         raise ValueError("--batch-size must be positive")
+    if args.count_only:
+        counter = PrimitiveCounter()
+        counter.apply_file(str(args.pbf))
+        LOG.info(
+            "PBF counts: nodes=%s ways=%s relations=%s",
+            counter.counts["node"], counter.counts["way"], counter.counts["relation"],
+        )
+        return 0
+    if not args.dataset_name:
+        raise ValueError("--dataset-name is required unless --count-only is used")
 
     dataset_id = args.dataset_id or uuid.uuid4()
     LOG.info("dataset_id=%s", dataset_id)
