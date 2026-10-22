@@ -24,8 +24,29 @@
       ],
       "timeout": 30000,
       "maxTry": 2
+    },
+    "satellite2": {
+      "metadata": {
+        "name": "Esri World Terrain",
+        "attribution": "Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+        "format": "jpeg",
+        "minzoom": 0,
+        "maxzoom": 18,
+        "bounds": [-180, -85.051129, 180, 85.051129]
+      },
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "storeType": "mbtiles",
+      "coverages": [
+        {
+          "zoom": 18,
+          "bbox": [105.75, 20.95, 106.0, 21.15]
+        }
+      ],
+      "timeout": 30000,
+      "maxTry": 2
     }
   },
   "sprites": {},
   "fonts": {}
 }
+

@@ -60,6 +60,10 @@ CREATE TABLE entity_current (
 CREATE INDEX entity_current_bbox_idx ON entity_current USING gist (bbox);
 CREATE INDEX entity_current_dataset_type_idx ON entity_current (dataset_id, entity_type, entity_id);
 CREATE INDEX entity_current_tags_idx ON entity_current USING gin (tags);
+-- Moving a node must efficiently find every way that references it.  A normal
+-- btree cannot support the array-overlap predicate used by rebuildWayBboxes.
+CREATE INDEX entity_current_way_node_refs_idx ON entity_current USING gin (node_refs)
+  WHERE entity_type = 'way'::editor.entity_type AND visible;
 
 CREATE TABLE entity_change (
   changeset_id bigint NOT NULL REFERENCES changeset(id) ON DELETE CASCADE,

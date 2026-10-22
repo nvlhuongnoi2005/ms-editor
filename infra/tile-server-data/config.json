@@ -1,8 +1,9 @@
 {
   "options": {
     "listenPort": 8080,
-    "serveFrontPage": false,
+    "serveFrontPage": true,
     "serveSwagger": true,
+    "RestartOnConfigChange": true,
     "process": 1,
     "thread": 2
   },
@@ -13,7 +14,7 @@
       "mbtiles": "hanoi-sample.mbtiles"
     },
     "satellite": {
-      "xyz": "https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+      "xyz": "satellite",
       "cache": {
         "forward": true,
         "store": false
@@ -24,7 +25,15 @@
         "scheme": "xyz",
         "format": "jpg",
         "minzoom": 0,
-        "maxzoom": 22
+        "maxzoom": 18,
+        "bounds": [-180, -85.051129, 180, 85.051129]
+      }
+    },
+    "satellite2": {
+      "mbtiles": "satellite2",
+      "cache": {
+        "forward": true,
+        "store": false
       }
     }
   },
