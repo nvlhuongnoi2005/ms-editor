@@ -248,6 +248,19 @@ ways AS (
      WHEN point.tags ? 'tourism' THEN '#d946ef'
      ELSE '#df7950'
    END AS editor_color,
+   CASE
+     WHEN point.tags->'tourism' IN ('hotel','motel','guest_house','hostel') THEN 'hotel'
+     WHEN point.tags->'amenity' IN ('school','college','kindergarten','university') THEN 'school'
+     WHEN point.tags->'amenity' IN ('hospital','clinic','doctors','pharmacy') THEN 'hospital'
+     WHEN point.tags ? 'shop' OR point.tags->'amenity'='marketplace' THEN 'shop'
+     WHEN point.tags->'amenity' IN ('restaurant','cafe','fast_food','bar','pub') THEN 'food'
+     WHEN point.tags->'amenity'='fuel' THEN 'fuel'
+     WHEN point.tags->'amenity'='atm' THEN 'atm'
+     WHEN point.tags->'amenity'='bus_station' OR point.tags->'highway'='bus_stop' THEN 'bus'
+     WHEN point.tags->'natural' IN ('tree','wood') THEN 'tree'
+     WHEN point.tags->'amenity' IN ('townhall','bank','place_of_worship') OR point.tags ? 'historic' THEN 'landmark'
+     ELSE 'generic'
+   END AS editor_icon,
    ST_AsMVTGeom(point.way,tile.geom_3857,4096,64,true) AS geom
  FROM render.planet_osm_point point CROSS JOIN tile
  WHERE point.way && tile.geom_3857 AND point.tags <> ''::hstore

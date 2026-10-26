@@ -55,6 +55,7 @@ export interface GraphFeature {
     coordinates?: Coordinate;
     editorColor?: string;
     editorWidth?: number;
+    pointIcon?: string;
     topologyNode?: boolean;
   };
   geometry: GraphGeometry;
