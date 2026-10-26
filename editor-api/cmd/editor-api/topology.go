@@ -53,7 +53,7 @@ func validateChangesetTopology(ctx context.Context, tx pgx.Tx, datasetID string,
 			}
 		}
 	}
-	return nil
+	return validateChangesetGeometry(ctx, tx, datasetID, planned, changes)
 }
 
 func assertPlannedOrVisible(ctx context.Context, tx pgx.Tx, datasetID string, planned map[string]normalizedChange, entityType string, id int64) error {

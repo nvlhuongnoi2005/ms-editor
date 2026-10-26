@@ -68,3 +68,76 @@ func TestRollbackDeleteRankOrdersDependantsFirst(t *testing.T) {
 		t.Fatal("way must be deleted before a node")
 	}
 }
+
+func TestValidateWayGeometry(t *testing.T) {
+	coordinates := map[int64]geometryCoordinate{
+		1: {lon: 0, lat: 0},
+		2: {lon: 10, lat: 0},
+		3: {lon: 10, lat: 10},
+		4: {lon: 0, lat: 10},
+		5: {lon: 0, lat: 10},
+	}
+	areaTags := map[string]string{"building": "yes"}
+	tests := []struct {
+		name    string
+		way     wayGeometry
+		wantErr bool
+	}{
+		{
+			name: "valid line",
+			way:  wayGeometry{id: 10, nodeRefs: []int64{1, 2}},
+		},
+		{
+			name:    "requires two nodes",
+			way:     wayGeometry{id: 11, nodeRefs: []int64{1}},
+			wantErr: true,
+		},
+		{
+			name:    "rejects repeated adjacent node",
+			way:     wayGeometry{id: 12, nodeRefs: []int64{1, 1, 2}},
+			wantErr: true,
+		},
+		{
+			name:    "area must close with same node",
+			way:     wayGeometry{id: 13, tags: areaTags, nodeRefs: []int64{1, 2, 3, 4}},
+			wantErr: true,
+		},
+		{
+			name: "valid counter clockwise area",
+			way:  wayGeometry{id: 14, tags: areaTags, nodeRefs: []int64{1, 2, 3, 4, 1}},
+		},
+		{
+			name: "valid clockwise area",
+			way:  wayGeometry{id: 15, tags: areaTags, nodeRefs: []int64{1, 4, 3, 2, 1}},
+		},
+		{
+			name:    "rejects self intersection",
+			way:     wayGeometry{id: 16, tags: areaTags, nodeRefs: []int64{1, 3, 2, 4, 1}},
+			wantErr: true,
+		},
+		{
+			name:    "rejects duplicate adjacent coordinate",
+			way:     wayGeometry{id: 17, nodeRefs: []int64{4, 5}},
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateWayGeometry(test.way, coordinates)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateWayGeometry() error = %v, want error=%t", err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestPolygonDirection(t *testing.T) {
+	ccw := []geometryCoordinate{{0, 0}, {10, 0}, {10, 10}, {0, 10}, {0, 0}}
+	cw := []geometryCoordinate{{0, 0}, {0, 10}, {10, 10}, {10, 0}, {0, 0}}
+	if polygonDirection(ccw) != ringCounterClockwise {
+		t.Fatal("expected counter-clockwise ring to be detected")
+	}
+	if polygonDirection(cw) != ringClockwise {
+		t.Fatal("expected clockwise ring to be detected")
+	}
+}

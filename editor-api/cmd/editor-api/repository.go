@@ -148,7 +148,7 @@ func graphWays(ctx context.Context, db *pgxpool.Pool, datasetID string, bbox [4]
 			nodePayloads = append(nodePayloads, map[string]any{"id": nodeID, "version": node.Version, "tags": node.Tags, "coordinates": node.Coordinates})
 		}
 		closed := len(coords) > 3 && coords[0][0] == coords[len(coords)-1][0] && coords[0][1] == coords[len(coords)-1][1]
-		area := closed && (tags["area"] == "yes" || tags["building"] != "" || tags["landuse"] != "" || tags["leisure"] != "" || tags["amenity"] != "" || tags["aeroway"] != "" || contains([]string{"water", "wood", "scrub", "wetland", "beach", "sand"}, tags["natural"]))
+		area := closed && isAreaWayTags(tags)
 		geometryType := "LineString"
 		var geometryCoords any = coords
 		if area {
