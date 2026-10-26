@@ -1,4 +1,5 @@
 import type { Tags } from '../../types/osm';
+import idSchema from './id-presets.generated.json';
 
 export type PresetGeometry = 'point' | 'line' | 'area' | 'relation';
 export type PresetFieldType = 'text' | 'number' | 'yesno' | 'select';
@@ -18,7 +19,9 @@ export interface Preset {
   label: string;
   geometry: PresetGeometry[];
   matchTags: Tags;
+  addTags?: Tags;
   fields: PresetField[];
+  sourceId?: string;
 }
 
 export interface PresetGroup {
@@ -46,7 +49,7 @@ export const PRESET_GROUPS: PresetGroup[] = [
   { id: 'boundary', label: 'Ranh giới & quan hệ' }
 ];
 
-export const PRESETS: Preset[] = [
+const LOCAL_PRESETS: Preset[] = [
   { id: 'waterway-river', group: 'waterway', label: 'Sông', geometry: ['line'], matchTags: { waterway: 'river' }, fields: [commonName, { key: 'width', label: 'Chiều rộng', type: 'number', placeholder: 'Mét' }, { key: 'intermittent', label: 'Lúc chảy lúc không', type: 'yesno', options: yesNo }, { key: 'boat', label: 'Có thể đi thuyền', type: 'yesno', options: yesNo }] },
   { id: 'waterway-stream', group: 'waterway', label: 'Suối', geometry: ['line'], matchTags: { waterway: 'stream' }, fields: [commonName, { key: 'width', label: 'Chiều rộng', type: 'number', placeholder: 'Mét' }, { key: 'intermittent', label: 'Lúc chảy lúc không', type: 'yesno', options: yesNo }, { key: 'seasonal', label: 'Theo mùa', type: 'yesno', options: yesNo }] },
   { id: 'waterway-canal', group: 'waterway', label: 'Kênh', geometry: ['line'], matchTags: { waterway: 'canal' }, fields: [commonName, { key: 'width', label: 'Chiều rộng', type: 'number', placeholder: 'Mét' }, { key: 'boat', label: 'Có thể đi thuyền', type: 'yesno', options: yesNo }] },
@@ -87,6 +90,52 @@ export const PRESETS: Preset[] = [
   { id: 'boundary-administrative', group: 'boundary', label: 'Ranh giới hành chính', geometry: ['relation'], matchTags: { boundary: 'administrative', type: 'boundary' }, fields: [commonName, { key: 'admin_level', label: 'Cấp hành chính', type: 'select', required: true, options: [{ value: '4', label: 'Tỉnh / thành phố trực thuộc TW' }, { value: '6', label: 'Huyện / quận' }, { value: '8', label: 'Xã / phường / thị trấn' }] }] }
 ];
 
+interface GeneratedSchemaField {
+  key: string;
+  label: string;
+  type: string;
+  options?: Array<{ value: string; label: string }>;
+}
+
+interface GeneratedSchemaPreset {
+  id: string;
+  sourceId: string;
+  group: string;
+  label: string;
+  geometry: string[];
+  matchTags: Tags;
+  addTags: Tags;
+  fields: GeneratedSchemaField[];
+}
+
+const ID_SCHEMA_PRESETS: Preset[] = (idSchema.presets as GeneratedSchemaPreset[]).map((preset): Preset => ({
+  id: preset.id,
+  sourceId: preset.sourceId,
+  group: preset.group,
+  label: preset.label,
+  geometry: preset.geometry as PresetGeometry[],
+  matchTags: preset.matchTags,
+  addTags: preset.addTags,
+  fields: preset.fields.map((field: GeneratedSchemaField) => ({
+    key: field.key,
+    label: field.label,
+    type: field.type as PresetFieldType,
+    options: field.options
+  }))
+}));
+
+function samePresetTags(left: Tags, right: Tags) {
+  const leftEntries = Object.entries(left);
+  return leftEntries.length === Object.keys(right).length && leftEntries.every(([key, value]) => right[key] === value);
+}
+
+// Local presets retain their Vietnamese wording and project-specific fields.
+// The generated iD catalogue fills the remaining OSM feature types.
+export const PRESETS: Preset[] = [
+  ...LOCAL_PRESETS,
+  ...ID_SCHEMA_PRESETS.filter(schemaPreset => !LOCAL_PRESETS.some(localPreset => samePresetTags(localPreset.matchTags, schemaPreset.matchTags)))
+];
+
 export function geometryForPreset(geometry: { type: string }, entityType: string): PresetGeometry {
   if (entityType === 'relation') return 'relation';
   if (geometry.type === 'Point') return 'point';
@@ -103,7 +152,7 @@ export function presetForTags(tags: Tags, geometry?: PresetGeometry): Preset | u
 export function applyPreset(tags: Tags, previous: Preset | undefined, next: Preset): Tags {
   const result = { ...tags };
   if (previous) for (const [key, value] of Object.entries(previous.matchTags)) if (result[key] === value) delete result[key];
-  return { ...result, ...next.matchTags };
+  return { ...result, ...(next.addTags ?? next.matchTags) };
 }
 
 export function presetValidationErrors(tags: Tags, preset: Preset | undefined): string[] {

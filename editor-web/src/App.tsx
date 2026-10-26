@@ -264,12 +264,14 @@ function PropertiesEditor({
   const [draftTags, setDraftTags] = useState<Tags>(selected.tags);
   const [newTagKey, setNewTagKey] = useState('');
   const [presetMenuAnchor, setPresetMenuAnchor] = useState<HTMLElement | null>(null);
+  const [presetQuery, setPresetQuery] = useState('');
   const selectedIdentity = `${selected.type}/${selected.id}`;
 
   useEffect(() => {
     setDraftTags(selected.tags);
     setNewTagKey('');
     setPresetMenuAnchor(null);
+    setPresetQuery('');
   }, [selectedIdentity, selected.tags]);
 
   const commit = useCallback((label = 'Cập nhật thuộc tính') => {
@@ -304,6 +306,11 @@ function PropertiesEditor({
 
   const geometry = geometryForPreset(selected.geometry, selected.type);
   const availablePresets = PRESETS.filter(preset => preset.geometry.includes(geometry));
+  const normalizedPresetQuery = presetQuery.trim().toLocaleLowerCase('vi');
+  const menuPresets = normalizedPresetQuery
+    ? availablePresets.filter(preset => [preset.label, preset.sourceId, ...Object.entries(preset.matchTags).map(([key, value]) => `${key}=${value}`)]
+      .some(value => value?.toLocaleLowerCase('vi').includes(normalizedPresetQuery)))
+    : availablePresets;
   const activePreset = presetForTags(draftTags, geometry);
   const presetPalette = featureTypePalette(activePreset);
   const presetGroupLabel = PRESET_GROUPS.find(group => group.id === activePreset?.group)?.label;
@@ -390,12 +397,23 @@ function PropertiesEditor({
         <Menu
           anchorEl={presetMenuAnchor}
           open={Boolean(presetMenuAnchor)}
-          onClose={() => setPresetMenuAnchor(null)}
+          onClose={() => { setPresetMenuAnchor(null); setPresetQuery(''); }}
           slotProps={{ paper: { sx: { mt: 0.5, minWidth: 300, maxHeight: 420, borderRadius: 1.5 } } }}
         >
           <MenuItem onClick={clearPreset}><em>Chưa phân loại</em></MenuItem>
+          <Box sx={{ px: 1, pb: 1, position: 'sticky', top: 0, zIndex: 1, bgcolor: '#ffffff' }} onKeyDown={event => event.stopPropagation()}>
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              value={presetQuery}
+              onChange={event => setPresetQuery(event.target.value)}
+              placeholder="Tìm thể loại hoặc tag, ví dụ amenity=atm"
+              slotProps={{ htmlInput: { 'aria-label': 'Tìm thể loại đối tượng' } }}
+            />
+          </Box>
           {PRESET_GROUPS.flatMap(group => {
-            const groupPresets = availablePresets.filter(preset => preset.group === group.id);
+            const groupPresets = menuPresets.filter(preset => preset.group === group.id);
             return groupPresets.length
               ? [
                   <ListSubheader key={`${group.id}-header`}>{group.label}</ListSubheader>,
@@ -407,6 +425,7 @@ function PropertiesEditor({
                 ]
               : [];
           })}
+          {menuPresets.length === 0 && <MenuItem disabled>Không tìm thấy thể loại phù hợp.</MenuItem>}
         </Menu>
       </Box>
 
