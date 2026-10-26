@@ -50,8 +50,40 @@ services:
       CANONICAL_DB_NAME: canonical
       CANONICAL_DB_USER: canonical_owner
       CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      RENDER_DB_HOST: postgres
+      RENDER_DB_PORT: 5432
+      RENDER_DB_NAME: render
+      RENDER_DB_USER: render_owner
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
     ports:
       - "${EDITOR_API_PORT:-4173}:4173"
+
+  render-sync-worker:
+    build:
+      context: ..
+      dockerfile: editor-api/Dockerfile
+      target: render-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CANONICAL_DB_HOST: postgres
+      CANONICAL_DB_PORT: 5432
+      CANONICAL_DB_NAME: canonical
+      CANONICAL_DB_USER: canonical_owner
+      CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      RENDER_DB_HOST: postgres
+      RENDER_DB_PORT: 5432
+      RENDER_DB_NAME: render
+      RENDER_DB_USER: render_owner
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
+      RENDER_DB_SCHEMA: render
+      RENDER_OSC_DIR: /var/lib/map-service/osc
+      TILE_DIRTY_MIN_ZOOM: ${TILE_DIRTY_MIN_ZOOM:-14}
+      TILE_DIRTY_MAX_ZOOM: ${TILE_DIRTY_MAX_ZOOM:-18}
+    volumes:
+      - render-osc:/var/lib/map-service/osc
+    restart: unless-stopped
 
   osm2pgsql:
     image: iboates/osm2pgsql:latest
@@ -80,3 +112,4 @@ services:
 
 volumes:
   postgis-data:
+  render-osc:

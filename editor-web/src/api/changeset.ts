@@ -1,5 +1,5 @@
 import type { EditorChange } from '../features/editor/EditorStore';
-import type { GraphFeature, Tags } from '../types/osm';
+import type { GraphFeature, RelationMember, Tags } from '../types/osm';
 
 export interface ChangesetInfo {
   id: string;
@@ -8,7 +8,7 @@ export interface ChangesetInfo {
 }
 
 interface UploadEntityBase {
-  type: 'node' | 'way';
+  type: 'node' | 'way' | 'relation';
   id: string;
   version: number;
   tags: Tags;
@@ -25,7 +25,12 @@ interface WayUploadEntity extends UploadEntityBase {
   nodeRefs: string[];
 }
 
-type UploadEntity = NodeUploadEntity | WayUploadEntity;
+interface RelationUploadEntity extends UploadEntityBase {
+  type: 'relation';
+  members: Array<{ type: RelationMember['type']; ref: string; role: string; sequence: number }>;
+}
+
+type UploadEntity = NodeUploadEntity | WayUploadEntity | RelationUploadEntity;
 
 interface UploadChange {
   operation: 'create' | 'modify' | 'delete';
@@ -35,7 +40,7 @@ interface UploadChange {
 type JsonRecord = Record<string, unknown>;
 
 export class ChangesetApiError extends Error {
-  constructor(readonly phase: 'create' | 'upload' | 'close', message: string) {
+  constructor(readonly phase: 'create' | 'upload' | 'close' | 'rollback', message: string) {
     super(message);
     this.name = 'ChangesetApiError';
   }
@@ -80,7 +85,7 @@ async function request(phase: ChangesetApiError['phase'], path: string, method: 
 
 function entityPayload(feature: GraphFeature): UploadEntity {
   const base: UploadEntityBase = {
-    type: feature.properties.entityType === 'node' ? 'node' : 'way',
+    type: feature.properties.entityType,
     id: feature.properties.entityId,
     version: feature.properties.version,
     tags: feature.properties.tags
@@ -93,7 +98,13 @@ function entityPayload(feature: GraphFeature): UploadEntity {
     if (!feature.properties.nodeIds?.length) throw new Error(`Way ${feature.properties.entityId} không có node references.`);
     return { ...base, type: 'way', nodeRefs: feature.properties.nodeIds };
   }
-  throw new Error(`Relation ${feature.properties.entityId} chưa được hỗ trợ khi lưu.`);
+  if (!feature.properties.members) throw new Error(`Relation ${feature.properties.entityId} không có members.`);
+  return { ...base, type: 'relation', members: feature.properties.members.map(member => ({
+    type: member.type,
+    ref: member.ref,
+    role: member.role,
+    sequence: member.sequence
+  })) };
 }
 
 export function toUploadChanges(changes: EditorChange[]): UploadChange[] {
@@ -117,4 +128,10 @@ export function uploadChangeset(id: string, changes: UploadChange[]): Promise<Ch
 
 export function closeChangeset(id: string): Promise<ChangesetInfo> {
   return request('close', `/api/0.6/changeset/${encodeURIComponent(id)}/close`, 'PUT');
+}
+
+// The server accepts only one of the latest three committed changesets and
+// creates a new, auditable changeset instead of rewriting history.
+export function rollbackChangeset(id: string, comment = ''): Promise<ChangesetInfo> {
+  return request('rollback', `/api/0.6/changeset/${encodeURIComponent(id)}/rollback`, 'POST', { comment });
 }

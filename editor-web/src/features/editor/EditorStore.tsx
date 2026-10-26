@@ -65,7 +65,17 @@ export function entityKey(feature: Pick<GraphFeature, 'properties'>): EntityKey 
 }
 
 function cloneFeature(feature: GraphFeature): GraphFeature {
-  return { ...feature, properties: { ...feature.properties, tags: { ...feature.properties.tags } } };
+  return {
+    ...feature,
+    properties: {
+      ...feature.properties,
+      tags: { ...feature.properties.tags },
+      ...(feature.properties.nodeIds ? { nodeIds: [...feature.properties.nodeIds] } : {}),
+      ...(feature.properties.nodes ? { nodes: feature.properties.nodes.map(node => ({ ...node, coordinates: [...node.coordinates] as [number, number], ...(node.tags ? { tags: { ...node.tags } } : {}) })) } : {}),
+      ...(feature.properties.members ? { members: feature.properties.members.map(member => ({ ...member })) } : {}),
+      ...(feature.properties.parents ? { parents: feature.properties.parents.map(parent => ({ ...parent, tags: { ...parent.tags } })) } : {})
+    }
+  };
 }
 
 function cloneOverride(override: FeatureOverride): FeatureOverride {
@@ -190,7 +200,9 @@ function toSelectedEntity(feature: GraphFeature | null): SelectedEntity | null {
     type: feature.properties.entityType,
     version: feature.properties.version,
     tags: feature.properties.tags,
-    geometry: feature.geometry
+    geometry: feature.geometry,
+    ...(feature.properties.members ? { members: feature.properties.members.map(member => ({ ...member })) } : {}),
+    ...(feature.properties.parents ? { parents: feature.properties.parents.map(parent => ({ ...parent, tags: { ...parent.tags } })) } : {})
   };
 }
 

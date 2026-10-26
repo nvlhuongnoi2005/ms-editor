@@ -20,3 +20,9 @@ ENV EDITOR_API_ADDR=0.0.0.0:4173
 ENV EDITOR_STATIC_ROOT=/app/dist
 EXPOSE 4173
 ENTRYPOINT ["/app/editor-api"]
+
+FROM iboates/osm2pgsql:latest AS render-worker
+WORKDIR /app
+COPY --from=build /out/editor-api /app/editor-api
+ENV EDITOR_MODE=render-worker
+ENTRYPOINT ["/app/editor-api"]

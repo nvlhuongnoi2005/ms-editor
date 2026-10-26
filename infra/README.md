@@ -71,6 +71,35 @@ to its tables from the editor API. The Canonical importer stores ordered
 `node_refs` and relation `members`; relations initially have no bbox because
 computing nested relation envelopes is a later dependency-expansion job.
 
+## Publish worker
+
+After importing both Canonical and Render databases, start the API and the
+render-sync worker together:
+
+```powershell
+docker compose up -d editor-api render-sync-worker
+```
+
+The worker consumes committed Canonical changesets in revision order, writes a
+temporary `.osc`, then runs `osm2pgsql --append --slim --hstore` against the
+Render DB. It retries failed jobs with exponential backoff and only advances
+`render_revision` after the render and vector-tile invalidation manifest have
+been committed. The worker never blocks a Save request.
+
+For an existing Docker volume, apply the additive Canonical migration before
+starting the worker:
+
+```powershell
+Get-Content .\init\04-publish-pipeline.sql | docker compose exec -T postgres psql -U postgres -d postgres
+```
+
+To verify the queue and published revision:
+
+```powershell
+docker compose exec postgres psql -U canonical_owner -d canonical -c "SELECT name, canonical_revision, render_revision FROM editor.dataset;"
+docker compose exec postgres psql -U canonical_owner -d canonical -c "SELECT id, revision, attempt_count, rendered_at, published_at, last_error FROM editor.outbox_event ORDER BY id DESC LIMIT 10;"
+```
+
 The init scripts run only when the `postgis-data` Docker volume is first
 created. To discard all imported development data and initialize again:
 

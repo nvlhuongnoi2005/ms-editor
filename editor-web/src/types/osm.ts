@@ -26,6 +26,19 @@ export interface WayNode {
   tags?: Tags;
 }
 
+export interface RelationMember {
+  type: EntityType;
+  ref: string;
+  role: string;
+  sequence: number;
+}
+
+export interface RelationParent {
+  id: string;
+  version: number;
+  tags: Tags;
+}
+
 export interface GraphFeature {
   type: 'Feature';
   id?: string;
@@ -37,6 +50,8 @@ export interface GraphFeature {
     name?: string;
     nodeIds?: string[];
     nodes?: WayNode[];
+    members?: RelationMember[];
+    parents?: RelationParent[];
     coordinates?: Coordinate;
     editorColor?: string;
     editorWidth?: number;
@@ -56,4 +71,6 @@ export interface SelectedEntity {
   version: number;
   tags: Tags;
   geometry: GraphGeometry;
+  members?: RelationMember[];
+  parents?: RelationParent[];
 }

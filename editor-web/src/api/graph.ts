@@ -1,4 +1,4 @@
-import type { Coordinate, EntityType, GraphFeature, GraphGeometry, GraphResponse, Tags, WayNode } from '../types/osm';
+import type { Coordinate, EntityType, GraphFeature, GraphGeometry, GraphResponse, RelationMember, RelationParent, Tags, WayNode } from '../types/osm';
 
 export const DATASET_NAME = 'vietnam-260901';
 
@@ -80,11 +80,40 @@ function parseNodeIds(value: unknown): string[] | undefined {
   return value.map((nodeId, index) => readOsmIdentifier(nodeId, `node reference ${index}`));
 }
 
+function parseRelationMembers(value: unknown): RelationMember[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new Error('Graph response has invalid relation members.');
+  return value.map((member, index) => {
+    if (!isRecord(member)) throw new Error(`Graph response has an invalid relation member ${index}.`);
+    return {
+      type: parseEntityType(member.type),
+      ref: readOsmIdentifier(member.ref, `relation member ${index} ref`),
+      role: readString(member.role, `relation member ${index} role`),
+      sequence: readNumber(member.sequence, `relation member ${index} sequence`)
+    };
+  });
+}
+
+function parseRelationParents(value: unknown): RelationParent[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new Error('Graph response has invalid relation parents.');
+  return value.map((parent, index) => {
+    if (!isRecord(parent)) throw new Error(`Graph response has an invalid relation parent ${index}.`);
+    return {
+      id: readOsmIdentifier(parent.id, `relation parent ${index} id`),
+      version: readNumber(parent.version, `relation parent ${index} version`),
+      tags: parseTags(parent.tags)
+    };
+  });
+}
+
 function parseFeature(value: unknown): GraphFeature {
   if (!isRecord(value) || !isRecord(value.properties)) throw new Error('Graph response has an invalid feature.');
   const properties = value.properties;
   const nodeIds = parseNodeIds(properties.nodeIds);
   const nodes = parseWayNodes(properties.nodes);
+  const members = parseRelationMembers(properties.members);
+  const parents = parseRelationParents(properties.parents);
   const coordinates = properties.coordinates === undefined ? undefined : parseCoordinate(properties.coordinates, 'feature coordinates');
   return {
     type: 'Feature',
@@ -97,6 +126,8 @@ function parseFeature(value: unknown): GraphFeature {
       ...(typeof properties.name === 'string' ? { name: properties.name } : {}),
       ...(nodeIds === undefined ? {} : { nodeIds }),
       ...(nodes === undefined ? {} : { nodes }),
+      ...(members === undefined ? {} : { members }),
+      ...(parents === undefined ? {} : { parents }),
       ...(coordinates === undefined ? {} : { coordinates }),
       ...(typeof properties.editorColor === 'string' ? { editorColor: properties.editorColor } : {}),
       ...(typeof properties.editorWidth === 'number' ? { editorWidth: properties.editorWidth } : {}),
