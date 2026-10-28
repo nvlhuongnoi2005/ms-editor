@@ -54,6 +54,12 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case r.URL.Path == "/api/graph" && r.Method == http.MethodGet:
 		err = a.serveGraph(r.Context(), w, r)
+	case r.URL.Path == "/api/entities/snapshots" && r.Method == http.MethodPost:
+		err = a.serveEntitySnapshots(r.Context(), w, r)
+	case r.URL.Path == "/api/changesets/recent" && r.Method == http.MethodGet:
+		err = a.serveRecentChangesets(r.Context(), w, r)
+	case r.URL.Path == "/api/topology/way-parents" && r.Method == http.MethodGet:
+		err = a.serveWayParents(r.Context(), w, r)
 	case r.URL.Path == "/api/publish-status" && r.Method == http.MethodGet:
 		err = a.servePublishStatus(r.Context(), w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/mvt/") && r.Method == http.MethodGet:
@@ -72,6 +78,11 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var apiErr *apiError
+	var conflictErr *versionConflictError
+	if errors.As(err, &conflictErr) {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": conflictErr.Error(), "code": "version_conflict", "conflicts": conflictErr.Conflicts})
+		return
+	}
 	if errors.As(err, &apiErr) {
 		writeJSON(w, apiErr.status, map[string]string{"error": apiErr.message})
 		return
@@ -81,6 +92,10 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) serveGraph(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	part := r.URL.Query().Get("part")
+	if part != "" && part != "all" && part != "geometry" && part != "relations" {
+		return fail(400, "Graph part must be all, geometry or relations.")
+	}
 	dataset := r.URL.Query().Get("dataset")
 	if dataset == "" {
 		dataset = "vietnam-260901"
@@ -99,19 +114,25 @@ func (a *app) serveGraph(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
-	ways, err := graphWays(ctx, a.db, datasetID, bbox, limit)
-	if err != nil {
-		return err
+	features := []any{}
+	if part != "relations" {
+		ways, err := graphWays(ctx, a.db, datasetID, bbox, limit)
+		if err != nil {
+			return err
+		}
+		points, err := graphPoints(ctx, a.db, datasetID, bbox, min(limit, 300))
+		if err != nil {
+			return err
+		}
+		features = append(ways, points...)
 	}
-	points, err := graphPoints(ctx, a.db, datasetID, bbox, min(limit, 300))
-	if err != nil {
-		return err
+	if part != "geometry" {
+		relations, err := graphRelations(ctx, a.db, datasetID, bbox, min(limit, 300))
+		if err != nil {
+			return err
+		}
+		features = append(features, relations...)
 	}
-	relations, err := graphRelations(ctx, a.db, datasetID, bbox, min(limit, 300))
-	if err != nil {
-		return err
-	}
-	features := append(append(ways, points...), relations...)
 	writeJSON(w, 200, map[string]any{"type": "FeatureCollection", "dataset": dataset, "canonicalRevision": revision, "features": features})
 	return nil
 }

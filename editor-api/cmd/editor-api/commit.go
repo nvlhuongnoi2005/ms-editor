@@ -45,7 +45,7 @@ func commitChanges(ctx context.Context, tx pgx.Tx, datasetID string, changesetID
 			}
 		}
 		if found && (existing.Version != deref(change.Version) || (!existing.Visible && !options.allowInvisibleExisting)) {
-			return 0, nil, fail(409, "Entity version conflict. Reload the entity before saving.")
+			return 0, nil, &versionConflictError{[]versionConflict{{entityKeyString(change.Type, change.ID), deref(change.Version), existing.Version, !existing.Visible}}}
 		}
 		effective := change
 		if change.Operation == "delete" {

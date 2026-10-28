@@ -183,30 +183,43 @@ func graphPoints(ctx context.Context, db *pgxpool.Pool, datasetID string, bbox [
 // graphRelations returns relations with a map anchor derived from their visible
 // direct members. Relations do not have an intrinsic geometry, so the anchor is
 // only a selectable handle; members remain the authoritative topology.
-func graphRelations(ctx context.Context, db *pgxpool.Pool, datasetID string, bbox [4]float64, limit int) ([]any, error) {
+type graphQuerier interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}
+
+func graphRelations(ctx context.Context, db graphQuerier, datasetID string, bbox [4]float64, limit int) ([]any, error) {
 	rows, err := db.Query(ctx, `WITH viewport AS (
 		SELECT ST_MakeEnvelope($2,$3,$4,$5,4326) AS geom
-	), candidates AS (
-		SELECT relation.entity_id, relation.version, relation.tags, relation.members, relation.bbox,
-			member_data.anchor, member_data.intersects_viewport
-		FROM editor.entity_current relation
-		CROSS JOIN viewport
-		LEFT JOIN LATERAL (
-			SELECT ST_Centroid(ST_Collect(member_entity.bbox)) AS anchor,
-				BOOL_OR(member_entity.bbox && viewport.geom) AS intersects_viewport
-			FROM jsonb_to_recordset(relation.members) AS member(type text, ref bigint, role text, sequence integer)
-			JOIN editor.entity_current member_entity
-				ON member_entity.dataset_id=relation.dataset_id
-				AND member_entity.entity_type=member.type::editor.entity_type
-				AND member_entity.entity_id=member.ref
-				AND member_entity.visible
-		) member_data ON TRUE
-		WHERE relation.dataset_id=$1 AND relation.entity_type='relation'::editor.entity_type AND relation.visible
-			AND (relation.bbox && viewport.geom OR member_data.intersects_viewport)
+	), viewport_entities AS MATERIALIZED (
+		SELECT entity_type::text AS type, entity_id
+		FROM editor.entity_current CROSS JOIN viewport
+		WHERE dataset_id=$1 AND visible AND bbox && viewport.geom
+	), candidate_ids AS MATERIALIZED (
+		SELECT entity_id FROM viewport_entities WHERE type='relation'
+		UNION
+		SELECT relation.entity_id
+		FROM viewport_entities entity
+		-- Keep parameterized reverse-member probes on the partial GIN index.
+		JOIN LATERAL (
+			SELECT entity_id FROM editor.entity_current
+			WHERE dataset_id=$1 AND entity_type='relation'::editor.entity_type AND visible
+				AND members @> jsonb_build_array(jsonb_build_object('type',entity.type,'ref',entity.entity_id))
+			OFFSET 0
+		) relation ON TRUE
+	), candidates AS MATERIALIZED (
+		SELECT relation.entity_id, relation.version, relation.tags, relation.members, relation.bbox
+		FROM (SELECT entity_id FROM candidate_ids ORDER BY entity_id LIMIT $6) candidate
+		-- Fetch only the bounded candidate IDs, not a merge scan of all relations.
+		JOIN LATERAL (
+			SELECT entity_id,version,tags,members,bbox FROM editor.entity_current
+			WHERE dataset_id=$1 AND entity_type='relation'::editor.entity_type AND visible
+				AND entity_id=candidate.entity_id
+			OFFSET 0
+		) relation ON TRUE
 	)
 	SELECT candidate.entity_id, candidate.version, candidate.tags, candidate.members,
-		ST_X(COALESCE(candidate.anchor, ST_Centroid(candidate.bbox))),
-		ST_Y(COALESCE(candidate.anchor, ST_Centroid(candidate.bbox))),
+		ST_X(COALESCE(member_data.anchor, ST_Centroid(candidate.bbox))),
+		ST_Y(COALESCE(member_data.anchor, ST_Centroid(candidate.bbox))),
 		COALESCE((
 			SELECT jsonb_agg(jsonb_build_object(
 				'id', parent.entity_id::text, 'version', parent.version, 'tags', parent.tags
@@ -216,8 +229,15 @@ func graphRelations(ctx context.Context, db *pgxpool.Pool, datasetID string, bbo
 				AND parent.members @> jsonb_build_array(jsonb_build_object('type','relation','ref',candidate.entity_id))
 		), '[]'::jsonb)
 	FROM candidates candidate
+	LEFT JOIN LATERAL (
+		SELECT ST_Centroid(ST_Collect(member_entity.bbox)) AS anchor
+		FROM jsonb_to_recordset(candidate.members) AS member(type text, ref bigint)
+		JOIN editor.entity_current member_entity
+			ON member_entity.dataset_id=$1 AND member_entity.entity_type=member.type::editor.entity_type
+			AND member_entity.entity_id=member.ref AND member_entity.visible
+	) member_data ON TRUE
 	ORDER BY candidate.entity_id
-	LIMIT $6`, datasetID, bbox[0], bbox[1], bbox[2], bbox[3], limit)
+	`, datasetID, bbox[0], bbox[1], bbox[2], bbox[3], limit)
 	if err != nil {
 		return nil, err
 	}

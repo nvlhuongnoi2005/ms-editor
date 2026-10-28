@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef } from 'react';
+import { createElement, useEffect, useMemo, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { Map, MapLayerMouseEvent, MapMouseEvent, StyleSpecification } from 'maplibre-gl';
@@ -8,7 +8,8 @@ import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildTopologyGraph, snapCoordinate, type DrawMode, type SnappedVertex } from '../editor/drawing';
 import type { Coordinate, EntityType, GraphFeature, SelectedEntity } from '../../types/osm';
-import { resolveFeatureStyle, resolvePointIcon, type PointIconName } from './styleRules';
+import type { PointIconName } from './styleRules';
+import { GraphTileHandoff, renderCollection, renderFeature } from './graphRendering';
 
 export interface MapViewport {
   bbox: [number, number, number, number];
@@ -21,6 +22,9 @@ interface MapCanvasProps {
   drawMode: DrawMode;
   drawVertices: SnappedVertex[];
   selected: SelectedEntity | null;
+  selectedVertexId: string | null;
+  changedKeys: ReadonlySet<string>;
+  onSelectVertex: (nodeId: string) => void;
   onBoundsChange: (viewport: MapViewport) => void;
   onSelect: (feature: GraphFeature) => void;
   onSelectEntity: (type: EntityType, id: string) => void;
@@ -86,7 +90,7 @@ function selectedFeatureCollection(selected: SelectedEntity | null, features: Gr
   if (!selected) return emptyCollection();
   const feature = features.find(item => item.properties.entityType === selected.type && item.properties.entityId === selected.id);
   if (!feature) return emptyCollection();
-  const styled = styledFeature(feature);
+  const styled = renderFeature(feature);
   return featureCollection([{
     type: 'Feature',
     properties: styled.properties,
@@ -111,17 +115,6 @@ function pinpointCollection(coordinate: Coordinate | null): FeatureCollection {
   return coordinate
     ? featureCollection([{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: coordinate } }])
     : emptyCollection();
-}
-
-function styledFeature(feature: GraphFeature): GraphFeature {
-  const style = resolveFeatureStyle(feature);
-  const pointIcon = feature.properties.entityType === 'node' && feature.geometry.type === 'Point'
-    ? resolvePointIcon(feature.properties.tags)
-    : undefined;
-  return {
-    ...feature,
-    properties: { ...feature.properties, editorColor: style.color, editorWidth: style.width, ...(pointIcon ? { pointIcon } : {}) }
-  };
 }
 
 const pointIconComponents = {
@@ -202,41 +195,44 @@ function fallbackPointPin(): ImageData {
   return context.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-function loadPointPinImages(map: Map): Promise<void> {
+async function loadPointPinImages(map: Map, isDisposed: () => boolean): Promise<void> {
   const pinVariants: Array<{ name: string; icon: LucideIcon; variant: 'normal' | 'selection' }> = Object.entries(pointIconComponents).flatMap(([name, icon]) => [
     { name, icon, variant: 'normal' as const },
     { name, icon, variant: 'selection' as const }
   ]);
-  return Promise.all(pinVariants.map(({ name, icon, variant }) => new Promise<void>((resolve, reject) => {
+  await Promise.all(pinVariants.map(async ({ name, icon, variant }) => {
     const imageName = `editor-point-${variant === 'normal' ? 'pin' : 'halo'}-${name}`;
     if (map.hasImage(imageName)) {
-      resolve();
       return;
     }
-    void rasterizePointPin(pointPinDataURI(icon, variant)).catch(() => fallbackPointPin()).then(image => {
-      if (!map.hasImage(imageName)) map.addImage(imageName, image, { pixelRatio: 2 });
-      resolve();
-    }).catch(error => reject(error));
-  }))).then(() => undefined);
+    const image = await rasterizePointPin(pointPinDataURI(icon, variant)).catch(() => fallbackPointPin());
+    if (!isDisposed() && !map.hasImage(imageName)) map.addImage(imageName, image, { pixelRatio: 2 });
+  }));
 }
 
-export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected, onBoundsChange, onSelect, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
+export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const featuresRef = useRef(features);
   const drawModeRef = useRef(drawMode);
   const drawVerticesRef = useRef(drawVertices);
   const pinpointRef = useRef(pinpoint);
-  const callbacksRef = useRef({ onSelect, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
-  const topologyRef = useRef(buildTopologyGraph(features));
+  const selectedRef = useRef(selected);
+  const changedKeysRef = useRef(changedKeys);
+  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
+  const topology = useMemo(() => buildTopologyGraph(features), [features]);
+  const topologyRef = useRef(topology);
+  topologyRef.current = topology;
   const updateDraftRef = useRef<(pointer?: SnappedVertex) => void>(() => undefined);
+  const updateGraphRef = useRef<() => void>(() => undefined);
   featuresRef.current = features;
   drawModeRef.current = drawMode;
   drawVerticesRef.current = drawVertices;
   pinpointRef.current = pinpoint;
-  callbacksRef.current = { onSelect, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
+  selectedRef.current = selected;
+  changedKeysRef.current = changedKeys;
+  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
 
-  useEffect(() => { topologyRef.current = buildTopologyGraph(features); }, [features]);
   useEffect(() => { updateDraftRef.current(); }, [drawMode, drawVertices]);
   useEffect(() => {
     mapRef.current?.getCanvas().style.setProperty('cursor', drawMode === 'select' ? '' : 'crosshair');
@@ -246,6 +242,25 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
     if (!container.current) return;
     const map = new maplibregl.Map({ container: container.current, style: tileStyle, center: [104.50728, 21.59988], zoom: 16 });
     mapRef.current = map;
+    let disposed = false;
+    const handoff = new GraphTileHandoff(map);
+    const finishGraphHandoff = () => {
+      if (handoff.waiting && map.getSource('canonical-graph')) handoff.rendered(map.isSourceLoaded('canonical-graph'));
+    };
+    const updateGraph = () => {
+      const source = geoJsonSource(map, 'canonical-graph');
+      if (!source) return;
+      const nextFeatures = featuresRef.current;
+      const revision = handoff.begin(changedKeysRef.current);
+      void source.setData(renderCollection(nextFeatures)).then(() => {
+        if (disposed) return;
+        handoff.settled(revision, nextFeatures);
+        map.triggerRepaint();
+      }).catch(error => { if (!disposed) console.error('Không thể cập nhật lớp graph:', error); });
+    };
+    updateGraphRef.current = updateGraph;
+    const resizeObserver = new ResizeObserver(() => map.resize());
+    resizeObserver.observe(container.current);
     let pointer = map.getCenter();
     let animationFrame: number | undefined;
     let selectionPulseTimer: number | undefined;
@@ -297,8 +312,14 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.getCanvas().style.cursor = selectableFeatureAt(point) ? 'pointer' : '';
     };
     const onMapClick = (event: MapMouseEvent) => {
+      if (performance.now() < suppressClickUntil) return;
       const mode = drawModeRef.current;
       if (mode === 'select') {
+        const vertex = map.getLayer('editor-vertex-handles') ? map.queryRenderedFeatures(event.point, { layers: ['editor-vertex-handles'] })[0] : undefined;
+        if (vertex?.properties?.nodeId) {
+          callbacksRef.current.onSelectVertex(String(vertex.properties.nodeId));
+          return;
+        }
         const hit = selectableFeatureAt(event.point);
         const entityId = hit?.properties?.entityId ?? hit?.properties?.entity_id;
         const entityType = hit?.properties?.entityType ?? hit?.properties?.entity_type;
@@ -315,16 +336,21 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       callbacksRef.current.onDrawVertex(snap(event.lngLat));
     };
     let draggingNodeId: string | null = null;
+    let dragStart: maplibregl.Point | null = null;
+    let suppressClickUntil = 0;
     const setDragPreview = (coordinate?: Coordinate) => {
       geoJsonSource(map, 'editor-node-drag')?.setData(coordinate
         ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: coordinate } }] }
         : emptyCollection());
     };
     const onVertexDown = (event: MapLayerMouseEvent) => {
+      if (drawModeRef.current !== 'select' || event.originalEvent.button !== 0) return;
       const nodeId = event.features?.[0]?.properties?.nodeId;
       if (typeof nodeId !== 'string') return;
       event.preventDefault();
       draggingNodeId = nodeId;
+      dragStart = event.point;
+      callbacksRef.current.onSelectVertex(nodeId);
       map.dragPan.disable();
       map.getCanvas().style.cursor = 'grabbing';
       setDragPreview([event.lngLat.lng, event.lngLat.lat]);
@@ -346,7 +372,11 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.dragPan.enable();
       map.getCanvas().style.cursor = drawModeRef.current === 'select' ? '' : 'crosshair';
       setDragPreview();
-      callbacksRef.current.onMoveNode(nodeId, [event.lngLat.lng, event.lngLat.lat]);
+      if (dragStart && dragStart.dist(event.point) > 3) {
+        suppressClickUntil = performance.now() + 150;
+        callbacksRef.current.onMoveNode(nodeId, [event.lngLat.lng, event.lngLat.lat]);
+      }
+      dragStart = null;
     };
     const onMouseOut = () => {
       if (!draggingNodeId && drawModeRef.current === 'select') map.getCanvas().style.cursor = '';
@@ -362,32 +392,36 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       callbacksRef.current.onCancelDrawing();
     };
     const loadPointIconLayers = () => {
-      if (pointIconLoadStarted || map.getZoom() < 18) return;
+      if (disposed || pointIconLoadStarted || map.getZoom() < 18 || !map.getSource('canonical-graph')) return;
       pointIconLoadStarted = true;
-      void loadPointPinImages(map).then(() => {
-        if (!map.isStyleLoaded()) return;
+      void loadPointPinImages(map, () => disposed).then(() => {
+        if (disposed || !map.getSource('canonical-graph')) return;
         map.addLayer({ id: 'mvt-point', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'points', minzoom: 18, layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'editor_icon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, 'graph-fill');
         map.addLayer({ id: 'graph-point', type: 'symbol', source: 'canonical-graph', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, 'graph-relation-point');
         map.addLayer({ id: 'selection-halo-point', type: 'symbol', source: 'editor-selection', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-halo-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true }, paint: { 'icon-opacity': 0.72 } });
         map.addLayer({ id: 'selection-origin-point', type: 'symbol', source: 'editor-selection', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
-      }).catch(error => console.error('Không thể tạo biểu tượng điểm:', error));
+        // Keep lightweight POIs visible while icons are loading, even above Z18.
+        map.setLayerZoomRange('graph-point-preview', 16, 18);
+        handoff.sync();
+      }).catch(error => {
+        pointIconLoadStarted = false;
+        if (!disposed) console.error('Không thể tạo biểu tượng điểm:', error);
+      });
     };
-    map.on('load', () => {
+    map.once('style.load', () => {
       // Fetch graph data and render geometry immediately. Point icons are an
       // optional progressive enhancement, loaded separately below.
       updateBounds();
       schedulePointerStatus();
       map.addLayer({ id: 'mvt-way-line', type: 'line', source: 'canonicalMvt', 'source-layer': 'ways', paint: { 'line-color': ['get', 'editor_color'], 'line-width': ['get', 'editor_width'], 'line-opacity': 0.9 } });
       map.addLayer({ id: 'mvt-label', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'ways', filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
-      // The graph request can resolve while point icons are still being rasterized.
-      // Seed the source with the latest ref so that first response is not lost when
-      // the regular [features] effect ran before this source existed.
-      map.addSource('canonical-graph', { type: 'geojson', data: { type: 'FeatureCollection', features: featuresRef.current.map(styledFeature) } });
-      map.addSource('editor-selection', { type: 'geojson', data: emptyCollection() });
+      // Seed with current data even if React effects ran before map load.
+      map.addSource('canonical-graph', { type: 'geojson', data: emptyCollection() });
+      map.addSource('editor-selection', { type: 'geojson', data: selectedFeatureCollection(selectedRef.current, featuresRef.current) });
       map.addLayer({ id: 'graph-fill', type: 'fill', source: 'canonical-graph', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.32 } });
       map.addLayer({ id: 'graph-line', type: 'line', source: 'canonical-graph', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['coalesce', ['get', 'editorWidth'], 3] } });
       // Keep saved/local POIs visible before their richer icons are enabled at Z18.
-      map.addLayer({ id: 'graph-point-preview', type: 'circle', source: 'canonical-graph', minzoom: 16, maxzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], paint: { 'circle-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 3.5, 18, 4.5], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } });
+      map.addLayer({ id: 'graph-point-preview', type: 'circle', source: 'canonical-graph', minzoom: 16, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], paint: { 'circle-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 3.5, 18, 4.5], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } });
       map.addLayer({ id: 'graph-relation-point', type: 'circle', source: 'canonical-graph', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
       map.addLayer({ id: 'selection-fill', type: 'fill', source: 'editor-selection', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.18 } });
       map.addLayer({ id: 'selection-halo-line', type: 'line', source: 'editor-selection', filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'Polygon']], paint: { 'line-color': '#dc2626', 'line-width': 10, 'line-opacity': 0.36, 'line-blur': 2 } });
@@ -395,7 +429,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.addLayer({ id: 'selection-halo-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#dc2626', 'circle-radius': 14, 'circle-opacity': 0.2, 'circle-stroke-color': '#dc2626', 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.8, 'circle-blur': 0.25 } });
       map.addLayer({ id: 'selection-origin-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 8, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'graph-label', type: 'symbol', source: 'canonical-graph', filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
-      map.addSource('editor-vertex-handles', { type: 'geojson', data: emptyCollection() });
+      map.addSource('editor-vertex-handles', { type: 'geojson', data: selectedVertexCollection(selectedRef.current, featuresRef.current) });
       map.addLayer({ id: 'editor-vertex-handles', type: 'circle', source: 'editor-vertex-handles', paint: { 'circle-color': '#ffffff', 'circle-radius': 5.5, 'circle-stroke-color': '#a51f38', 'circle-stroke-width': 2.5 } });
       map.addSource('editor-node-drag', { type: 'geojson', data: emptyCollection() });
       map.addLayer({ id: 'editor-node-drag', type: 'circle', source: 'editor-node-drag', paint: { 'circle-color': '#a51f38', 'circle-radius': 6, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
@@ -407,17 +441,21 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.addLayer({ id: 'draw-preview-line', type: 'line', source: 'editor-draw-preview', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#a51f38', 'line-width': 3, 'line-dasharray': [2, 1] } });
       map.addLayer({ id: 'draw-preview-vertices', type: 'circle', source: 'editor-draw-preview', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': ['case', ['get', 'first'], 6, 4.5], 'circle-color': ['case', ['get', 'snapped'], '#ffd166', '#a51f38'], 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' } });
       updateDraft();
+      updateGraph();
       loadPointIconLayers();
       const pulseSelection = () => {
         const phase = (Math.sin(Date.now() / 180) + 1) / 2;
-        map.setPaintProperty('selection-halo-line', 'line-width', 9 + phase * 6);
-        map.setPaintProperty('selection-halo-line', 'line-opacity', 0.22 + phase * 0.38);
-        if (map.getLayer('selection-halo-point')) map.setPaintProperty('selection-halo-point', 'icon-opacity', 0.28 + phase * 0.68);
+        if (selectedRef.current) {
+          map.setPaintProperty('selection-halo-line', 'line-width', 9 + phase * 6);
+          map.setPaintProperty('selection-halo-line', 'line-opacity', 0.22 + phase * 0.38);
+          if (map.getLayer('selection-halo-point')) map.setPaintProperty('selection-halo-point', 'icon-opacity', 0.28 + phase * 0.68);
+        }
         selectionPulseTimer = window.setTimeout(pulseSelection, 60);
       };
       pulseSelection();
     });
     map.on('moveend', updateBounds);
+    map.on('render', finishGraphHandoff);
     map.on('mousemove', onMouseMove);
     map.on('mouseout', onMouseOut);
     map.on('mousedown', 'editor-vertex-handles', onVertexDown);
@@ -428,7 +466,11 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
     map.on('zoom', schedulePointerStatus);
     map.on('zoomend', loadPointIconLayers);
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    // Do not wait for the satellite raster or map load event to fetch graph data.
+    updateBounds();
     return () => {
+      disposed = true;
+      resizeObserver.disconnect();
       if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
       if (selectionPulseTimer !== undefined) window.clearTimeout(selectionPulseTimer);
       map.off('mousemove', onMouseMove);
@@ -440,22 +482,29 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.off('contextmenu', onContextMenu);
       map.off('zoom', schedulePointerStatus);
       map.off('zoomend', loadPointIconLayers);
+      map.off('render', finishGraphHandoff);
+      updateGraphRef.current = () => undefined;
       map.remove();
+      if (mapRef.current === map) mapRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const source = geoJsonSource(map, 'canonical-graph');
-    if (source) source.setData({ type: 'FeatureCollection', features: features.map(styledFeature) });
-  }, [features]);
+    updateGraphRef.current();
+  }, [features, changedKeys]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     geoJsonSource(map, 'editor-vertex-handles')?.setData(selectedVertexCollection(selected, features));
   }, [features, selected]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map?.getLayer('editor-vertex-handles')) {
+      map.setPaintProperty('editor-vertex-handles', 'circle-color', ['case', ['==', ['get', 'nodeId'], selectedVertexId ?? ''], '#ffd166', '#ffffff']);
+    }
+  }, [features, selectedVertexId]);
 
   useEffect(() => {
     const map = mapRef.current;

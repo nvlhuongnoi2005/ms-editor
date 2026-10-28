@@ -379,7 +379,12 @@ func staticRoot() string {
 	return absolute
 }
 func ensureSpatialIndexes(ctx context.Context, db *pgxpool.Pool) error {
-	for _, statement := range []string{"CREATE INDEX IF NOT EXISTS entity_current_bbox_idx ON editor.entity_current USING gist (bbox)", "CREATE INDEX IF NOT EXISTS entity_current_visible_way_bbox_idx ON editor.entity_current USING gist (bbox) WHERE visible AND entity_type = 'way'::editor.entity_type", "CREATE INDEX IF NOT EXISTS entity_current_visible_node_bbox_idx ON editor.entity_current USING gist (bbox) WHERE visible AND entity_type = 'node'::editor.entity_type"} {
+	for _, statement := range []string{
+		"CREATE INDEX IF NOT EXISTS entity_current_bbox_idx ON editor.entity_current USING gist (bbox)",
+		"CREATE INDEX IF NOT EXISTS entity_current_visible_way_bbox_idx ON editor.entity_current USING gist (bbox) WHERE visible AND entity_type = 'way'::editor.entity_type",
+		"CREATE INDEX IF NOT EXISTS entity_current_visible_node_bbox_idx ON editor.entity_current USING gist (bbox) WHERE visible AND entity_type = 'node'::editor.entity_type",
+		"CREATE INDEX IF NOT EXISTS entity_current_relation_members_idx ON editor.entity_current USING gin (members jsonb_path_ops) WHERE visible AND entity_type = 'relation'::editor.entity_type",
+	} {
 		if _, err := db.Exec(ctx, statement); err != nil {
 			return err
 		}

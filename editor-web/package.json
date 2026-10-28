@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:editor": "node --test scripts/*.test.mjs",
+    "test:topology": "node --test scripts/topology.test.mjs",
     "start": "npm run build:react && cd ../editor-api && go run ./cmd/editor-api",
     "start:go": "cd ../editor-api && go run ./cmd/editor-api",
     "dev": "vite --open /",

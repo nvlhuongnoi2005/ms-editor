@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
 import type { GraphFeature, SelectedEntity, Tags } from '../../types/osm';
+import { sameEntityContent, type ResolutionPlan } from './conflictResolution';
 
 // Entity keys are created exclusively by entityKey() and use "type/id" as their wire format.
 export type EntityKey = string;
@@ -39,6 +40,8 @@ interface EditorState {
 
 type EditorAction =
   | { type: 'hydrate'; features: GraphFeature[] }
+  | { type: 'hydrate-support'; features: GraphFeature[] }
+  | { type: 'resolve-conflicts'; plan: ResolutionPlan }
   | { type: 'select'; key: EntityKey | null }
   | { type: 'loading'; value: boolean }
   | { type: 'error'; value: string | null }
@@ -48,7 +51,7 @@ type EditorAction =
   | { type: 'redo' }
   | { type: 'discard' };
 
-const initialState: EditorState = {
+export const initialState: EditorState = {
   baseFeatures: {},
   viewportKeys: [],
   overrides: {},
@@ -67,6 +70,7 @@ export function entityKey(feature: Pick<GraphFeature, 'properties'>): EntityKey 
 function cloneFeature(feature: GraphFeature): GraphFeature {
   return {
     ...feature,
+    geometry: structuredClone(feature.geometry),
     properties: {
       ...feature.properties,
       tags: { ...feature.properties.tags },
@@ -92,10 +96,20 @@ function readOverride(state: EditorState, key: EntityKey): FeatureOverride {
   return Object.prototype.hasOwnProperty.call(state.overrides, key) ? state.overrides[key] : undefined;
 }
 
-function readFeature(state: EditorState, key: EntityKey): GraphFeature | null {
+function readFeature(state: EditorState, key: EntityKey, projectNodes = true): GraphFeature | null {
   const override = readOverride(state, key);
-  if (override !== undefined) return override;
-  return state.baseFeatures[key] ?? null;
+  const feature = override !== undefined ? override : state.baseFeatures[key] ?? null;
+  if (!projectNodes || !feature || feature.properties.entityType !== 'way' || !feature.properties.nodes) return feature;
+  let changed = false;
+  const nodes = feature.properties.nodes.map(node => {
+    const moved = state.overrides[`node/${node.id}`];
+    if (!moved || moved.geometry.type !== 'Point') return node;
+    changed = true;
+    return { ...node, coordinates: moved.geometry.coordinates, version: moved.properties.version, tags: moved.properties.tags };
+  });
+  if (!changed) return feature;
+  const coordinates = nodes.map(node => node.coordinates);
+  return { ...feature, properties: { ...feature.properties, nodes }, geometry: feature.geometry.type === 'Polygon' ? { type: 'Polygon', coordinates: [coordinates] } : { type: 'LineString', coordinates } };
 }
 
 function normalizedOverride(state: EditorState, key: EntityKey, feature: GraphFeature | null): FeatureOverride {
@@ -105,38 +119,83 @@ function normalizedOverride(state: EditorState, key: EntityKey, feature: GraphFe
   return feature;
 }
 
-function withOverride(state: EditorState, key: EntityKey, override: FeatureOverride): Record<EntityKey, GraphFeature | null> {
-  const next = { ...state.overrides };
-  if (override === undefined) delete next[key];
-  else if (override === null) next[key] = null;
-  else next[key] = cloneFeature(override);
-  return next;
+function writeOverride(overrides: EditorState['overrides'], key: EntityKey, override: FeatureOverride): void {
+  if (override === undefined) delete overrides[key];
+  else overrides[key] = override ? cloneFeature(override) : null;
+}
+
+function withOverride(state: EditorState, key: EntityKey, override: FeatureOverride): EditorState['overrides'] {
+  const overrides = { ...state.overrides };
+  writeOverride(overrides, key, override);
+  return overrides;
 }
 
 function applyHistoryEntry(state: EditorState, entry: EditorTransaction, direction: 'undo' | 'redo'): EditorState {
-  let next = state;
-  for (const change of entry.changes) next = { ...next, overrides: withOverride(next, change.key, direction === 'undo' ? change.before : change.after) };
-  return next;
+  const overrides = { ...state.overrides };
+  const changes = direction === 'undo' ? [...entry.changes].reverse() : entry.changes;
+  for (const change of changes) writeOverride(overrides, change.key, direction === 'undo' ? change.before : change.after);
+  return { ...state, overrides };
 }
 
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
+    case 'resolve-conflicts': {
+      if (action.plan.blockers.length) return state;
+      const baseFeatures = { ...state.baseFeatures };
+      for (const key of action.plan.removedKeys) delete baseFeatures[key];
+      for (const feature of action.plan.baselines) baseFeatures[entityKey(feature)] = cloneFeature(feature);
+      const overrides: EditorState['overrides'] = {};
+      const changes: EditorChange[] = [];
+      const viewportKeys = new Set(state.viewportKeys.filter(key => !action.plan.removedKeys.includes(key)));
+      for (const item of action.plan.entities) {
+        if (item.base) baseFeatures[item.key] = cloneFeature(item.base);
+        else delete baseFeatures[item.key];
+        if (item.base || item.local) viewportKeys.add(item.key);
+        else viewportKeys.delete(item.key);
+        if (sameEntityContent(item.base, item.local)) continue;
+        writeOverride(overrides, item.key, item.local);
+        changes.push({ id: state.nextChangeId, key: item.key, label: 'Áp lại thay đổi trên bản server mới', before: undefined, after: cloneOverride(item.local) });
+      }
+      // Old undo entries use old versions. Start one new atomic transaction on
+      // the refreshed baseline; undo/redo can never restore stale versions.
+      return { ...state, baseFeatures, overrides, viewportKeys: [...viewportKeys],
+        undoStack: changes.length ? [{ id: state.nextChangeId, label: 'Giải quyết xung đột', changes }] : [],
+        redoStack: [], nextChangeId: state.nextChangeId + 1 };
+    }
+    case 'hydrate-support': {
+      const protectedKeys = new Set([...Object.keys(state.overrides), ...[...state.undoStack, ...state.redoStack].flatMap(entry => entry.changes.map(change => change.key))]);
+      const baseFeatures = { ...state.baseFeatures };
+      const viewportKeys = new Set(state.viewportKeys);
+      for (const feature of action.features) {
+        const key = entityKey(feature);
+        if (!protectedKeys.has(key)) baseFeatures[key] = cloneFeature(feature);
+        viewportKeys.add(key);
+      }
+      return { ...state, baseFeatures, viewportKeys: [...viewportKeys] };
+    }
     case 'hydrate': {
-      const baseFeatures: Record<EntityKey, GraphFeature> = {};
+      // Preserve the original baseline for dirty entities and undo/redo history
+      // across viewport reloads. Otherwise a modify can become a create on Save.
+      const retained = new Set([
+        ...Object.keys(state.overrides),
+        ...[...state.undoStack, ...state.redoStack].flatMap(entry => entry.changes.map(change => change.key))
+      ]);
+      const baseFeatures: Record<EntityKey, GraphFeature> = Object.fromEntries(
+        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key))
+      );
       const viewportKeys: EntityKey[] = [];
       for (const feature of action.features) {
         const key = entityKey(feature);
-        baseFeatures[key] = cloneFeature(feature);
+        if (!retained.has(key)) baseFeatures[key] = cloneFeature(feature);
         viewportKeys.push(key);
         if (feature.properties.entityType !== 'way') continue;
         for (const node of feature.properties.nodes ?? []) {
           const nodeKey: EntityKey = `node/${node.id}`;
           if (baseFeatures[nodeKey]) continue;
-          const source = feature.properties.nodes?.find(item => item.id === node.id);
           baseFeatures[nodeKey] = {
             type: 'Feature',
             id: `node-${node.id}`,
-            properties: { entityType: 'node', entityId: node.id, version: source?.version ?? 1, tags: source?.tags ?? {}, coordinates: node.coordinates, topologyNode: true },
+            properties: { entityType: 'node', entityId: node.id, version: node.version ?? 1, tags: node.tags ?? {}, coordinates: node.coordinates, topologyNode: true },
             geometry: { type: 'Point', coordinates: node.coordinates }
           };
         }
@@ -165,16 +224,16 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     }
     case 'commit-many': {
       const changes: EditorChange[] = [];
-      let next = state;
+      const overrides = { ...state.overrides };
       for (const mutation of action.mutations) {
-        const before = readOverride(next, mutation.key);
-        const after = normalizedOverride(next, mutation.key, mutation.feature);
+        const before = overrides[mutation.key];
+        const after = normalizedOverride(state, mutation.key, mutation.feature);
         if (equalOverride(before, after)) continue;
         changes.push({ id: state.nextChangeId, key: mutation.key, label: action.label, before: cloneOverride(before), after: cloneOverride(after) });
-        next = { ...next, overrides: withOverride(next, mutation.key, after) };
+        writeOverride(overrides, mutation.key, after);
       }
       if (!changes.length) return state;
-      return { ...next, undoStack: [...state.undoStack, { id: state.nextChangeId, label: action.label, changes }], redoStack: [], nextChangeId: state.nextChangeId + 1 };
+      return { ...state, overrides, undoStack: [...state.undoStack, { id: state.nextChangeId, label: action.label, changes }], redoStack: [], nextChangeId: state.nextChangeId + 1 };
     }
     case 'undo': {
       const entry = state.undoStack.at(-1);
@@ -206,23 +265,29 @@ function toSelectedEntity(feature: GraphFeature | null): SelectedEntity | null {
   };
 }
 
-function visibleFeatures(state: EditorState): GraphFeature[] {
+export function visibleFeatures(state: EditorState): GraphFeature[] {
+  const projectNodes = Object.keys(state.overrides).some(key => key.startsWith('node/'));
   const renderedKeys = new Set<EntityKey>();
   const features = state.viewportKeys.flatMap(key => {
     renderedKeys.add(key);
-    const feature = readFeature(state, key);
+    const feature = readFeature(state, key, projectNodes);
     return feature ? [feature] : [];
   });
   for (const [key, feature] of Object.entries(state.overrides)) {
-    if (!renderedKeys.has(key) && feature) features.push(feature);
+    if (!renderedKeys.has(key) && feature) features.push(readFeature(state, key, projectNodes)!);
   }
   return features;
 }
 
 function pendingChanges(state: EditorState): EditorChange[] {
+  const labels = new Map<EntityKey, string>();
+  for (let index = state.undoStack.length - 1; index >= 0; index--) {
+    const transaction = state.undoStack[index];
+    for (const change of transaction.changes) if (!labels.has(change.key)) labels.set(change.key, transaction.label);
+  }
   return Object.entries(state.overrides).map(([key, after], index) => {
     const before = state.baseFeatures[key];
-    const latestLabel = [...state.undoStack].reverse().find(transaction => transaction.changes.some(change => change.key === key))?.label;
+    const latestLabel = labels.get(key);
     return {
       id: index + 1,
       key,
@@ -244,6 +309,8 @@ interface EditorStoreValue {
   canUndo: boolean;
   canRedo: boolean;
   hydrateGraph: (features: GraphFeature[]) => void;
+  hydrateSupport: (features: GraphFeature[]) => void;
+  resolveConflicts: (plan: ResolutionPlan) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   selectFeature: (feature: GraphFeature | null) => void;
@@ -261,6 +328,8 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
   const hydrateGraph = useCallback((features: GraphFeature[]) => dispatch({ type: 'hydrate', features }), []);
+  const hydrateSupport = useCallback((features: GraphFeature[]) => dispatch({ type: 'hydrate-support', features }), []);
+  const resolveConflicts = useCallback((plan: ResolutionPlan) => dispatch({ type: 'resolve-conflicts', plan }), []);
   const setLoading = useCallback((value: boolean) => dispatch({ type: 'loading', value }), []);
   const setError = useCallback((value: string | null) => dispatch({ type: 'error', value }), []);
   const selectFeature = useCallback((feature: GraphFeature | null) => dispatch({ type: 'select', key: feature ? entityKey(feature) : null }), []);
@@ -278,19 +347,26 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
   const redo = useCallback(() => dispatch({ type: 'redo' }), []);
   const discardChanges = useCallback(() => dispatch({ type: 'discard' }), []);
 
+  // Loading/selection changes must not rebuild the full render graph, topology,
+  // pending upload payload and issue list on every pointer interaction.
+  const features = useMemo(() => visibleFeatures(state), [state.baseFeatures, state.viewportKeys, state.overrides]);
+  const changes = useMemo(() => pendingChanges(state), [state.baseFeatures, state.overrides, state.undoStack]);
+  const selected = useMemo(() => toSelectedEntity(state.selectedKey ? readFeature(state, state.selectedKey) : null), [state.baseFeatures, state.overrides, state.selectedKey]);
+
   const value = useMemo<EditorStoreValue>(() => {
-    const selectedFeature = state.selectedKey ? readFeature(state, state.selectedKey) : null;
     return {
-      features: visibleFeatures(state),
-      selected: toSelectedEntity(selectedFeature),
+      features,
+      selected,
       selectedKey: state.selectedKey,
       loading: state.loading,
       error: state.error,
-      changes: pendingChanges(state),
+      changes,
       changeCount: Object.keys(state.overrides).length,
       canUndo: state.undoStack.length > 0,
       canRedo: state.redoStack.length > 0,
       hydrateGraph,
+      hydrateSupport,
+      resolveConflicts,
       setLoading,
       setError,
       selectFeature,
@@ -301,7 +377,7 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
       redo,
       discardChanges
     };
-  }, [discardChanges, hydrateGraph, redo, replaceFeature, replaceFeatures, selectFeature, setError, setLoading, state, undo, updateTags]);
+  }, [changes, discardChanges, features, hydrateGraph, hydrateSupport, redo, replaceFeature, replaceFeatures, resolveConflicts, selected, selectFeature, setError, setLoading, state, undo, updateTags]);
 
   return <EditorStoreContext.Provider value={value}>{children}</EditorStoreContext.Provider>;
 }

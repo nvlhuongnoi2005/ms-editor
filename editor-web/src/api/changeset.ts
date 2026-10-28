@@ -40,7 +40,7 @@ interface UploadChange {
 type JsonRecord = Record<string, unknown>;
 
 export class ChangesetApiError extends Error {
-  constructor(readonly phase: 'create' | 'upload' | 'close' | 'rollback', message: string) {
+  constructor(readonly phase: 'create' | 'upload' | 'close' | 'rollback', message: string, readonly status = 0, readonly code: string | null = null) {
     super(message);
     this.name = 'ChangesetApiError';
   }
@@ -79,7 +79,7 @@ async function request(phase: ChangesetApiError['phase'], path: string, method: 
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   const payload: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new ChangesetApiError(phase, apiErrorMessage(payload, response.status));
+  if (!response.ok) throw new ChangesetApiError(phase, apiErrorMessage(payload, response.status), response.status, isRecord(payload) && typeof payload.code === 'string' ? payload.code : null);
   return parseChangesetResponse(payload);
 }
 
@@ -134,4 +134,30 @@ export function closeChangeset(id: string): Promise<ChangesetInfo> {
 // creates a new, auditable changeset instead of rewriting history.
 export function rollbackChangeset(id: string, comment = ''): Promise<ChangesetInfo> {
   return request('rollback', `/api/0.6/changeset/${encodeURIComponent(id)}/rollback`, 'POST', { comment });
+}
+
+export interface RecentChangeset {
+  id: string;
+  revision: number;
+  comment: string;
+  author: string;
+  createdAt: string;
+  creates: number;
+  modifies: number;
+  deletes: number;
+  canRevert: boolean;
+  reason?: string;
+}
+
+export async function loadRecentChangesets(dataset: string, signal?: AbortSignal): Promise<RecentChangeset[]> {
+  const response = await fetch(`/api/changesets/recent?${new URLSearchParams({ dataset })}`, { cache: 'no-store', signal });
+  const payload: unknown = await response.json();
+  if (!response.ok) throw new Error(apiErrorMessage(payload, response.status));
+  if (!isRecord(payload) || !Array.isArray(payload.changesets)) throw new Error('Danh sách changeset không hợp lệ.');
+  return payload.changesets.map(item => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.canRevert !== 'boolean'
+      || typeof item.createdAt !== 'string' || typeof item.comment !== 'string' || typeof item.author !== 'string'
+      || ![item.revision, item.creates, item.modifies, item.deletes].every(value => typeof value === 'number')) throw new Error('Thông tin changeset không hợp lệ.');
+    return item as unknown as RecentChangeset;
+  });
 }

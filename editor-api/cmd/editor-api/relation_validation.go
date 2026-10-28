@@ -277,9 +277,13 @@ func assembleRelationRings(ways []relationWay) ([][]int64, error) {
 	rings := make([][]int64, 0)
 	for len(unused) > 0 {
 		var first relationWay
-		for _, way := range unused {
-			first = way
-			break
+		// Keep input member order: map iteration randomly rotated otherwise
+		// identical rings and made validation results/tests nondeterministic.
+		for _, way := range ways {
+			if _, available := unused[way.id]; available {
+				first = way
+				break
+			}
 		}
 		delete(unused, first.id)
 		path := append([]int64(nil), first.refs...)

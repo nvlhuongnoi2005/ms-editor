@@ -21,11 +21,18 @@ import {
 } from '@mui/material';
 import { Banknote, Building2, BusFront, Fuel, GraduationCap, Hospital, Hotel, Landmark, MapPin, Route, ShoppingBag, TreePine, Utensils, Waves, type LucideIcon } from 'lucide-react';
 import { closeChangeset, createChangeset, ChangesetApiError, rollbackChangeset, toUploadChanges, uploadChangeset } from './api/changeset';
-import { DATASET_NAME, loadGraph } from './api/graph';
+import { DATASET_NAME, loadGraph, loadWayParents } from './api/graph';
 import { loadPublishStatus, type PublishStatus } from './api/publish';
 import { EditorStoreProvider, entityKey, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
-import { insertNodeIntoFeature, makeNodeFeature, makeWayFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
+import { insertNodeIntoFeature, makeNodeFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
+import { planDrawing, type WayExtension } from './features/editor/drawingTransactions';
+import { TopologyTools } from './features/editor/TopologyTools';
+import { disconnectVertex, mergeFeatures, removeVertex, reverseFeature, splitFeature, wayVertices, type TopologyAction } from './features/editor/topologyOperations';
 import { findEditorIssues, type EditorIssue } from './features/editor/issues';
+import { ConflictDialog, type ConflictSession } from './features/editor/ConflictDialog';
+import { ChangesetHistoryDialog } from './features/editor/ChangesetHistoryDialog';
+import { loadEntitySnapshots } from './api/conflicts';
+import { snapshotKeys, type ResolutionPlan } from './features/editor/conflictResolution';
 import {
   applyPreset,
   geometryForPreset,
@@ -37,37 +44,14 @@ import {
 } from './features/editor/presets';
 import { OSM_TAG_OPTIONS, type OsmTagOption } from './features/editor/tagCatalog';
 import { MapCanvas, type MapPointerStatus, type MapViewport } from './features/map/MapCanvas';
+import { ViewportGraphLoader } from './features/map/ViewportGraphLoader';
 import { resolvePointIcon, type PointIconName } from './features/map/styleRules';
 import type { Coordinate, EntityType, GraphFeature, RelationMember, SelectedEntity, Tags } from './types/osm';
 
 const propertiesWidth = 360;
 const GRAPH_MIN_ZOOM = 16;
 const CHANGESET_COMMENT = 'Chỉnh sửa từ Geodata WebGIS';
-type Bbox = [number, number, number, number];
-
-interface GraphCacheEntry {
-  bbox: Bbox;
-  features: GraphFeature[];
-}
-
-function bufferedBbox([west, south, east, north]: Bbox): Bbox {
-  const longitudePadding = (east - west) * 0.18;
-  const latitudePadding = (north - south) * 0.18;
-  return [
-    Math.max(-180, west - longitudePadding),
-    Math.max(-85.051129, south - latitudePadding),
-    Math.min(180, east + longitudePadding),
-    Math.min(85.051129, north + latitudePadding)
-  ];
-}
-
-function containsBbox(outer: Bbox, inner: Bbox) {
-  return outer[0] <= inner[0] && outer[1] <= inner[1] && outer[2] >= inner[2] && outer[3] >= inner[3];
-}
-
-function bboxKey(bbox: Bbox) {
-  return bbox.map(value => value.toFixed(4)).join(',');
-}
+const EMPTY_GRAPH: GraphFeature[] = [];
 
 // User input is latitude,longitude; MapLibre receives longitude,latitude.
 function parseLatLon(value: string): Coordinate | null {
@@ -720,7 +704,9 @@ function EditorShell() {
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [publishStatus, setPublishStatus] = useState<PublishStatus | null>(null);
   const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
-  const [lastCommittedChangesetId, setLastCommittedChangesetId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [conflictSession, setConflictSession] = useState<ConflictSession | null>(null);
+  const writeBusyRef = useRef(false);
   const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
   const [coordinateAnchor, setCoordinateAnchor] = useState<HTMLElement | null>(null);
   const [coordinateInput, setCoordinateInput] = useState('');
@@ -729,9 +715,11 @@ function EditorShell() {
   const [pointerStatus, setPointerStatus] = useState<MapPointerStatus>({ longitude: 104.50728, latitude: 21.59988, zoom: 16 });
   const [drawMode, setDrawMode] = useState<DrawMode>('select');
   const [drawVertices, setDrawVertices] = useState<SnappedVertex[]>([]);
-  const graphCacheRef = useRef(new Map<string, GraphCacheEntry>());
-  const graphRequestRef = useRef<AbortController | null>(null);
-  const graphRequestIdRef = useRef(0);
+  const [selectedVertexId, setSelectedVertexId] = useState<string | null>(null);
+  const [extendingWay, setExtendingWay] = useState<WayExtension | null>(null);
+  const [topologyBusy, setTopologyBusy] = useState(false);
+  const topologyBusyRef = useRef(false);
+  const entityRequestRef = useRef(0);
   const viewportRef = useRef<MapViewport | null>(null);
   const nextNodeIdRef = useRef(-1);
   const nextWayIdRef = useRef(-1);
@@ -748,6 +736,8 @@ function EditorShell() {
     canUndo,
     canRedo,
     hydrateGraph,
+    hydrateSupport,
+    resolveConflicts,
     setLoading,
     setError,
     selectFeature,
@@ -758,6 +748,7 @@ function EditorShell() {
     redo,
     discardChanges
   } = useEditorStore();
+  const selectedWay = features.find(feature => entityKey(feature) === selectedKey && feature.properties.entityType === 'way');
 
   const changedKeys = useMemo(() => new Set(changes.map(change => change.key)), [changes]);
   const issues = useMemo(() => findEditorIssues(features, changedKeys), [changedKeys, features]);
@@ -777,86 +768,51 @@ function EditorShell() {
     return () => window.clearInterval(timer);
   }, [refreshPublishStatus]);
 
+  const graphLoader = useMemo(() => new ViewportGraphLoader({
+    load: loadGraph, onFeatures: hydrateGraph, onRelations: hydrateSupport, onLoading: setLoading, onError: setError
+  }), [hydrateGraph, hydrateSupport, setLoading, setError]);
+
+  useEffect(() => () => { graphLoader.cancel(); entityRequestRef.current += 1; }, [graphLoader]);
+
   const refreshGraph = useCallback(({ bbox: viewport, zoom }: MapViewport) => {
     viewportRef.current = { bbox: viewport, zoom };
     const shouldShowGraph = zoom >= GRAPH_MIN_ZOOM;
     setGraphVisible(shouldShowGraph);
     if (!shouldShowGraph) {
-      graphRequestRef.current?.abort();
-      graphRequestRef.current = null;
-      graphRequestIdRef.current += 1;
-      setLoading(false);
+      graphLoader.cancel();
       setError(null);
       return;
     }
-    const cache = graphCacheRef.current;
-    const cached = [...cache.values()].find(entry => containsBbox(entry.bbox, viewport));
-    if (cached) {
-      hydrateGraph(cached.features);
-      setError(null);
-      return;
-    }
-    const bbox = bufferedBbox(viewport);
-    const key = bboxKey(bbox);
-    const exact = cache.get(key);
-    if (exact) {
-      hydrateGraph(exact.features);
-      setError(null);
-      return;
-    }
-    graphRequestRef.current?.abort();
-    const controller = new AbortController();
-    const requestId = ++graphRequestIdRef.current;
-    graphRequestRef.current = controller;
-    setLoading(true);
-    void loadGraph(bbox, controller.signal)
-      .then(result => {
-        if (requestId !== graphRequestIdRef.current) return;
-        cache.set(key, { bbox, features: result.features });
-        if (cache.size > 8) {
-          const oldestKey = cache.keys().next().value;
-          if (oldestKey !== undefined) cache.delete(oldestKey);
-        }
-        hydrateGraph(result.features);
-        setError(null);
-      })
-      .catch(reason => {
-        if (controller.signal.aborted || requestId !== graphRequestIdRef.current) return;
-        setError(reason instanceof Error ? reason.message : 'Không thể tải dữ liệu bản đồ.');
-      })
-      .finally(() => {
-        if (requestId === graphRequestIdRef.current) setLoading(false);
-      });
-  }, [hydrateGraph, setError, setLoading]);
+    void graphLoader.refresh(viewport);
+  }, [graphLoader, setError]);
 
   const handleSelectEntity = useCallback((type: SelectedEntity['type'], id: string) => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const bbox = bufferedBbox(viewport.bbox);
-    setLoading(true);
+    const requestId = ++entityRequestRef.current;
     setError(null);
-    void loadGraph(bbox)
+    // A tile click only needs this entity, not another full viewport query.
+    void loadEntitySnapshots([`${type}/${id}`])
       .then(result => {
-        const key = bboxKey(bbox);
-        graphCacheRef.current.set(key, { bbox, features: result.features });
-        hydrateGraph(result.features);
-        const feature = result.features.find(item => item.properties.entityType === type && item.properties.entityId === id);
+        if (requestId !== entityRequestRef.current) return;
+        const feature = result.snapshots[0]?.feature;
         if (feature) {
+          hydrateSupport([...result.support, feature]);
           selectFeature(feature);
           setPropertiesOpen(true);
         } else {
           setError('Đối tượng không còn nằm trong khu vực hiển thị.');
         }
       })
-      .catch(reason => setError(reason instanceof Error ? reason.message : 'Không thể tải đối tượng.'))
-      .finally(() => setLoading(false));
-  }, [hydrateGraph, selectFeature, setError, setLoading]);
+      .catch(reason => {
+        if (requestId === entityRequestRef.current) setError(reason instanceof Error ? reason.message : 'Không thể tải đối tượng.');
+      });
+  }, [hydrateSupport, selectFeature, setError]);
 
   const refreshAfterCommit = useCallback(() => {
-    graphCacheRef.current.clear();
+    entityRequestRef.current += 1;
+    graphLoader.invalidate();
     const viewport = viewportRef.current;
     if (viewport) refreshGraph(viewport);
-  }, [refreshGraph]);
+  }, [graphLoader, refreshGraph]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -864,6 +820,8 @@ function EditorShell() {
   }, [refreshGraph]);
 
   const retryCloseChangeset = useCallback(async (changesetId: string) => {
+    if (writeBusyRef.current) return;
+    writeBusyRef.current = true;
     setSaving(true);
     setSaveStatus('Đang hoàn tất lưu thay đổi…');
     try {
@@ -873,12 +831,13 @@ function EditorShell() {
     } catch {
       setSaveStatus('Dữ liệu đã được lưu thành công.');
     } finally {
+      writeBusyRef.current = false;
       setSaving(false);
     }
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (saving) return;
+    if (saving || topologyBusyRef.current || writeBusyRef.current || conflictSession || historyOpen) return;
     if (pendingCloseId) {
       await retryCloseChangeset(pendingCloseId);
       return;
@@ -905,13 +864,15 @@ function EditorShell() {
       return;
     }
 
+    writeBusyRef.current = true;
     setSaving(true);
     setSaveStatus('Đang lưu dữ liệu...');
+    let createdId: string | null = null;
     try {
       const created = await createChangeset(DATASET_NAME, CHANGESET_COMMENT);
+      createdId = created.id;
       setSaveStatus(`Đang áp dụng ${uploadPayload.length} thay đổi…`);
-      const committed = await uploadChangeset(created.id, uploadPayload);
-      setLastCommittedChangesetId(committed.id);
+      await uploadChangeset(created.id, uploadPayload);
       discardChanges();
       refreshAfterCommit();
       void refreshPublishStatus();
@@ -928,10 +889,36 @@ function EditorShell() {
         ? reason.phase === 'create' ? 'Không thể khởi tạo phiên lưu' : 'Không thể tải lên thay đổi'
         : 'Không thể lưu thay đổi';
       setSaveStatus(`${prefix}: ${message}`);
+      if (reason instanceof ChangesetApiError && reason.phase === 'upload') {
+        // An HTTP rejection rolled back the upload transaction. Close the empty
+        // session; network failures are ambiguous and are not treated this way.
+        if (createdId) void closeChangeset(createdId).catch(() => undefined);
+        if (reason.status === 409 && reason.code === 'version_conflict') {
+          try {
+            const batch = await loadEntitySnapshots(snapshotKeys(changes));
+            setConflictSession({ changes, batch });
+            setSaveStatus('Có xung đột version. Bản nháp được giữ để so sánh và áp lại.');
+          } catch (snapshotError) {
+            setSaveStatus(`Bản nháp vẫn được giữ. Không tải được dữ liệu so sánh: ${snapshotError instanceof Error ? snapshotError.message : 'Lỗi kết nối.'}`);
+          }
+        }
+      }
     } finally {
+      writeBusyRef.current = false;
       setSaving(false);
     }
-  }, [blockingIssues.length, changes, discardChanges, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
+  }, [blockingIssues.length, changes, conflictSession, discardChanges, historyOpen, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
+
+  const handleApplyConflictResolution = useCallback((plan: ResolutionPlan) => {
+    if (plan.blockers.length) return;
+    graphLoader.invalidate();
+    entityRequestRef.current += 1;
+    resolveConflicts(plan);
+    setConflictSession(null);
+    setSelectedVertexId(null);
+    setLoading(false);
+    setSaveStatus('Đã cập nhật preview trên bản server mới. Kiểm tra kết quả và bấm Lưu nếu còn thay đổi.');
+  }, [graphLoader, resolveConflicts, setLoading]);
 
   const handleExport = useCallback((format: 'osm' | 'osc') => {
     setExportAnchor(null);
@@ -960,31 +947,112 @@ function EditorShell() {
     setSaveStatus(`Đã định vị tại ${coordinate[1].toFixed(6)}, ${coordinate[0].toFixed(6)}.`);
   }, [coordinateInput]);
 
-  const handleRollbackLastCommit = useCallback(async () => {
-    if (!lastCommittedChangesetId || saving) return;
-    if (!window.confirm('Hoàn tác lần lưu gần nhất? Hệ thống sẽ tạo một changeset mới và chỉ thực hiện nếu chưa có chỉnh sửa xung đột.')) return;
+  const handleRollbackChangeset = useCallback(async (changesetId: string) => {
+    if (saving || writeBusyRef.current || topologyBusyRef.current) throw new Error('Đang có thao tác khác thực hiện.');
+    if (changeCount || pendingCloseId || conflictSession) throw new Error('Hãy hoàn tất lưu hoặc bỏ bản nháp trước khi revert.');
+    writeBusyRef.current = true;
     setExportAnchor(null);
     setSaving(true);
     setSaveStatus('Đang hoàn tác changeset…');
     try {
-      const reverted = await rollbackChangeset(lastCommittedChangesetId);
-      setLastCommittedChangesetId(reverted.id);
-      graphCacheRef.current.clear();
+      const reverted = await rollbackChangeset(changesetId);
+      setHistoryOpen(false);
+      selectFeature(null);
+      setSelectedVertexId(null);
       refreshAfterCommit();
       void refreshPublishStatus();
-      setSaveStatus('Đã hoàn tác bằng changeset mới.');
+      setSaveStatus(`Đã revert changeset #${changesetId} bằng changeset mới #${reverted.id}.`);
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : 'Lỗi không xác định.';
       setSaveStatus(`Không thể hoàn tác: ${message}`);
+      throw reason;
     } finally {
+      writeBusyRef.current = false;
       setSaving(false);
     }
-  }, [lastCommittedChangesetId, refreshAfterCommit, refreshPublishStatus, saving]);
+  }, [changeCount, conflictSession, pendingCloseId, refreshAfterCommit, refreshPublishStatus, saving, selectFeature]);
 
   const handleSelectFeature = useCallback((feature: GraphFeature | null) => {
+    entityRequestRef.current += 1;
     selectFeature(feature);
+    setSelectedVertexId(null);
     if (feature) setPropertiesOpen(true);
   }, [selectFeature]);
+
+  const handleTopologyAction = useCallback(async (action: TopologyAction, otherWayId?: string) => {
+    if (!selectedWay || saving || drawMode !== 'select' || topologyBusyRef.current) return;
+    topologyBusyRef.current = true;
+    setTopologyBusy(true);
+    graphLoader.cancel();
+    entityRequestRef.current += 1;
+    setLoading(false);
+    try {
+      let graph = features;
+      let way = selectedWay;
+      if (['split', 'merge', 'reverse'].includes(action)) {
+        const ids = [selectedWay.properties.entityId, ...(otherWayId ? [otherWayId] : [])].filter(id => !id.startsWith('-'));
+        if (ids.length) {
+          setSaveStatus('Đang kiểm tra relation cha…');
+          const dependencies = await loadWayParents(ids);
+          const byKey = new Map(features.map(feature => [entityKey(feature), feature]));
+          const dirty = new Set(changes.map(change => change.key));
+          for (const relation of dependencies.relations) if (!dirty.has(entityKey(relation))) byKey.set(entityKey(relation), relation);
+          for (const id of ids) {
+            const source = byKey.get(`way/${id}`);
+            if (source) byKey.set(`way/${id}`, { ...source, properties: { ...source.properties, parents: dependencies.wayParents[id] } });
+          }
+          graph = [...byKey.values()];
+          way = byKey.get(entityKey(selectedWay))!;
+          hydrateSupport(dependencies.relations);
+        }
+      }
+      let result;
+      let label: string;
+      switch (action) {
+        case 'split':
+          result = splitFeature(way, selectedVertexId ?? '', String(nextWayIdRef.current--), graph);
+          label = 'Tách way tại node';
+          break;
+        case 'merge': {
+          const other = graph.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === otherWayId);
+          if (!other) throw new Error('Hãy chọn way cần nối.');
+          result = mergeFeatures(way, other, graph);
+          label = 'Nối hai way';
+          break;
+        }
+        case 'disconnect':
+          result = disconnectVertex(selectedWay, selectedVertexId ?? '', String(nextNodeIdRef.current--));
+          label = 'Tách node khỏi way';
+          break;
+        case 'remove-vertex':
+          result = removeVertex(selectedWay, selectedVertexId ?? '');
+          label = 'Xóa đỉnh khỏi way';
+          break;
+        case 'reverse':
+          result = reverseFeature(way, graph);
+          label = 'Đảo chiều way';
+          break;
+      }
+      replaceFeatures(result.mutations, label);
+      selectFeature(result.selected);
+      setSelectedVertexId(result.vertexId ?? null);
+      setSaveStatus(`${label}. Ctrl+Z để hoàn tác.`);
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể thực hiện thao tác topology.');
+    } finally {
+      topologyBusyRef.current = false;
+      setTopologyBusy(false);
+    }
+  }, [changes, drawMode, features, graphLoader, hydrateSupport, replaceFeatures, saving, selectFeature, selectedVertexId, selectedWay, setLoading]);
+
+  const handleContinueWay = useCallback(() => {
+    if (!selectedWay || !selectedVertexId || saving) return;
+    const vertex = wayVertices(selectedWay).find(node => node.id === selectedVertexId);
+    if (!vertex) return;
+    setExtendingWay({ key: entityKey(selectedWay), endpoint: vertex.id });
+    setDrawVertices([{ nodeId: vertex.id, coordinate: vertex.coordinates }]);
+    setDrawMode('line');
+  }, [saving, selectedVertexId, selectedWay]);
 
   const handleSelectIssue = useCallback((issue: EditorIssue) => {
     const feature = features.find(item => entityKey(item) === issue.entityKey);
@@ -1058,11 +1126,13 @@ function EditorShell() {
   const handlePointerStatus = useCallback((status: MapPointerStatus) => setPointerStatus(status), []);
 
   const activateDrawMode = useCallback((mode: DrawMode) => {
+    setExtendingWay(null);
     setDrawVertices([]);
     setDrawMode(mode);
   }, []);
 
   const handleCancelDrawing = useCallback(() => {
+    setExtendingWay(null);
     setDrawVertices([]);
     setDrawMode('select');
   }, []);
@@ -1092,33 +1162,19 @@ function EditorShell() {
 
   const handleFinishDrawing = useCallback(() => {
     if (drawMode !== 'line' && drawMode !== 'area') return;
-    const vertices = drawVertices.filter((vertex): vertex is SnappedVertex & { nodeId: string } => Boolean(vertex.nodeId));
     const minimum = drawMode === 'area' ? 3 : 2;
-    if (vertices.length < minimum) return;
-    const mutations: FeatureMutation[] = [];
-    const createdNodes = new Set<string>();
-    const wayUpdates = new Map<string, { feature: GraphFeature; inserts: number }>();
-    for (const vertex of vertices) {
-      if (vertex.nodeId.startsWith('-') && !createdNodes.has(vertex.nodeId)) {
-        createdNodes.add(vertex.nodeId);
-        mutations.push({ key: `node/${vertex.nodeId}`, feature: makeNodeFeature(vertex.nodeId, vertex.coordinate) });
-      }
-      if (!vertex.segment) continue;
-      const current = wayUpdates.get(vertex.segment.wayId)?.feature ?? features.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === vertex.segment?.wayId);
-      if (!current) continue;
-      const inserts = wayUpdates.get(vertex.segment.wayId)?.inserts ?? 0;
-      const updated = insertNodeIntoFeature(current, vertex.nodeId, vertex.coordinate, vertex.segment.segmentIndex + inserts);
-      wayUpdates.set(vertex.segment.wayId, { feature: updated, inserts: inserts + 1 });
+    if (drawVertices.length < minimum) return;
+    try {
+      const { way, mutations } = planDrawing(features, drawVertices, drawMode, () => String(nextWayIdRef.current--), extendingWay);
+      replaceFeatures(mutations, extendingWay ? 'Tiếp tục way từ endpoint' : drawMode === 'area' ? 'Vẽ vùng mới' : 'Vẽ đường mới');
+      handleSelectFeature(way);
+      setDrawVertices([]);
+      setExtendingWay(null);
+      setDrawMode('select');
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể hoàn tất way.');
     }
-    for (const update of wayUpdates.values()) mutations.push({ key: entityKey(update.feature), feature: update.feature });
-    const wayId = String(nextWayIdRef.current--);
-    const way = makeWayFeature(wayId, vertices.map(vertex => ({ coordinate: vertex.coordinate, nodeId: vertex.nodeId })), drawMode);
-    mutations.push({ key: `way/${wayId}`, feature: way });
-    replaceFeatures(mutations, drawMode === 'area' ? 'Vẽ vùng mới' : 'Vẽ đường mới');
-    handleSelectFeature(way);
-    setDrawVertices([]);
-    setDrawMode('select');
-  }, [drawMode, drawVertices, features, handleSelectFeature, replaceFeatures]);
+  }, [drawMode, drawVertices, extendingWay, features, handleSelectFeature, replaceFeatures]);
 
   const selectedName = selected?.tags.name || (selected ? (selected.type === 'node' ? 'Điểm chưa đặt tên' : selected.type === 'way' ? 'Đường/Vùng chưa đặt tên' : 'Quan hệ chưa đặt tên') : '');
 
@@ -1142,6 +1198,7 @@ function EditorShell() {
   // Keyboard shortcuts (like iD editor / JOSM)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (topologyBusyRef.current || saving || conflictSession || historyOpen) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, [contenteditable="true"]')) return;
       if (event.key === 'Escape') {
         if (drawMode !== 'select') {
@@ -1202,7 +1259,7 @@ function EditorShell() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activateDrawMode, canRedo, canUndo, changeCount, drawMode, handleCancelDrawing, handleDeleteSelected, handleFinishDrawing, handleSave, redo, saving, selectFeature, selected, selectedKey, undo]);
+  }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, drawMode, handleCancelDrawing, handleDeleteSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
 
   return (
     <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '52px minmax(0, 1fr) 30px', overflow: 'hidden', bgcolor: '#f1f5f9' }}>
@@ -1378,10 +1435,10 @@ function EditorShell() {
                   <Typography sx={{ fontSize: 11, color: '#64748b' }}>Các chỉnh sửa đã lưu gần nhất</Typography>
                 </Box>
               </MenuItem>
-              <MenuItem disabled={!lastCommittedChangesetId || saving} onClick={() => void handleRollbackLastCommit()}>
+              <MenuItem disabled={saving || topologyBusy || drawMode !== 'select'} onClick={() => { setExportAnchor(null); setHistoryOpen(true); }}>
                 <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#9b192e' }}>Hoàn tác lần lưu gần nhất</Typography>
-                  <Typography sx={{ fontSize: 11, color: '#64748b' }}>Tạo changeset mới, không ghi đè lịch sử</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#9b192e' }}>Lịch sử / Revert changeset</Typography>
+                  <Typography sx={{ fontSize: 11, color: '#64748b' }}>Chọn một trong 3 changeset gần nhất</Typography>
                 </Box>
               </MenuItem>
             </Menu>
@@ -1421,8 +1478,11 @@ function EditorShell() {
         </Toolbar>
       </AppBar>
 
+      {conflictSession && <ConflictDialog session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} />}
+      {historyOpen && <ChangesetHistoryDialog dataset={DATASET_NAME} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} />}
+
       {/* Main Workspace Body */}
-      <Box sx={{ display: 'flex', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      <Box inert={topologyBusy || saving || undefined} sx={{ display: 'flex', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
         {/* Map Canvas Area */}
         <Box sx={{ position: 'relative', minWidth: 0, flex: 1, overflow: 'hidden', bgcolor: '#e2e8f0' }}>
           {/* iD Editor / JOSM Style Floating Central Toolbar */}
@@ -1632,7 +1692,7 @@ function EditorShell() {
             >
               <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#9a3412' }}>
                 {drawMode === 'point' && 'Nhấp chuột lên vị trí bất kỳ trên bản đồ để đặt điểm.'}
-                {drawMode === 'line' && `Đang vẽ đường (${drawVertices.length} điểm): Nhấp để thêm đỉnh, Enter để hoàn tất.`}
+                {drawMode === 'line' && `${extendingWay ? 'Đang tiếp tục way' : 'Đang vẽ đường'} (${drawVertices.length} điểm): Nhấp để thêm đỉnh, Enter để hoàn tất; Esc để hủy.`}
                 {drawMode === 'area' && `Đang vẽ vùng (${drawVertices.length} điểm): Nhấp điểm đầu hoặc Enter để khép vùng.`}
               </Typography>
               {(drawMode === 'line' || drawMode === 'area') && drawVertices.length >= (drawMode === 'area' ? 3 : 2) && (
@@ -1780,11 +1840,14 @@ function EditorShell() {
 
           {/* The Underlying Map Component */}
           <MapCanvas
-            features={graphVisible ? features : []}
+            features={graphVisible ? features : EMPTY_GRAPH}
             pinpoint={pinpoint}
             drawMode={drawMode}
             drawVertices={drawVertices}
             selected={selected}
+            selectedVertexId={selectedVertexId}
+            changedKeys={changedKeys}
+            onSelectVertex={setSelectedVertexId}
             onBoundsChange={refreshGraph}
             onSelect={handleSelectFeature}
             onSelectEntity={handleSelectEntity}
@@ -1851,6 +1914,7 @@ function EditorShell() {
             </Box>
 
             {/* Inspector Form Editor */}
+            {selectedWay && <TopologyTools key={entityKey(selectedWay)} way={selectedWay} features={features} vertexId={selectedVertexId} onVertex={setSelectedVertexId} onAction={handleTopologyAction} onContinue={handleContinueWay} disabled={saving || topologyBusy || drawMode !== 'select'} />}
             <PropertiesEditor
               selected={selected}
               onUpdate={handleUpdateTags}

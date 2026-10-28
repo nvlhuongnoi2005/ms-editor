@@ -166,6 +166,9 @@ func (a *app) uploadChangeset(ctx context.Context, w http.ResponseWriter, r *htt
 		}
 		changes = append(changes, change)
 	}
+	if err := checkEntityVersions(ctx, tx, datasetID, changes, false); err != nil {
+		return err
+	}
 	if err := validateChangesetTopology(ctx, tx, datasetID, changes); err != nil {
 		return err
 	}

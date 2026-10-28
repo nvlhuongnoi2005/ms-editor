@@ -107,7 +107,7 @@ function parseRelationParents(value: unknown): RelationParent[] | undefined {
   });
 }
 
-function parseFeature(value: unknown): GraphFeature {
+export function parseFeature(value: unknown): GraphFeature {
   if (!isRecord(value) || !isRecord(value.properties)) throw new Error('Graph response has an invalid feature.');
   const properties = value.properties;
   const nodeIds = parseNodeIds(properties.nodeIds);
@@ -145,9 +145,30 @@ function parseGraphResponse(value: unknown): GraphResponse {
   };
 }
 
-export async function loadGraph(bbox: [number, number, number, number], signal?: AbortSignal): Promise<GraphResponse> {
-  const parameters = new URLSearchParams({ dataset: DATASET_NAME, bbox: bbox.join(','), limit: '5000' });
+export type GraphPart = 'all' | 'geometry' | 'relations';
+
+export async function loadGraph(bbox: [number, number, number, number], signal?: AbortSignal, part: GraphPart = 'all'): Promise<GraphResponse> {
+  const parameters = new URLSearchParams({ dataset: DATASET_NAME, bbox: bbox.join(','), limit: '1200', part });
   const response = await fetch(`/api/graph?${parameters}`, { signal });
   if (!response.ok) throw new Error(`Không thể tải graph (${response.status}).`);
-  return parseGraphResponse(await response.json());
+  const graph = parseGraphResponse(await response.json());
+  // An API process still running the previous build ignores `part`. Keep its
+  // full response from duplicating entities during a rolling/local restart.
+  if (part !== 'all') graph.features = graph.features.filter(feature =>
+    part === 'relations' ? feature.properties.entityType === 'relation' : feature.properties.entityType !== 'relation');
+  return graph;
+}
+
+export async function loadWayParents(ids: string[]): Promise<{ wayParents: Record<string, RelationParent[]>; relations: GraphFeature[] }> {
+  const parameters = new URLSearchParams({ dataset: DATASET_NAME, ids: ids.join(',') });
+  const response = await fetch(`/api/topology/way-parents?${parameters}`);
+  if (!response.ok) throw new Error(`Không thể tải relation cha (${response.status}). Hãy kiểm tra Editor API đã được khởi động lại.`);
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || !isRecord(payload.wayParents) || !Array.isArray(payload.relations)) throw new Error('Dữ liệu relation cha không hợp lệ.');
+  const wayParents: Record<string, RelationParent[]> = {};
+  for (const id of ids) {
+    if (!Array.isArray(payload.wayParents[id])) throw new Error(`Thiếu dữ liệu relation cha của way ${id}.`);
+    wayParents[id] = parseRelationParents(payload.wayParents[id])!;
+  }
+  return { wayParents, relations: payload.relations.map(parseFeature) };
 }
