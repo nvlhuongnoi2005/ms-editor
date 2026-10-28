@@ -1,0 +1,27 @@
+{
+  "featuredPresetIds": [
+    "waterway-river", "waterway-stream", "water-reservoir", "water-lake",
+    "highway-primary", "highway-secondary", "highway-residential", "building-generic",
+    "amenity-restaurant", "amenity-cafe", "amenity-atm", "amenity-school",
+    "amenity-hospital", "amenity-parking", "tourism-hotel", "shop-convenience",
+    "shop-supermarket", "natural-tree", "boundary-administrative"
+  ],
+  "hiddenPresetIds": [],
+  "aliases": {
+    "waterway-river": ["ngòi", "sông nước"],
+    "waterway-stream": ["khe", "ngòi"],
+    "water-reservoir": ["đập", "hồ đập"],
+    "highway-primary": ["quốc lộ", "đường tỉnh", "đường chính"],
+    "highway-secondary": ["đường huyện", "đường liên huyện"],
+    "highway-residential": ["ngõ", "hẻm", "đường làng"],
+    "amenity-restaurant": ["quán ăn", "cơm", "nhà hàng"],
+    "amenity-cafe": ["cà phê", "coffee", "quán cà phê"],
+    "amenity-atm": ["cây rút tiền", "máy atm"],
+    "amenity-hospital": ["bệnh viện", "y tế"],
+    "tourism-hotel": ["khách sạn", "hotel"],
+    "shop-convenience": ["tạp hóa", "cửa hàng tiện lợi"],
+    "natural-tree": ["cây", "cây xanh"]
+  },
+  "defaultResultLimit": 18,
+  "loadMoreStep": 30
+}

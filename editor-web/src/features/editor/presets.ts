@@ -1,5 +1,6 @@
 import type { Tags } from '../../types/osm';
 import idSchema from './id-presets.generated.json';
+import catalogueUiJson from './catalogue-ui.json';
 
 export type PresetGeometry = 'point' | 'line' | 'area' | 'relation';
 export type PresetFieldType = 'text' | 'number' | 'yesno' | 'select';
@@ -28,6 +29,16 @@ export interface PresetGroup {
   id: string;
   label: string;
 }
+
+interface CatalogueUiConfig {
+  featuredPresetIds: string[];
+  hiddenPresetIds: string[];
+  aliases: Record<string, string[]>;
+  defaultResultLimit: number;
+  loadMoreStep: number;
+}
+
+export const CATALOGUE_UI = catalogueUiJson as CatalogueUiConfig;
 
 const commonName: PresetField = { key: 'name', label: 'Tên', type: 'text', placeholder: 'Tên phổ biến hoặc chính thức' };
 const yesNo: Array<{ value: string; label: string }> = [{ value: 'yes', label: 'Có' }, { value: 'no', label: 'Không' }];
@@ -134,7 +145,31 @@ function samePresetTags(left: Tags, right: Tags) {
 export const PRESETS: Preset[] = [
   ...LOCAL_PRESETS,
   ...ID_SCHEMA_PRESETS.filter(schemaPreset => !LOCAL_PRESETS.some(localPreset => samePresetTags(localPreset.matchTags, schemaPreset.matchTags)))
-];
+].filter(preset => !CATALOGUE_UI.hiddenPresetIds.includes(preset.id));
+
+export function searchPresets(presets: Preset[], query: string): Preset[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase('vi');
+  const matches = !normalizedQuery
+    ? presets
+    : presets.filter(preset => {
+      const aliases = CATALOGUE_UI.aliases[preset.id] ?? [];
+      const searchable = [
+        preset.label,
+        preset.id,
+        preset.sourceId ?? '',
+        ...aliases,
+        ...Object.entries(preset.matchTags).map(([key, value]) => `${key}=${value}`)
+      ];
+      return searchable.some(value => value.toLocaleLowerCase('vi').includes(normalizedQuery));
+    });
+  return [...matches].sort((left, right) => {
+    const leftFeatured = CATALOGUE_UI.featuredPresetIds.indexOf(left.id);
+    const rightFeatured = CATALOGUE_UI.featuredPresetIds.indexOf(right.id);
+    const leftRank = leftFeatured < 0 ? Number.MAX_SAFE_INTEGER : leftFeatured;
+    const rightRank = rightFeatured < 0 ? Number.MAX_SAFE_INTEGER : rightFeatured;
+    return leftRank - rightRank || left.label.localeCompare(right.label, 'vi');
+  });
+}
 
 export function geometryForPreset(geometry: { type: string }, entityType: string): PresetGeometry {
   if (entityType === 'relation') return 'relation';

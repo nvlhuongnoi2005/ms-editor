@@ -8,6 +8,7 @@ import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildTopologyGraph, snapCoordinate, type DrawMode, type SnappedVertex } from '../editor/drawing';
 import type { Coordinate, EntityType, GraphFeature, SelectedEntity } from '../../types/osm';
+import { resolveFeatureStyle, resolvePointIcon, type PointIconName } from './styleRules';
 
 export interface MapViewport {
   bbox: [number, number, number, number];
@@ -112,33 +113,10 @@ function pinpointCollection(coordinate: Coordinate | null): FeatureCollection {
     : emptyCollection();
 }
 
-interface FeatureDisplayStyle {
-  color: string;
-  width: number;
-}
-
-// Keep the rendering vocabulary aligned with OSM keys.  A more specific tag
-// wins, while unclassified objects still receive a geometry-appropriate colour.
-function displayStyle(feature: GraphFeature): FeatureDisplayStyle {
-  const { tags } = feature.properties;
-  if (tags.waterway) return { color: '#1687c5', width: tags.waterway === 'river' ? 4 : 3 };
-  if (tags.natural === 'water' || tags.natural === 'wetland' || tags.water) return { color: '#2596d1', width: 3 };
-  if (tags.highway === 'primary' || tags.highway === 'trunk') return { color: '#f2c94c', width: 5 };
-  if (tags.highway === 'secondary' || tags.highway === 'tertiary') return { color: '#f2994a', width: 4 };
-  if (tags.highway) return { color: '#f6d88b', width: 3 };
-  if (tags.railway) return { color: '#64748b', width: 3 };
-  if (tags.building) return { color: '#b7794b', width: 2 };
-  if (tags.landuse === 'forest' || tags.natural === 'wood' || tags.leisure === 'park') return { color: '#52a675', width: 2 };
-  if (tags.amenity) return { color: '#8b5cf6', width: 3 };
-  if (tags.boundary) return { color: '#a8558f', width: 3 };
-  if (feature.properties.entityType === 'relation') return { color: '#7c3aed', width: 3 };
-  return feature.geometry.type === 'Polygon' ? { color: '#62a85d', width: 2 } : { color: '#5f9fe0', width: 3 };
-}
-
 function styledFeature(feature: GraphFeature): GraphFeature {
-  const style = displayStyle(feature);
+  const style = resolveFeatureStyle(feature);
   const pointIcon = feature.properties.entityType === 'node' && feature.geometry.type === 'Point'
-    ? pointIconForTags(feature.properties.tags)
+    ? resolvePointIcon(feature.properties.tags)
     : undefined;
   return {
     ...feature,
@@ -160,23 +138,8 @@ const pointIconComponents = {
   landmark: Landmark
 } satisfies Record<string, LucideIcon>;
 
-type PointIconName = keyof typeof pointIconComponents;
 const pointPinImageWidth = 96;
 const pointPinImageHeight = 120;
-
-function pointIconForTags(tags: Record<string, string>): PointIconName {
-  if (['hotel', 'motel', 'guest_house', 'hostel'].includes(tags.tourism ?? '')) return 'hotel';
-  if (['school', 'college', 'kindergarten', 'university'].includes(tags.amenity ?? '')) return 'school';
-  if (['hospital', 'clinic', 'doctors', 'pharmacy'].includes(tags.amenity ?? '')) return 'hospital';
-  if (tags.shop || tags.amenity === 'marketplace') return 'shop';
-  if (['restaurant', 'cafe', 'fast_food', 'bar', 'pub'].includes(tags.amenity ?? '')) return 'food';
-  if (tags.amenity === 'fuel') return 'fuel';
-  if (tags.amenity === 'atm') return 'atm';
-  if (tags.amenity === 'bus_station' || tags.highway === 'bus_stop') return 'bus';
-  if (tags.natural === 'tree' || tags.natural === 'wood') return 'tree';
-  if (['townhall', 'bank', 'place_of_worship'].includes(tags.amenity ?? '') || tags.historic) return 'landmark';
-  return 'generic';
-}
 
 function pointPinDataURI(icon: LucideIcon, variant: 'normal' | 'selection' = 'normal'): string {
   const lucideSVG = variant === 'normal'
@@ -286,6 +249,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
     let pointer = map.getCenter();
     let animationFrame: number | undefined;
     let selectionPulseTimer: number | undefined;
+    let pointIconLoadStarted = false;
     const publishPointerStatus = () => {
       animationFrame = undefined;
       callbacksRef.current.onPointerStatus({ longitude: pointer.lng, latitude: pointer.lat, zoom: map.getZoom() });
@@ -321,7 +285,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       return map.project(first.coordinate).dist(map.project(lngLat)) <= 12;
     };
     const selectableFeatureAt = (point: maplibregl.Point) => {
-      const layers = ['graph-fill', 'graph-line', 'graph-point', 'graph-relation-point', 'mvt-way-line', 'mvt-point'].filter(layer => map.getLayer(layer));
+      const layers = ['graph-fill', 'graph-line', 'graph-point-preview', 'graph-point', 'graph-relation-point', 'mvt-way-line', 'mvt-point'].filter(layer => map.getLayer(layer));
       return layers.length ? map.queryRenderedFeatures(point, { layers }).find(feature => {
         const entityId = feature.properties?.entityId ?? feature.properties?.entity_id;
         const entityType = feature.properties?.entityType ?? feature.properties?.entity_type;
@@ -397,24 +361,38 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       event.preventDefault();
       callbacksRef.current.onCancelDrawing();
     };
-    map.on('load', () => {
+    const loadPointIconLayers = () => {
+      if (pointIconLoadStarted || map.getZoom() < 18) return;
+      pointIconLoadStarted = true;
       void loadPointPinImages(map).then(() => {
         if (!map.isStyleLoaded()) return;
+        map.addLayer({ id: 'mvt-point', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'points', minzoom: 18, layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'editor_icon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, 'graph-fill');
+        map.addLayer({ id: 'graph-point', type: 'symbol', source: 'canonical-graph', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } }, 'graph-relation-point');
+        map.addLayer({ id: 'selection-halo-point', type: 'symbol', source: 'editor-selection', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-halo-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true }, paint: { 'icon-opacity': 0.72 } });
+        map.addLayer({ id: 'selection-origin-point', type: 'symbol', source: 'editor-selection', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+      }).catch(error => console.error('Không thể tạo biểu tượng điểm:', error));
+    };
+    map.on('load', () => {
+      // Fetch graph data and render geometry immediately. Point icons are an
+      // optional progressive enhancement, loaded separately below.
+      updateBounds();
+      schedulePointerStatus();
       map.addLayer({ id: 'mvt-way-line', type: 'line', source: 'canonicalMvt', 'source-layer': 'ways', paint: { 'line-color': ['get', 'editor_color'], 'line-width': ['get', 'editor_width'], 'line-opacity': 0.9 } });
-      map.addLayer({ id: 'mvt-point', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'points', layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'editor_icon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.42, 16, 0.56, 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
       map.addLayer({ id: 'mvt-label', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'ways', filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
-      map.addSource('canonical-graph', { type: 'geojson', data: emptyCollection() });
+      // The graph request can resolve while point icons are still being rasterized.
+      // Seed the source with the latest ref so that first response is not lost when
+      // the regular [features] effect ran before this source existed.
+      map.addSource('canonical-graph', { type: 'geojson', data: { type: 'FeatureCollection', features: featuresRef.current.map(styledFeature) } });
       map.addSource('editor-selection', { type: 'geojson', data: emptyCollection() });
       map.addLayer({ id: 'graph-fill', type: 'fill', source: 'canonical-graph', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.32 } });
       map.addLayer({ id: 'graph-line', type: 'line', source: 'canonical-graph', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['coalesce', ['get', 'editorWidth'], 3] } });
-      map.addLayer({ id: 'graph-point', type: 'symbol', source: 'canonical-graph', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.42, 16, 0.56, 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+      // Keep saved/local POIs visible before their richer icons are enabled at Z18.
+      map.addLayer({ id: 'graph-point-preview', type: 'circle', source: 'canonical-graph', minzoom: 16, maxzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], paint: { 'circle-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 3.5, 18, 4.5], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } });
       map.addLayer({ id: 'graph-relation-point', type: 'circle', source: 'canonical-graph', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
       map.addLayer({ id: 'selection-fill', type: 'fill', source: 'editor-selection', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.18 } });
       map.addLayer({ id: 'selection-halo-line', type: 'line', source: 'editor-selection', filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'Polygon']], paint: { 'line-color': '#dc2626', 'line-width': 10, 'line-opacity': 0.36, 'line-blur': 2 } });
       map.addLayer({ id: 'selection-origin-line', type: 'line', source: 'editor-selection', filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'Polygon']], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['+', ['coalesce', ['get', 'editorWidth'], 3], 1], 'line-opacity': 1 } });
-      map.addLayer({ id: 'selection-halo-point', type: 'symbol', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-halo-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.42, 16, 0.56, 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true }, paint: { 'icon-opacity': 0.72 } });
       map.addLayer({ id: 'selection-halo-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#dc2626', 'circle-radius': 14, 'circle-opacity': 0.2, 'circle-stroke-color': '#dc2626', 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.8, 'circle-blur': 0.25 } });
-      map.addLayer({ id: 'selection-origin-point', type: 'symbol', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.42, 16, 0.56, 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
       map.addLayer({ id: 'selection-origin-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 8, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'graph-label', type: 'symbol', source: 'canonical-graph', filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
       map.addSource('editor-vertex-handles', { type: 'geojson', data: emptyCollection() });
@@ -428,18 +406,16 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.addLayer({ id: 'draw-preview-fill', type: 'fill', source: 'editor-draw-preview', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#a51f38', 'fill-opacity': .18 } });
       map.addLayer({ id: 'draw-preview-line', type: 'line', source: 'editor-draw-preview', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#a51f38', 'line-width': 3, 'line-dasharray': [2, 1] } });
       map.addLayer({ id: 'draw-preview-vertices', type: 'circle', source: 'editor-draw-preview', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': ['case', ['get', 'first'], 6, 4.5], 'circle-color': ['case', ['get', 'snapped'], '#ffd166', '#a51f38'], 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff' } });
-      updateBounds();
       updateDraft();
-      schedulePointerStatus();
+      loadPointIconLayers();
       const pulseSelection = () => {
         const phase = (Math.sin(Date.now() / 180) + 1) / 2;
         map.setPaintProperty('selection-halo-line', 'line-width', 9 + phase * 6);
         map.setPaintProperty('selection-halo-line', 'line-opacity', 0.22 + phase * 0.38);
-        map.setPaintProperty('selection-halo-point', 'icon-opacity', 0.28 + phase * 0.68);
+        if (map.getLayer('selection-halo-point')) map.setPaintProperty('selection-halo-point', 'icon-opacity', 0.28 + phase * 0.68);
         selectionPulseTimer = window.setTimeout(pulseSelection, 60);
       };
       pulseSelection();
-      }).catch(error => console.error('Không thể tạo biểu tượng điểm:', error));
     });
     map.on('moveend', updateBounds);
     map.on('mousemove', onMouseMove);
@@ -450,6 +426,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
     map.on('dblclick', onDoubleClick);
     map.on('contextmenu', onContextMenu);
     map.on('zoom', schedulePointerStatus);
+    map.on('zoomend', loadPointIconLayers);
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
     return () => {
       if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
@@ -462,6 +439,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       map.off('dblclick', onDoubleClick);
       map.off('contextmenu', onContextMenu);
       map.off('zoom', schedulePointerStatus);
+      map.off('zoomend', loadPointIconLayers);
       map.remove();
     };
   }, []);

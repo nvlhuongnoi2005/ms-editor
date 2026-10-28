@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "line": { "color": "#5f9fe0", "width": 3 },
+    "area": { "color": "#62a85d", "width": 2 },
+    "relation": { "color": "#7c3aed", "width": 3 },
+    "pointIcon": "generic"
+  },
+  "rules": [
+    { "id": "river", "match": { "waterway": "river" }, "style": { "color": "#1687c5", "width": 4 } },
+    { "id": "waterway", "match": { "waterway": "*" }, "style": { "color": "#1687c5", "width": 3 } },
+    { "id": "natural-water", "match": { "natural": ["water", "wetland"] }, "style": { "color": "#2596d1", "width": 3 } },
+    { "id": "water", "match": { "water": "*" }, "style": { "color": "#2596d1", "width": 3 } },
+    { "id": "primary-road", "match": { "highway": ["primary", "trunk"] }, "style": { "color": "#f2c94c", "width": 5 } },
+    { "id": "secondary-road", "match": { "highway": ["secondary", "tertiary"] }, "style": { "color": "#f2994a", "width": 4 } },
+    { "id": "road", "match": { "highway": "*" }, "style": { "color": "#f6d88b", "width": 3 } },
+    { "id": "railway", "match": { "railway": "*" }, "style": { "color": "#64748b", "width": 3 } },
+    { "id": "building", "match": { "building": "*" }, "style": { "color": "#b7794b", "width": 2 } },
+    { "id": "forest", "match": { "landuse": "forest" }, "style": { "color": "#52a675", "width": 2 } },
+    { "id": "wood", "match": { "natural": "wood" }, "style": { "color": "#52a675", "width": 2 } },
+    { "id": "park", "match": { "leisure": "park" }, "style": { "color": "#52a675", "width": 2 } },
+    { "id": "amenity", "match": { "amenity": "*" }, "style": { "color": "#8b5cf6", "width": 3 } },
+    { "id": "boundary", "match": { "boundary": "*" }, "style": { "color": "#a8558f", "width": 3 } },
+    { "id": "relation", "entityType": "relation", "style": { "color": "#7c3aed", "width": 3 } }
+  ],
+  "pointIcons": [
+    { "match": { "tourism": ["hotel", "motel", "guest_house", "hostel"] }, "icon": "hotel" },
+    { "match": { "amenity": ["school", "college", "kindergarten", "university"] }, "icon": "school" },
+    { "match": { "amenity": ["hospital", "clinic", "doctors", "pharmacy"] }, "icon": "hospital" },
+    { "match": { "shop": "*" }, "icon": "shop" },
+    { "match": { "amenity": "marketplace" }, "icon": "shop" },
+    { "match": { "amenity": ["restaurant", "cafe", "fast_food", "bar", "pub"] }, "icon": "food" },
+    { "match": { "amenity": "fuel" }, "icon": "fuel" },
+    { "match": { "amenity": "atm" }, "icon": "atm" },
+    { "match": { "amenity": "bus_station" }, "icon": "bus" },
+    { "match": { "highway": "bus_stop" }, "icon": "bus" },
+    { "match": { "natural": ["tree", "wood"] }, "icon": "tree" },
+    { "match": { "amenity": ["townhall", "bank", "place_of_worship"] }, "icon": "landmark" },
+    { "match": { "historic": "*" }, "icon": "landmark" }
+  ]
+}

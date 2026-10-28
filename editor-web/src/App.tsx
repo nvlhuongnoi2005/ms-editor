@@ -19,11 +19,13 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
+import { Banknote, Building2, BusFront, Fuel, GraduationCap, Hospital, Hotel, Landmark, MapPin, Route, ShoppingBag, TreePine, Utensils, Waves, type LucideIcon } from 'lucide-react';
 import { closeChangeset, createChangeset, ChangesetApiError, rollbackChangeset, toUploadChanges, uploadChangeset } from './api/changeset';
 import { DATASET_NAME, loadGraph } from './api/graph';
 import { loadPublishStatus, type PublishStatus } from './api/publish';
 import { EditorStoreProvider, entityKey, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
 import { insertNodeIntoFeature, makeNodeFeature, makeWayFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
+import { findEditorIssues, type EditorIssue } from './features/editor/issues';
 import {
   applyPreset,
   geometryForPreset,
@@ -35,6 +37,7 @@ import {
 } from './features/editor/presets';
 import { OSM_TAG_OPTIONS, type OsmTagOption } from './features/editor/tagCatalog';
 import { MapCanvas, type MapPointerStatus, type MapViewport } from './features/map/MapCanvas';
+import { resolvePointIcon, type PointIconName } from './features/map/styleRules';
 import type { Coordinate, EntityType, GraphFeature, RelationMember, SelectedEntity, Tags } from './types/osm';
 
 const propertiesWidth = 360;
@@ -97,19 +100,41 @@ function featureTypePalette(preset?: Preset) {
   return { background: '#684a31', border: '#c8a07a', divider: '#805f44', icon: '#f2d0ab' };
 }
 
+const presetPointIcons = {
+  generic: MapPin,
+  hotel: Hotel,
+  school: GraduationCap,
+  hospital: Hospital,
+  shop: ShoppingBag,
+  food: Utensils,
+  fuel: Fuel,
+  bus: BusFront,
+  tree: TreePine,
+  atm: Banknote,
+  landmark: Landmark
+} satisfies Record<PointIconName, LucideIcon>;
+
+function featureTypeIcon(preset?: Preset): LucideIcon {
+  if (!preset) return MapPin;
+
+  const pointIcon = resolvePointIcon(preset.matchTags);
+  if (pointIcon !== 'generic') return presetPointIcons[pointIcon];
+
+  const tags = preset.matchTags;
+  if (tags.waterway || tags.natural === 'water' || tags.water) return Waves;
+  if (tags.highway || tags.railway) return Route;
+  if (tags.building) return Building2;
+  if (tags.landuse === 'forest' || tags.natural === 'wood' || tags.natural === 'tree' || tags.leisure === 'park') return TreePine;
+  if (tags.boundary || tags.type === 'boundary') return Landmark;
+  return MapPin;
+}
+
 function FeatureTypeGlyph({ preset }: { preset?: Preset }) {
-  const group = preset?.group;
   const palette = featureTypePalette(preset);
-  const color = palette.icon;
-  const road = group === 'transport';
-  const water = group === 'waterway' || group === 'water-area';
+  const Icon = featureTypeIcon(preset);
   return (
     <Box sx={{ width: 76, alignSelf: 'stretch', display: 'grid', placeItems: 'center', borderRight: '1px solid #e2e6eb', bgcolor: '#f8fafc' }} aria-hidden="true">
-      <svg width="47" height="47" viewBox="0 0 47 47" fill="none">
-        {water && <><path d="M8 34C13 25 16 17 23 11C30 17 34 25 39 34" stroke={color} strokeWidth="3" strokeLinecap="round" /><path d="M10 39H37" stroke="#f4f7f8" strokeWidth="3" strokeLinecap="round" /></>}
-        {road && <><path d="M15 40L20 7H27L32 40" fill={color} fillOpacity="0.9" /><path d="M23.5 11V16M23.5 21V26M23.5 31V36" stroke="#253039" strokeWidth="2" strokeLinecap="round" /></>}
-        {!water && !road && <><path d="M11 37V14L23.5 7L36 14V37H11Z" fill={color} fillOpacity="0.88" /><path d="M18 19H29M18 26H29" stroke="#253039" strokeWidth="2" strokeLinecap="round" /></>}
-      </svg>
+      <Icon size={42} color={palette.icon} strokeWidth={1.8} />
     </Box>
   );
 }
@@ -131,6 +156,48 @@ function relationAnchor(geometry: SelectedEntity['geometry']): Coordinate {
   return [longitude / coordinates.length, latitude / coordinates.length];
 }
 
+interface RelationMemberValidation {
+  summary: string[];
+  members: Map<number, string>;
+}
+
+function validateRelationMembers(tags: Tags, members: RelationMember[]): RelationMemberValidation {
+  const problems = new Map<number, string>();
+  const summary: string[] = [];
+  const relationType = tags.type;
+  if (relationType === 'multipolygon') {
+    let outerCount = 0;
+    const usedWays = new Set<string>();
+    members.forEach((member, index) => {
+      const role = member.role.trim();
+      if (member.type !== 'way') problems.set(index, 'Multipolygon chỉ nhận member kiểu way.');
+      if (role !== '' && role !== 'outer' && role !== 'inner') problems.set(index, 'Role multipolygon chỉ có outer hoặc inner.');
+      if (role !== 'inner') outerCount += 1;
+      if (usedWays.has(member.ref)) problems.set(index, `Way ${member.ref} đã xuất hiện trong quan hệ.`);
+      usedWays.add(member.ref);
+    });
+    if (!outerCount) summary.push('Multipolygon cần ít nhất một way outer.');
+  }
+  if (relationType === 'route') {
+    const allowedRoles = new Set(['', 'forward', 'backward', 'alternate', 'stop', 'platform', 'stop_entry_only', 'stop_exit_only', 'platform_entry_only', 'platform_exit_only']);
+    let routeWayCount = 0;
+    members.forEach((member, index) => {
+      const role = member.role.trim();
+      if (!allowedRoles.has(role)) problems.set(index, 'Role route không hợp lệ.');
+      if (['forward', 'backward', 'alternate'].includes(role) && member.type !== 'way') problems.set(index, `Role ${role} phải tham chiếu way.`);
+      if (member.type === 'way' && !['stop', 'platform', 'stop_entry_only', 'stop_exit_only', 'platform_entry_only', 'platform_exit_only'].includes(role)) routeWayCount += 1;
+    });
+    if (!routeWayCount) summary.push('Route cần ít nhất một way làm tuyến đường.');
+  }
+  return { summary, members: problems };
+}
+
+function relationRolePlaceholder(type: string | undefined) {
+  if (type === 'multipolygon') return 'outer hoặc inner';
+  if (type === 'route') return 'forward, stop, platform…';
+  return 'Vai trò (không bắt buộc)';
+}
+
 function RelationMembersEditor({
   selected,
   onUpdate
@@ -144,6 +211,7 @@ function RelationMembersEditor({
   const [newRole, setNewRole] = useState('');
   const relationIdentity = `relation/${selected.id}`;
   const normalize = useCallback((items: RelationMember[]) => items.map((member, sequence) => ({ ...member, sequence })), []);
+  const validation = useMemo(() => validateRelationMembers(selected.tags, members), [members, selected.tags]);
 
   useEffect(() => {
     setMembers(normalize(selected.members ?? []));
@@ -180,8 +248,14 @@ function RelationMembersEditor({
         <Chip label={`${members.length} thành viên`} size="small" sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#f1edff', color: '#5b21b6' }} />
       </Stack>
 
+      {validation.summary.map(problem => (
+        <Paper key={problem} sx={{ px: 1, py: 0.75, bgcolor: '#fff1f2', border: '1px solid #fecdd3', color: '#b4233c', fontSize: 12 }}>
+          {problem}
+        </Paper>
+      ))}
+
       {members.map((member, index) => (
-        <Paper key={`${member.type}/${member.ref}/${index}`} variant="outlined" sx={{ p: 0.75, borderRadius: 1.5, borderColor: '#ddd6fe', bgcolor: '#fbfaff' }}>
+        <Paper key={`${member.type}/${member.ref}/${index}`} variant="outlined" sx={{ p: 0.75, borderRadius: 1.5, borderColor: validation.members.has(index) ? '#fda4af' : '#ddd6fe', bgcolor: validation.members.has(index) ? '#fff7f7' : '#fbfaff' }}>
           <Stack direction="row" sx={{ gap: 0.5, alignItems: 'center', mb: 0.6 }}>
             <Typography sx={{ minWidth: 20, color: '#7c3aed', fontSize: 11, fontWeight: 800 }}>{index + 1}</Typography>
             <TextField select size="small" value={member.type} onChange={event => updateMember(index, { type: event.target.value as EntityType })} sx={{ width: 94 }}>
@@ -200,7 +274,8 @@ function RelationMembersEditor({
               <IconButton size="small" onClick={() => commit(members.filter((_member, memberIndex) => memberIndex !== index), 'Xóa thành viên khỏi quan hệ')} sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626', bgcolor: '#fee2e2' } }}>×</IconButton>
             </Tooltip>
           </Stack>
-          <TextField fullWidth size="small" label="Vai trò (role)" value={member.role} onChange={event => updateMember(index, { role: event.target.value })} />
+          <TextField fullWidth size="small" label="Vai trò (role)" placeholder={relationRolePlaceholder(selected.tags.type)} value={member.role} onChange={event => updateMember(index, { role: event.target.value })} />
+          {validation.members.has(index) && <Typography sx={{ mt: 0.55, color: '#b4233c', fontSize: 11 }}>{validation.members.get(index)}</Typography>}
         </Paper>
       ))}
 
@@ -215,7 +290,7 @@ function RelationMembersEditor({
           <TextField size="small" placeholder="ID" value={newRef} onChange={event => setNewRef(event.target.value)} slotProps={{ htmlInput: { inputMode: 'numeric' } }} sx={{ flex: 1, minWidth: 0 }} />
         </Stack>
         <Stack direction="row" sx={{ mt: 0.5, gap: 0.5 }}>
-          <TextField size="small" placeholder="Vai trò (không bắt buộc)" value={newRole} onChange={event => setNewRole(event.target.value)} sx={{ flex: 1 }} />
+          <TextField size="small" placeholder={relationRolePlaceholder(selected.tags.type)} value={newRole} onChange={event => setNewRole(event.target.value)} sx={{ flex: 1 }} />
           <Button size="small" variant="contained" onClick={addMember} sx={{ bgcolor: '#7c3aed', textTransform: 'none', '&:hover': { bgcolor: '#6d28d9' } }}>Thêm</Button>
         </Stack>
       </Paper>
@@ -639,6 +714,7 @@ export default function App() {
 
 function EditorShell() {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [issuesOpen, setIssuesOpen] = useState(true);
   const [graphVisible, setGraphVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -682,6 +758,10 @@ function EditorShell() {
     redo,
     discardChanges
   } = useEditorStore();
+
+  const changedKeys = useMemo(() => new Set(changes.map(change => change.key)), [changes]);
+  const issues = useMemo(() => findEditorIssues(features, changedKeys), [changedKeys, features]);
+  const blockingIssues = useMemo(() => issues.filter(issue => issue.severity === 'error'), [issues]);
 
   const refreshPublishStatus = useCallback(async () => {
     try {
@@ -805,6 +885,12 @@ function EditorShell() {
     }
     if (!changes.length) return;
 
+    if (blockingIssues.length) {
+      setIssuesOpen(true);
+      setSaveStatus(`Chưa thể lưu: còn ${blockingIssues.length} lỗi dữ liệu cần xử lý.`);
+      return;
+    }
+
     const presetErrors = presetErrorsForChanges(changes);
     if (presetErrors.length) {
       setSaveStatus(`Chưa thể lưu: ${presetErrors[0]}`);
@@ -845,7 +931,7 @@ function EditorShell() {
     } finally {
       setSaving(false);
     }
-  }, [changes, discardChanges, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
+  }, [blockingIssues.length, changes, discardChanges, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
 
   const handleExport = useCallback((format: 'osm' | 'osc') => {
     setExportAnchor(null);
@@ -899,6 +985,13 @@ function EditorShell() {
     selectFeature(feature);
     if (feature) setPropertiesOpen(true);
   }, [selectFeature]);
+
+  const handleSelectIssue = useCallback((issue: EditorIssue) => {
+    const feature = features.find(item => entityKey(item) === issue.entityKey);
+    if (!feature) return;
+    handleSelectFeature(feature);
+    setPinpoint(issue.coordinate);
+  }, [features, handleSelectFeature]);
 
   const handleUpdateTags = useCallback((tags: Tags, label: string) => {
     if (selectedKey) updateTags(selectedKey, tags, label);
@@ -1604,6 +1697,55 @@ function EditorShell() {
                 Phóng to bản đồ (mức thu phóng ≥ {GRAPH_MIN_ZOOM}, hiện tại Z {pointerStatus.zoom.toFixed(1)}) để bắt đầu biên tập đối tượng.
               </Typography>
             </Paper>
+          )}
+
+          {/* Data issues panel: local validation before the authoritative server check. */}
+          {graphVisible && changeCount > 0 && issuesOpen && (
+            <Paper
+              elevation={4}
+              sx={{
+                position: 'absolute', zIndex: 10, top: 72, left: 16, width: 320,
+                maxHeight: 'calc(100% - 160px)', overflowY: 'auto', borderRadius: 2,
+                border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.16)'
+              }}
+            >
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1.4, py: 1, borderBottom: '1px solid #e2e8f0', bgcolor: blockingIssues.length ? '#fff1f2' : '#f0fdf4' }}>
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Kiểm tra dữ liệu</Typography>
+                  <Typography sx={{ fontSize: 10.5, color: '#64748b' }}>Chỉ kiểm tra đối tượng đang sửa</Typography>
+                </Box>
+                <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
+                  {blockingIssues.length > 0 && <Chip label={`${blockingIssues.length} lỗi`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#fee2e2', color: '#b4233c' }} />}
+                  {issues.length > blockingIssues.length && <Chip label={`${issues.length - blockingIssues.length} lưu ý`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#fef3c7', color: '#92400e' }} />}
+                  <Tooltip title="Thu gọn kiểm tra dữ liệu"><IconButton size="small" onClick={() => setIssuesOpen(false)} sx={{ color: '#64748b' }}>×</IconButton></Tooltip>
+                </Stack>
+              </Stack>
+              {issues.length === 0 ? (
+                <Typography sx={{ px: 1.4, py: 1.25, fontSize: 12, color: '#166534', fontWeight: 600 }}>Không phát hiện vấn đề trong các chỉnh sửa hiện tại.</Typography>
+              ) : (
+                <Stack sx={{ p: 0.75, gap: 0.6 }}>
+                  {issues.slice(0, 12).map(issue => (
+                    <Button
+                      key={issue.id}
+                      variant="text"
+                      onClick={() => handleSelectIssue(issue)}
+                      sx={{ alignItems: 'flex-start', justifyContent: 'flex-start', textAlign: 'left', borderRadius: 1.25, px: 0.9, py: 0.75, textTransform: 'none', color: '#1e293b', bgcolor: issue.severity === 'error' ? '#fff7f7' : '#fffbeb', '&:hover': { bgcolor: issue.severity === 'error' ? '#fee2e2' : '#fef3c7' } }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontSize: 11.5, fontWeight: 800, color: issue.severity === 'error' ? '#b4233c' : '#92400e' }}>{issue.title}</Typography>
+                        <Typography sx={{ mt: 0.2, fontSize: 10.5, lineHeight: 1.35, color: '#475569' }}>{issue.detail}</Typography>
+                      </Box>
+                    </Button>
+                  ))}
+                  {issues.length > 12 && <Typography sx={{ px: 0.75, color: '#64748b', fontSize: 11 }}>Và {issues.length - 12} vấn đề khác.</Typography>}
+                </Stack>
+              )}
+            </Paper>
+          )}
+          {graphVisible && changeCount > 0 && !issuesOpen && (
+            <Button onClick={() => setIssuesOpen(true)} size="small" variant="contained" sx={{ position: 'absolute', zIndex: 10, top: 72, left: 16, borderRadius: 1.5, bgcolor: blockingIssues.length ? '#b4233c' : '#15803d', textTransform: 'none', fontSize: 11, fontWeight: 800 }}>
+              Kiểm tra dữ liệu{issues.length ? ` · ${issues.length}` : ''}
+            </Button>
           )}
 
           {/* Operation Status Toast */}

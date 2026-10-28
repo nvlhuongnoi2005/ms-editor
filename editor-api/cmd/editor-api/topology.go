@@ -53,7 +53,13 @@ func validateChangesetTopology(ctx context.Context, tx pgx.Tx, datasetID string,
 			}
 		}
 	}
-	return validateChangesetGeometry(ctx, tx, datasetID, planned, changes)
+	if err := validateChangesetGeometry(ctx, tx, datasetID, planned, changes); err != nil {
+		return err
+	}
+	if err := validateChangesetRelationSemantics(ctx, tx, datasetID, planned, changes); err != nil {
+		return err
+	}
+	return validateChangesetSemantics(changes)
 }
 
 func assertPlannedOrVisible(ctx context.Context, tx pgx.Tx, datasetID string, planned map[string]normalizedChange, entityType string, id int64) error {

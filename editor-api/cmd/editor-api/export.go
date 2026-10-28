@@ -38,10 +38,10 @@ type exportPayload struct {
 	Members  []member          `json:"members"`
 }
 
-type exportChange struct {
-	Operation string
-	Entity    exportEntity
-}
+// changesetEntityStream reads the entities in one OSC operation group.  The
+// callback is deliberately synchronous: callers can serialize each row before
+// the next one is read instead of accumulating an entire changeset in memory.
+type changesetEntityStream func(context.Context, int64, string, func(exportEntity) error) error
 
 func (a *app) exportOSM(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	datasetID, datasetName, err := a.exportDataset(ctx, r)
@@ -191,10 +191,10 @@ func (a *app) exportLatestOSC(ctx context.Context, w http.ResponseWriter, r *htt
 // worker uses the same writer as the download endpoint so the Render DB sees
 // the identical, ordered OSM change document that an operator can inspect.
 func (a *app) writeChangesetOSC(ctx context.Context, changesetID int64, output io.Writer) error {
-	changes, err := a.loadChangesetExport(ctx, changesetID)
-	if err != nil {
-		return err
-	}
+	return writeChangesetOSC(ctx, changesetID, output, a.streamChangesetExport)
+}
+
+func writeChangesetOSC(ctx context.Context, changesetID int64, output io.Writer, stream changesetEntityStream) error {
 	encoder := xml.NewEncoder(output)
 	encoder.Indent("", "  ")
 	if err := writeXMLDeclaration(encoder); err != nil {
@@ -208,7 +208,16 @@ func (a *app) writeChangesetOSC(ctx context.Context, changesetID int64, output i
 		return err
 	}
 	for _, operation := range []string{"create", "modify", "delete"} {
-		if err := encodeChangeGroup(encoder, operation, changes); err != nil {
+		group := xml.StartElement{Name: xml.Name{Local: operation}}
+		if err := encoder.EncodeToken(group); err != nil {
+			return err
+		}
+		if err := stream(ctx, changesetID, operation, func(entity exportEntity) error {
+			return encodeExportEntity(encoder, entity)
+		}); err != nil {
+			return err
+		}
+		if err := encoder.EncodeToken(group.End()); err != nil {
 			return err
 		}
 	}
@@ -234,22 +243,28 @@ func (a *app) exportDataset(ctx context.Context, r *http.Request) (string, strin
 	return datasetID, datasetName, nil
 }
 
-func (a *app) loadChangesetExport(ctx context.Context, changesetID int64) ([]exportChange, error) {
-	rows, err := a.db.Query(ctx, `SELECT operation, entity_type, entity_id, before_payload, after_payload
+func (a *app) streamChangesetExport(ctx context.Context, changesetID int64, operation string, visit func(exportEntity) error) error {
+	rows, err := a.db.Query(ctx, `SELECT entity_type, entity_id, before_payload, after_payload
 		FROM editor.entity_change
-		WHERE changeset_id=$1
-		ORDER BY sequence`, changesetID)
+		WHERE changeset_id=$1 AND operation=$2
+		ORDER BY CASE
+			WHEN $2='delete' AND entity_type='relation'::editor.entity_type THEN 1
+			WHEN $2='delete' AND entity_type='way'::editor.entity_type THEN 2
+			WHEN $2='delete' AND entity_type='node'::editor.entity_type THEN 3
+			WHEN $2<>'delete' AND entity_type='node'::editor.entity_type THEN 1
+			WHEN $2<>'delete' AND entity_type='way'::editor.entity_type THEN 2
+			WHEN $2<>'delete' AND entity_type='relation'::editor.entity_type THEN 3
+		END, sequence`, changesetID, operation)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
-	changes := make([]exportChange, 0)
 	for rows.Next() {
-		var operation, entityType string
+		var entityType string
 		var entityID int64
 		var before, after []byte
-		if err := rows.Scan(&operation, &entityType, &entityID, &before, &after); err != nil {
-			return nil, err
+		if err := rows.Scan(&entityType, &entityID, &before, &after); err != nil {
+			return err
 		}
 		payload := after
 		if operation == "delete" {
@@ -257,11 +272,13 @@ func (a *app) loadChangesetExport(ctx context.Context, changesetID int64) ([]exp
 		}
 		entity, err := parseExportPayload(payload, entityType, entityID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		changes = append(changes, exportChange{Operation: operation, Entity: entity})
+		if err := visit(entity); err != nil {
+			return err
+		}
 	}
-	return changes, rows.Err()
+	return rows.Err()
 }
 
 func scanExportEntity(rows interface{ Scan(...any) error }) (exportEntity, error) {
@@ -298,30 +315,6 @@ func parseExportPayload(raw []byte, entityType string, entityID int64) (exportEn
 		entity.LatE7 = &lat
 	}
 	return entity, nil
-}
-
-func encodeChangeGroup(encoder *xml.Encoder, operation string, changes []exportChange) error {
-	group := xml.StartElement{Name: xml.Name{Local: operation}}
-	if err := encoder.EncodeToken(group); err != nil {
-		return err
-	}
-	for _, entityType := range exportTypeOrder(operation) {
-		for _, change := range changes {
-			if change.Operation == operation && change.Entity.Type == entityType {
-				if err := encodeExportEntity(encoder, change.Entity); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return encoder.EncodeToken(group.End())
-}
-
-func exportTypeOrder(operation string) []string {
-	if operation == "delete" {
-		return []string{"relation", "way", "node"}
-	}
-	return []string{"node", "way", "relation"}
 }
 
 func encodeExportEntity(encoder *xml.Encoder, entity exportEntity) error {
