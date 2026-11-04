@@ -505,20 +505,42 @@ function PropertiesEditor({
                       <ListSubheader key={`${group.id}-header`} disableSticky sx={{ bgcolor: 'transparent', color: '#64748b', fontSize: 11, fontWeight: 800, lineHeight: '28px' }}>
                         {group.label}
                       </ListSubheader>,
-                      ...groupPresets.map(preset => (
-                        <MenuItem
-                          key={preset.id}
-                          selected={preset.id === activePreset?.id}
-                          onClick={() => choosePreset(preset)}
-                          sx={{ minHeight: 36, mx: 0.5, borderRadius: 1, fontSize: 13, '&.Mui-selected': { bgcolor: '#f7e9ec', color: '#7d172a', fontWeight: 800 }, '&.Mui-selected:hover': { bgcolor: '#f3d8de' } }}
-                        >
-                          {preset.label}
-                        </MenuItem>
-                      ))
+                      ...groupPresets.map(preset => {
+                        const isActive = preset.id === activePreset?.id;
+                        return (
+                          <Button
+                            key={preset.id}
+                            fullWidth
+                            aria-pressed={isActive}
+                            onClick={() => choosePreset(preset)}
+                            sx={{
+                              minHeight: 36,
+                              mx: 0.5,
+                              width: 'calc(100% - 8px)',
+                              justifyContent: 'flex-start',
+                              borderRadius: 1,
+                              color: isActive ? '#7d172a' : '#1e293b',
+                              bgcolor: isActive ? '#f7e9ec' : 'transparent',
+                              fontSize: 13,
+                              fontWeight: isActive ? 800 : 500,
+                              textAlign: 'left',
+                              textTransform: 'none',
+                              '&:hover': { bgcolor: isActive ? '#f3d8de' : '#f8fafc' },
+                              '&:focus-visible': { outline: '2px solid #9b192e', outlineOffset: -2 }
+                            }}
+                          >
+                            {preset.label}
+                          </Button>
+                        );
+                      })
                     ]
                   : [];
               })}
-              {menuPresets.length === 0 && <MenuItem disabled sx={{ minHeight: 40, fontSize: 12 }}>Không tìm thấy thể loại phù hợp.</MenuItem>}
+              {menuPresets.length === 0 && (
+                <Typography sx={{ px: 1.5, py: 1.25, color: '#64748b', fontSize: 12 }}>
+                  Không tìm thấy thể loại phù hợp.
+                </Typography>
+              )}
             </Box>
           </Paper>
         </Collapse>
