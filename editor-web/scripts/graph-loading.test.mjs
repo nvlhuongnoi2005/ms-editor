@@ -20,8 +20,8 @@ const deferred = () => {
 };
 const tick = async () => { await Promise.resolve(); await Promise.resolve(); };
 
-test('graph starts at Z12; node, way and relation selection render without viewport features', () => {
-  assert.equal(GRAPH_MIN_ZOOM, 12);
+test('graph starts at Z14; node, way and relation selection render without viewport features', () => {
+  assert.equal(GRAPH_MIN_ZOOM, 14);
   for (const type of ['node', 'way', 'relation']) {
     const geometry = type === 'way'
       ? { type: 'LineString', coordinates: [[106, 20], [106.1, 20.1]] }
@@ -39,6 +39,11 @@ test('graph starts at Z12; node, way and relation selection render without viewp
     const moved = { ...selected, geometry: { type: 'Point', coordinates: [107, 21] } };
     assert.strictEqual(selectedFeatureCollection(moved).features[0].geometry, moved.geometry);
   }
+  const selection = selectedFeatureCollection([
+    { type: 'way', id: 'a', version: 1, tags: {}, geometry: { type: 'LineString', coordinates: [[106, 20], [106.1, 20.1]] } },
+    { type: 'way', id: 'b', version: 1, tags: {}, geometry: { type: 'LineString', coordinates: [[106.2, 20], [106.3, 20.1]] } }
+  ]);
+  assert.deepEqual(selection.features.map(item => item.properties.entityId), ['a', 'b']);
   assert.deepEqual(selectedFeatureCollection(null), { type: 'FeatureCollection', features: [] });
 });
 function setup(load) {

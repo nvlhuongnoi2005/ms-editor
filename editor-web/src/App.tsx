@@ -5,10 +5,12 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
   CssBaseline,
   Divider,
   GlobalStyles,
   IconButton,
+  InputBase,
   ListSubheader,
   Menu,
   MenuItem,
@@ -16,12 +18,14 @@ import {
   Stack,
   Tab,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tabs,
   Toolbar,
   Tooltip,
   Typography
 } from '@mui/material';
-import { Banknote, Building2, BusFront, Fuel, GraduationCap, Hospital, Hotel, Landmark, MapPin, Route, ShoppingBag, TreePine, Utensils, Waves, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, Banknote, Building2, BusFront, ChevronDown, ChevronRight, CirclePlus, Clipboard, Copy, Crosshair, Files, Fuel, GraduationCap, Hospital, Hotel, Info, Landmark, MapPin, MousePointer2, Network, Pentagon, Redo2, Route, Scissors, ShoppingBag, Spline, Trash2, TreePine, Undo2, Utensils, Waves, X, type LucideIcon } from 'lucide-react';
 import { closeChangeset, createChangeset, ChangesetApiError, rollbackChangeset, toUploadChanges, uploadChangeset } from './api/changeset';
 import { DATASET_NAME, loadGraph } from './api/graph';
 import { loadPublishStatus, type PublishStatus } from './api/publish';
@@ -53,7 +57,7 @@ import { GRAPH_MIN_ZOOM } from './features/map/graphRendering';
 import { resolvePointIcon, type PointIconName } from './features/map/styleRules';
 import type { Coordinate, EntityType, GraphFeature, RelationMember, SelectedEntity, Tags } from './types/osm';
 
-const propertiesWidth = 360;
+const propertiesWidth = 400;
 const CHANGESET_COMMENT = 'Chỉnh sửa từ Geodata WebGIS';
 const EMPTY_GRAPH: GraphFeature[] = [];
 
@@ -253,13 +257,13 @@ function RelationMembersEditor({
             </TextField>
             <TextField size="small" value={member.ref} onChange={event => updateMember(index, { ref: event.target.value })} slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-label': `ID thành viên ${index + 1}` } }} sx={{ flex: 1, minWidth: 0 }} />
             <Tooltip title="Đưa lên">
-              <span><IconButton size="small" disabled={index === 0} onClick={() => { const next = [...members]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; commit(next, 'Đổi thứ tự thành viên quan hệ'); }}>↑</IconButton></span>
+              <span><IconButton size="small" disabled={index === 0} onClick={() => { const next = [...members]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; commit(next, 'Đổi thứ tự thành viên quan hệ'); }} aria-label={`Đưa thành viên ${index + 1} lên`}><ArrowUp size={16} aria-hidden="true" /></IconButton></span>
             </Tooltip>
             <Tooltip title="Đưa xuống">
-              <span><IconButton size="small" disabled={index === members.length - 1} onClick={() => { const next = [...members]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; commit(next, 'Đổi thứ tự thành viên quan hệ'); }}>↓</IconButton></span>
+              <span><IconButton size="small" disabled={index === members.length - 1} onClick={() => { const next = [...members]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; commit(next, 'Đổi thứ tự thành viên quan hệ'); }} aria-label={`Đưa thành viên ${index + 1} xuống`}><ArrowDown size={16} aria-hidden="true" /></IconButton></span>
             </Tooltip>
             <Tooltip title="Xóa thành viên">
-              <IconButton size="small" onClick={() => commit(members.filter((_member, memberIndex) => memberIndex !== index), 'Xóa thành viên khỏi quan hệ')} sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626', bgcolor: '#fee2e2' } }}>×</IconButton>
+              <IconButton size="small" aria-label={`Xóa thành viên ${index + 1}`} onClick={() => commit(members.filter((_member, memberIndex) => memberIndex !== index), 'Xóa thành viên khỏi quan hệ')} sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626', bgcolor: '#fee2e2' } }}><X size={16} aria-hidden="true" /></IconButton>
             </Tooltip>
           </Stack>
           <TextField fullWidth size="small" label="Vai trò (role)" placeholder={relationRolePlaceholder(selected.tags.type)} value={member.role} onChange={event => updateMember(index, { role: event.target.value })} />
@@ -326,14 +330,14 @@ function PropertiesEditor({
 }) {
   const [draftTags, setDraftTags] = useState<Tags>(selected.tags);
   const [newTagKey, setNewTagKey] = useState('');
-  const [presetMenuAnchor, setPresetMenuAnchor] = useState<HTMLElement | null>(null);
+  const [presetPickerOpen, setPresetPickerOpen] = useState(false);
   const [presetQuery, setPresetQuery] = useState('');
   const selectedIdentity = `${selected.type}/${selected.id}`;
 
   useEffect(() => {
     setDraftTags(selected.tags);
     setNewTagKey('');
-    setPresetMenuAnchor(null);
+    setPresetPickerOpen(false);
     setPresetQuery('');
   }, [selectedIdentity, selected.tags]);
 
@@ -395,7 +399,7 @@ function PropertiesEditor({
   const choosePreset = (preset: Preset) => {
     const next = applyPreset(draftTags, activePreset, preset);
     setDraftTags(next);
-    setPresetMenuAnchor(null);
+    setPresetPickerOpen(false);
     onUpdate(next, `Chọn thể loại ${preset.label}`);
   };
 
@@ -406,7 +410,7 @@ function PropertiesEditor({
       if (next[key] === value) delete next[key];
     }
     setDraftTags(next);
-    setPresetMenuAnchor(null);
+    setPresetPickerOpen(false);
     onUpdate(next, `Bỏ thể loại ${activePreset.label}`);
   };
 
@@ -421,9 +425,9 @@ function PropertiesEditor({
           component="button"
           type="button"
           disabled={!availablePresets.length}
-          onClick={event => setPresetMenuAnchor(event.currentTarget)}
-          aria-haspopup="menu"
-          aria-expanded={Boolean(presetMenuAnchor)}
+          onClick={() => setPresetPickerOpen(open => !open)}
+          aria-expanded={presetPickerOpen}
+          aria-controls="preset-picker"
           sx={{
             p: 0,
             width: '100%',
@@ -452,44 +456,72 @@ function PropertiesEditor({
               </Typography>
             )}
           </Box>
-          <Box sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#64748b', fontSize: 19 }} aria-hidden="true">⌄</Box>
+          <Box sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#64748b' }} aria-hidden="true"><ChevronDown size={18} /></Box>
           <Tooltip title={activePreset ? 'Nhấn để thay đổi thể loại' : 'Chọn thể loại cho đối tượng'}>
-            <Box component="span" sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#64748b', fontSize: 16, fontWeight: 800 }} aria-hidden="true">i</Box>
+            <Box component="span" sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#64748b' }} aria-hidden="true"><Info size={16} /></Box>
           </Tooltip>
         </Paper>
-        <Menu
-          anchorEl={presetMenuAnchor}
-          open={Boolean(presetMenuAnchor)}
-          onClose={() => { setPresetMenuAnchor(null); setPresetQuery(''); }}
-          slotProps={{ paper: { sx: { mt: 0.5, minWidth: 300, maxHeight: 420, borderRadius: 1.5 } } }}
-        >
-          <MenuItem onClick={clearPreset}><em>Chưa phân loại</em></MenuItem>
-          <Box sx={{ px: 1, pb: 1, position: 'sticky', top: 0, zIndex: 1, bgcolor: '#ffffff' }} onKeyDown={event => event.stopPropagation()}>
-            <TextField
-              autoFocus
-              fullWidth
-              size="small"
-              value={presetQuery}
-              onChange={event => setPresetQuery(event.target.value)}
-              placeholder="Tìm thể loại hoặc tag, ví dụ amenity=atm"
-              slotProps={{ htmlInput: { 'aria-label': 'Tìm thể loại đối tượng' } }}
-            />
-          </Box>
-          {PRESET_GROUPS.flatMap(group => {
-            const groupPresets = menuPresets.filter(preset => preset.group === group.id);
-            return groupPresets.length
-              ? [
-                  <ListSubheader key={`${group.id}-header`}>{group.label}</ListSubheader>,
-                  ...groupPresets.map(preset => (
-                    <MenuItem key={preset.id} selected={preset.id === activePreset?.id} onClick={() => choosePreset(preset)}>
-                      {preset.label}
-                    </MenuItem>
-                  ))
-                ]
-              : [];
-          })}
-          {menuPresets.length === 0 && <MenuItem disabled>Không tìm thấy thể loại phù hợp.</MenuItem>}
-        </Menu>
+        <Collapse in={presetPickerOpen} timeout={160} unmountOnExit>
+          <Paper
+            id="preset-picker"
+            variant="outlined"
+            onKeyDown={event => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setPresetPickerOpen(false);
+              }
+            }}
+            sx={{ mt: 0.75, overflow: 'hidden', borderColor: '#d9c3c8', borderRadius: 1.5, bgcolor: '#ffffff' }}
+          >
+            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1.25, py: 0.75, borderBottom: '1px solid #e8d7db' }}>
+              <Typography sx={{ color: '#475569', fontSize: 12, fontWeight: 700 }}>
+                Chọn thể loại
+              </Typography>
+              <Button
+                size="small"
+                disabled={!activePreset}
+                onClick={clearPreset}
+                sx={{ minWidth: 0, px: 0.75, py: 0.25, color: '#8d1b31', fontSize: 11, fontWeight: 800, textTransform: 'none' }}
+              >
+                Chưa phân loại
+              </Button>
+            </Stack>
+            <Box sx={{ px: 1.25, py: 1 }}>
+              <TextField
+                autoFocus
+                fullWidth
+                size="small"
+                value={presetQuery}
+                onChange={event => setPresetQuery(event.target.value)}
+                placeholder="Tìm thể loại hoặc tag"
+                slotProps={{ htmlInput: { 'aria-label': 'Tìm thể loại đối tượng' } }}
+              />
+            </Box>
+            <Box sx={{ maxHeight: { xs: 208, md: 264 }, overflowY: 'auto', pb: 0.5 }}>
+              {PRESET_GROUPS.flatMap(group => {
+                const groupPresets = menuPresets.filter(preset => preset.group === group.id);
+                return groupPresets.length
+                  ? [
+                      <ListSubheader key={`${group.id}-header`} disableSticky sx={{ bgcolor: 'transparent', color: '#64748b', fontSize: 11, fontWeight: 800, lineHeight: '28px' }}>
+                        {group.label}
+                      </ListSubheader>,
+                      ...groupPresets.map(preset => (
+                        <MenuItem
+                          key={preset.id}
+                          selected={preset.id === activePreset?.id}
+                          onClick={() => choosePreset(preset)}
+                          sx={{ minHeight: 36, mx: 0.5, borderRadius: 1, fontSize: 13, '&.Mui-selected': { bgcolor: '#f7e9ec', color: '#7d172a', fontWeight: 800 }, '&.Mui-selected:hover': { bgcolor: '#f3d8de' } }}
+                        >
+                          {preset.label}
+                        </MenuItem>
+                      ))
+                    ]
+                  : [];
+              })}
+              {menuPresets.length === 0 && <MenuItem disabled sx={{ minHeight: 40, fontSize: 12 }}>Không tìm thấy thể loại phù hợp.</MenuItem>}
+            </Box>
+          </Paper>
+        </Collapse>
       </Box>
 
       {selected.type === 'relation' && (
@@ -515,36 +547,125 @@ function PropertiesEditor({
         </Stack>
 
         <Stack sx={{ gap: 1 }}>
-          {formFields.map(field => (
-            <TextField
-              key={field.key}
-              fullWidth
-              select={field.type === 'select' || field.type === 'yesno'}
-              size="small"
-              required={field.required}
-              type={field.type === 'number' ? 'number' : 'text'}
-              label={field.label}
-              placeholder={field.placeholder}
-              value={draftTags[field.key] ?? ''}
-              onChange={event => {
-                if (field.type === 'select' || field.type === 'yesno') {
-                  updateAndCommit(field.key, event.target.value, `Cập nhật ${field.label}`);
-                } else {
-                  updateValue(field.key, event.target.value);
-                }
-              }}
-              onBlur={() => {
-                if (field.type !== 'select' && field.type !== 'yesno') commit(`Cập nhật ${field.label}`);
-              }}
-              slotProps={field.type === 'number' ? { htmlInput: { min: 0 } } : undefined}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: '#ffffff' } }}
-            >
-              {(field.type === 'select' || field.type === 'yesno') && [
-                <MenuItem key="empty" value=""><em>Không rõ</em></MenuItem>,
-                ...(field.options ?? []).map(option => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)
-              ]}
-            </TextField>
-          ))}
+          {formFields.map(field => {
+            const value = draftTags[field.key] ?? '';
+            const options = field.options ?? [];
+            const choiceOptions = [{ value: '', label: 'Chưa rõ' }, ...options];
+            const isSegmented = field.type === 'yesno' || (field.type === 'select' && options.length <= 4);
+
+            if (isSegmented) {
+              return (
+                <Paper
+                  key={field.key}
+                  variant="outlined"
+                  sx={{
+                    p: 1.25,
+                    borderRadius: 2,
+                    borderColor: value ? '#d9c3c8' : '#dbe3ea',
+                    bgcolor: '#ffffff',
+                    transition: 'border-color 160ms ease, box-shadow 160ms ease',
+                    '&:focus-within': { borderColor: '#9b192e', boxShadow: '0 0 0 3px rgba(155, 25, 46, 0.12)' }
+                  }}
+                >
+                  <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 1 }}>
+                    <Box>
+                      <Typography sx={{ color: '#1e293b', fontSize: 13, fontWeight: 800 }}>
+                        {field.label}{field.required ? ' *' : ''}
+                      </Typography>
+                      <Typography sx={{ mt: 0.2, color: '#64748b', fontSize: 10.5 }}>
+                        {field.type === 'yesno' ? 'Chọn trạng thái của đối tượng' : `${options.length} lựa chọn`}
+                      </Typography>
+                    </Box>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      value={value}
+                      aria-label={field.label}
+                      onChange={(_event, nextValue: string | null) => {
+                        if (nextValue !== null) updateAndCommit(field.key, nextValue, `Cập nhật ${field.label}`);
+                      }}
+                      sx={{
+                        alignSelf: { xs: 'stretch', sm: 'auto' },
+                        '& .MuiToggleButton-root': {
+                          minHeight: 44,
+                          px: 1.1,
+                          color: '#475569',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          textTransform: 'none',
+                          borderColor: '#d8e0e7'
+                        },
+                        '& .Mui-selected': { bgcolor: '#fff1f2 !important', color: '#9b192e !important', borderColor: '#d49aa4 !important' }
+                      }}
+                    >
+                      {choiceOptions.map(option => <ToggleButton key={option.value || 'unknown'} value={option.value}>{option.label}</ToggleButton>)}
+                    </ToggleButtonGroup>
+                  </Stack>
+                </Paper>
+              );
+            }
+
+            if (field.type === 'select') {
+              const selectedOption = choiceOptions.find(option => option.value === value) ?? (value ? { value, label: value } : choiceOptions[0]);
+              return (
+                <Autocomplete
+                  key={field.key}
+                  fullWidth
+                  disableClearable
+                  options={choiceOptions}
+                  value={selectedOption}
+                  isOptionEqualToValue={(option, candidate) => option.value === candidate.value}
+                  getOptionLabel={option => option.label}
+                  onChange={(_event, option) => updateAndCommit(field.key, option?.value ?? '', `Cập nhật ${field.label}`)}
+                  renderInput={params => (
+                    <TextField
+                      {...params}
+                      required={field.required}
+                      label={field.label}
+                      placeholder="Tìm hoặc chọn giá trị"
+                      helperText="Gõ để lọc các giá trị có sẵn"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#ffffff' } }}
+                    />
+                  )}
+                />
+              );
+            }
+
+            return (
+              <Paper
+                key={field.key}
+                component="label"
+                variant="outlined"
+                sx={{
+                  display: 'block',
+                  p: 1.25,
+                  borderRadius: 2,
+                  borderColor: value ? '#d9c3c8' : '#dbe3ea',
+                  bgcolor: '#ffffff',
+                  cursor: 'text',
+                  transition: 'border-color 160ms ease, box-shadow 160ms ease',
+                  '&:focus-within': { borderColor: '#9b192e', boxShadow: '0 0 0 3px rgba(155, 25, 46, 0.12)' }
+                }}
+              >
+                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                  <Typography sx={{ color: '#475569', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3 }}>
+                    {field.label}{field.required ? ' *' : ''}
+                  </Typography>
+                  <Typography sx={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 9.5 }}>{field.key}</Typography>
+                </Stack>
+                <InputBase
+                  fullWidth
+                  type={field.type === 'number' ? 'number' : 'text'}
+                  placeholder={field.placeholder}
+                  value={value}
+                  onChange={event => updateValue(field.key, event.target.value)}
+                  onBlur={() => commit(`Cập nhật ${field.label}`)}
+                  inputProps={{ min: field.type === 'number' ? 0 : undefined, 'aria-label': field.label }}
+                  sx={{ mt: 0.25, color: '#1e293b', fontSize: 16, fontWeight: 650, '& input': { py: 0.15 } }}
+                />
+              </Paper>
+            );
+          })}
         </Stack>
       </Box>
 
@@ -619,7 +740,7 @@ function PropertiesEditor({
                     '&:hover': { color: '#dc2626', bgcolor: '#fee2e2' }
                   }}
                 >
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>×</span>
+                  <X size={16} aria-hidden="true" />
                 </IconButton>
               </Tooltip>
             </Paper>
@@ -735,6 +856,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   const [coordinateAnchor, setCoordinateAnchor] = useState<HTMLElement | null>(null);
   const [coordinateInput, setCoordinateInput] = useState('');
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
+  const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [pinpoint, setPinpoint] = useState<Coordinate | null>(null);
   const [pointerStatus, setPointerStatus] = useState<MapPointerStatus>({ longitude: 104.50728, latitude: 21.59988, zoom: 16 });
   const [drawMode, setDrawMode] = useState<DrawMode>('select');
@@ -751,6 +873,8 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     features,
     selected,
     selectedKey,
+    selectedKeys,
+    selectedFeatures,
     loading,
     error,
     changes,
@@ -807,7 +931,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     void graphLoader.refresh(viewport);
   }, [graphLoader, setError]);
 
-  const handleSelectEntity = useCallback((type: SelectedEntity['type'], id: string) => {
+  const handleSelectEntity = useCallback((type: SelectedEntity['type'], id: string, toggleSelection = false) => {
     const requestId = ++entityRequestRef.current;
     setError(null);
     // A tile click only needs this entity, not another full viewport query.
@@ -817,7 +941,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         const feature = result.snapshots[0]?.feature;
         if (feature) {
           hydrateSupport([...result.support, feature]);
-          selectFeature(feature);
+          selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
           setPropertiesOpen(true);
         } else {
           setError('Đối tượng không còn nằm trong khu vực hiển thị.');
@@ -993,12 +1117,17 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     }
   }, [changeCount, conflictSession, pendingCloseId, refreshAfterCommit, refreshPublishStatus, saving, selectFeature]);
 
-  const handleSelectFeature = useCallback((feature: GraphFeature | null) => {
+  const handleSelectFeature = useCallback((feature: GraphFeature | null, toggleSelection = false) => {
     entityRequestRef.current += 1;
-    selectFeature(feature);
+    selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
     setSelectedVertexId(null);
+    setSelectionMenuPosition(null);
     if (feature) setPropertiesOpen(true);
   }, [selectFeature]);
+
+  const handleSelectionContextMenu = useCallback((position: { top: number; left: number }) => {
+    if (drawMode === 'select' && selected) setSelectionMenuPosition(position);
+  }, [drawMode, selected]);
 
   const handleSelectIssue = useCallback((issue: EditorIssue) => {
     const feature = features.find(item => entityKey(item) === issue.entityKey);
@@ -1284,12 +1413,34 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, handleCancelDrawing, handleDeleteSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
 
   return (
-    <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '52px minmax(0, 1fr) 30px', overflow: 'hidden', bgcolor: '#f1f5f9' }}>
+    <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '56px minmax(0, 1fr) 32px', overflow: 'hidden', bgcolor: '#edf0f3' }}>
       <CssBaseline />
       <GlobalStyles styles={{
+        ':root': {
+          '--editor-red-950': '#4c0f1b',
+          '--editor-red-800': '#7a1426',
+          '--editor-red-700': '#9b192e',
+          '--editor-red-50': '#fff6f7',
+          '--editor-surface': '#ffffff',
+          '--editor-border': '#e2e8f0',
+          '--editor-ink': '#1e293b',
+          '--editor-muted': '#64748b',
+          '--editor-focus': 'rgba(155, 25, 46, 0.12)'
+        },
+        'html, body, #root': { minHeight: '100%', backgroundColor: '#edf0f3' },
         '*': { boxSizing: 'border-box' },
-        '.maplibregl-ctrl-group': { borderRadius: '8px !important', boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15) !important', overflow: 'hidden' },
-        '.maplibregl-ctrl button': { width: '36px !important', height: '36px !important' }
+        '::selection': { backgroundColor: '#f3d8de', color: '#4c0f1b' },
+        'input, textarea': { caretColor: '#9b192e' },
+        'button, [role="button"]': { transition: 'background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease' },
+        'button:focus-visible, [role="button"]:focus-visible, input:focus-visible, [role="tab"]:focus-visible': { outline: '2px solid #9b192e', outlineOffset: 2 },
+        '.MuiMenu-paper, .MuiPopover-paper': { border: '1px solid #e2e8f0', boxShadow: '0 10px 28px rgba(15, 23, 42, 0.14)' },
+        '.maplibregl-ctrl-group': { borderRadius: '10px !important', boxShadow: '0 8px 24px rgba(70, 12, 26, 0.14) !important', overflow: 'hidden', border: '1px solid rgba(155, 25, 46, 0.22)' },
+        '.maplibregl-ctrl button': { width: '38px !important', height: '38px !important' },
+        '.maplibregl-ctrl button:hover': { backgroundColor: '#fff1f2 !important' },
+        '.maplibregl-canvas-container, .maplibregl-canvas': { borderRadius: '14px' },
+        '*::-webkit-scrollbar': { width: 8, height: 8 },
+        '*::-webkit-scrollbar-thumb': { backgroundColor: '#c98a97', borderRadius: 8, border: '2px solid transparent', backgroundClip: 'content-box' },
+        '@media (prefers-reduced-motion: reduce)': { '*, *::before, *::after': { scrollBehavior: 'auto !important', transitionDuration: '0.01ms !important', animationDuration: '0.01ms !important' } }
       }} />
 
       {/* Top Header / App Bar */}
@@ -1297,13 +1448,13 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         position="static"
         elevation={0}
         sx={{
-          background: 'linear-gradient(180deg, #9b192e 0%, #851224 100%)',
+          backgroundColor: '#7a1426',
           color: '#ffffff',
           borderBottom: '1px solid rgba(0, 0, 0, 0.25)',
           zIndex: 10
         }}
       >
-        <Toolbar variant="dense" sx={{ minHeight: '52px !important', px: 1.5, gap: 1.5 }}>
+        <Toolbar variant="dense" sx={{ minHeight: '56px !important', px: { xs: 1, sm: 2 }, gap: { xs: 0.75, sm: 1.5 }, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
           {/* Logo & Application Title */}
           <Stack direction="row" sx={{ alignItems: 'center', gap: 1.25 }}>
             <Box
@@ -1313,14 +1464,14 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 display: 'grid',
                 placeItems: 'center',
                 bgcolor: '#ffffff',
-                color: '#8b1327',
-                borderRadius: 1.5,
+                color: '#9b192e',
+                borderRadius: 2,
                 fontWeight: 900,
                 fontSize: 16,
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                border: '1px solid rgba(255,255,255,0.72)'
               }}
             >
-              ⌖
+              <Crosshair size={17} aria-hidden="true" />
             </Box>
             <Box>
               <Typography sx={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5, lineHeight: 1.15 }}>
@@ -1436,7 +1587,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.22)' }
                 }}
               >
-                Xuất tệp ▾
+                Xuất tệp <ChevronDown size={14} aria-hidden="true" />
               </Button>
             </Tooltip>
             <Menu
@@ -1480,13 +1631,13 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                     height: 32,
                     borderRadius: 1.5,
                     bgcolor: changeCount > 0 ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
-                    color: changeCount > 0 ? '#8b1327' : 'rgba(255, 255, 255, 0.65)',
+                    color: changeCount > 0 ? '#7a1426' : 'rgba(255, 255, 255, 0.65)',
                     fontSize: 12,
                     fontWeight: 800,
                     textTransform: 'none',
                     boxShadow: changeCount > 0 ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
                     '&:hover': {
-                      bgcolor: changeCount > 0 ? '#fceef0' : 'rgba(255, 255, 255, 0.3)'
+                      bgcolor: changeCount > 0 ? '#fff1f2' : 'rgba(255, 255, 255, 0.3)'
                     },
                     '&.Mui-disabled': {
                       bgcolor: 'rgba(255, 255, 255, 0.15)',
@@ -1508,190 +1659,212 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       }} />}
       {conflictSession && <ConflictDialog dataset={dataset.name} session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} />}
       {historyOpen && <ChangesetHistoryDialog dataset={dataset.name} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} />}
+      {selected && (
+        <Menu
+          open={Boolean(selectionMenuPosition)}
+          onClose={() => setSelectionMenuPosition(null)}
+          anchorReference="anchorPosition"
+          anchorPosition={selectionMenuPosition ?? undefined}
+          slotProps={{ list: { 'aria-label': 'Thao tác đối tượng đang chọn' }, paper: { sx: { width: 236, overflow: 'hidden', borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.15)' } } }}
+        >
+          <Box sx={{ px: 1.25, py: 1 }}>
+            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography noWrap sx={{ color: '#1e293b', fontSize: 12.5, fontWeight: 800 }}>{selectedName}</Typography>
+                <Typography sx={{ mt: 0.15, color: '#64748b', fontFamily: 'monospace', fontSize: 10 }}>
+                  {selectedKeys.length > 1 ? `${selectedKeys.length} đối tượng đang chọn` : `${selected.type}/${selected.id}`}
+                </Typography>
+              </Box>
+              <Chip label="UI" size="small" sx={{ height: 19, flexShrink: 0, bgcolor: '#fff1f2', color: '#9b192e', fontSize: 9, fontWeight: 800 }} />
+            </Stack>
+          </Box>
+          <Divider />
+          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+            <Copy size={15} aria-hidden="true" />
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Sao chép</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+C</Typography>
+          </MenuItem>
+          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+            <Clipboard size={15} aria-hidden="true" />
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Dán</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+V</Typography>
+          </MenuItem>
+          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+            <Files size={15} aria-hidden="true" />
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Nhân bản</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+D</Typography>
+          </MenuItem>
+          <Divider sx={{ my: 0.25 }} />
+          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+            <Scissors size={15} aria-hidden="true" />
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Cắt</Typography>
+          </MenuItem>
+          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#b4233c' } }}>
+            <Trash2 size={15} aria-hidden="true" />
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Xóa đối tượng</Typography>
+          </MenuItem>
+        </Menu>
+      )}
 
       {/* Main Workspace Body */}
-      <Box inert={saving || undefined} sx={{ display: 'flex', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      <Box component="main" inert={saving || undefined} sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, position: 'relative', overflow: 'hidden', gap: { xs: 0.75, sm: 1 }, p: { xs: 0.75, sm: 1 }, bgcolor: '#edf0f3' }}>
         {/* Map Canvas Area */}
-        <Box sx={{ position: 'relative', minWidth: 0, flex: 1, overflow: 'hidden', bgcolor: '#e2e8f0' }}>
-          {/* iD Editor / JOSM Style Floating Central Toolbar */}
+        <Box sx={{ position: 'relative', minWidth: 0, minHeight: 0, flex: 1, overflow: 'hidden', bgcolor: '#e2e8f0', borderRadius: { xs: 2, sm: 3 }, border: '1px solid #d7dee6' }}>
+          {/* Primary editing rail */}
           <Paper
             elevation={4}
+            aria-label="Công cụ biên tập bản đồ"
             sx={{
               position: 'absolute',
               zIndex: 10,
-              top: 14,
-              left: '50%',
-              transform: 'translateX(-50%)',
+              top: 16,
+              left: { xs: 10, sm: 16 },
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
+              width: 56,
               p: 0.5,
-              borderRadius: 2.5,
-              bgcolor: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.16)',
-              border: '1px solid rgba(0, 0, 0, 0.08)'
+              borderRadius: 2,
+              bgcolor: '#ffffff',
+              boxShadow: '0 8px 24px rgba(70, 12, 26, 0.16)',
+              border: '1px solid rgba(155, 25, 46, 0.20)'
             }}
           >
-            <Tooltip title="Chọn & Xem đối tượng (Esc / S)" placement="bottom">
+            <Typography sx={{ display: 'none' }}>Công cụ</Typography>
+            <Tooltip title="Chọn & Xem đối tượng (Esc / S)" placement="right">
               <Button
                 size="small"
                 onClick={() => activateDrawMode('select')}
+                aria-label="Chọn và xem đối tượng (Esc hoặc S)"
                 sx={{
-                  minWidth: 42,
-                  height: 38,
-                  px: 1.25,
-                  borderRadius: 2,
+                  minWidth: 44, width: 44, height: 44, p: 0,
+                  justifyContent: 'center',
+                  borderRadius: 1.5,
                   bgcolor: drawMode === 'select' ? '#9b192e' : 'transparent',
                   color: drawMode === 'select' ? '#ffffff' : '#334155',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  textTransform: 'none',
-                  display: 'flex',
-                  gap: 0.6,
                   '&:hover': {
-                    bgcolor: drawMode === 'select' ? '#851224' : 'rgba(155, 25, 46, 0.08)'
+                    bgcolor: drawMode === 'select' ? '#7a1426' : '#fff1f2'
                   }
                 }}
               >
-                <span style={{ fontSize: 16 }}>⌖</span> Chọn
+                <MousePointer2 size={20} aria-hidden="true" />
               </Button>
             </Tooltip>
 
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.8 }} />
+            <Divider sx={{ mx: 0.5, my: 0.65 }} />
 
-            <Tooltip title="Vẽ điểm (Phím 1)" placement="bottom">
+            <Tooltip title="Vẽ điểm (Phím 1)" placement="right">
               <Button
                 size="small"
                 onClick={() => activateDrawMode('point')}
+                aria-label="Vẽ điểm (phím 1)"
                 sx={{
-                  minWidth: 42,
-                  height: 38,
-                  px: 1.25,
-                  borderRadius: 2,
+                  minWidth: 44, width: 44, height: 44, p: 0,
+                  justifyContent: 'center',
+                  borderRadius: 1.5,
                   bgcolor: drawMode === 'point' ? '#9b192e' : 'transparent',
                   color: drawMode === 'point' ? '#ffffff' : '#334155',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  textTransform: 'none',
-                  display: 'flex',
-                  gap: 0.6,
                   '&:hover': {
-                    bgcolor: drawMode === 'point' ? '#851224' : 'rgba(155, 25, 46, 0.08)'
+                    bgcolor: drawMode === 'point' ? '#7a1426' : '#fff1f2'
                   }
                 }}
               >
-                <span style={{ fontSize: 16 }}>●</span> Điểm
+                <CirclePlus size={20} aria-hidden="true" />
               </Button>
             </Tooltip>
 
-            <Tooltip title="Vẽ đường (Phím 2)" placement="bottom">
+            <Tooltip title="Vẽ đường (Phím 2)" placement="right">
               <Button
                 size="small"
                 onClick={() => activateDrawMode('line')}
+                aria-label="Vẽ đường (phím 2)"
                 sx={{
-                  minWidth: 42,
-                  height: 38,
-                  px: 1.25,
-                  borderRadius: 2,
+                  minWidth: 44, width: 44, height: 44, p: 0,
+                  justifyContent: 'center',
+                  borderRadius: 1.5,
                   bgcolor: drawMode === 'line' ? '#9b192e' : 'transparent',
                   color: drawMode === 'line' ? '#ffffff' : '#334155',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  textTransform: 'none',
-                  display: 'flex',
-                  gap: 0.6,
                   '&:hover': {
-                    bgcolor: drawMode === 'line' ? '#851224' : 'rgba(155, 25, 46, 0.08)'
+                    bgcolor: drawMode === 'line' ? '#7a1426' : '#fff1f2'
                   }
                 }}
               >
-                <span style={{ fontSize: 16 }}>╱</span> Đường
+                <Spline size={20} aria-hidden="true" />
               </Button>
             </Tooltip>
 
-            <Tooltip title="Vẽ vùng (Phím 3)" placement="bottom">
+            <Tooltip title="Vẽ vùng (Phím 3)" placement="right">
               <Button
                 size="small"
                 onClick={() => activateDrawMode('area')}
+                aria-label="Vẽ vùng (phím 3)"
                 sx={{
-                  minWidth: 42,
-                  height: 38,
-                  px: 1.25,
-                  borderRadius: 2,
+                  minWidth: 44, width: 44, height: 44, p: 0,
+                  justifyContent: 'center',
+                  borderRadius: 1.5,
                   bgcolor: drawMode === 'area' ? '#9b192e' : 'transparent',
                   color: drawMode === 'area' ? '#ffffff' : '#334155',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  textTransform: 'none',
-                  display: 'flex',
-                  gap: 0.6,
                   '&:hover': {
-                    bgcolor: drawMode === 'area' ? '#851224' : 'rgba(155, 25, 46, 0.08)'
+                    bgcolor: drawMode === 'area' ? '#7a1426' : '#fff1f2'
                   }
                 }}
               >
-                <span style={{ fontSize: 16 }}>▱</span> Vùng
+                <Pentagon size={20} aria-hidden="true" />
               </Button>
             </Tooltip>
 
-            <Tooltip title="Tạo quan hệ từ đối tượng đang chọn" placement="bottom">
+            <Tooltip title="Tạo quan hệ (không có phím tắt)" placement="right">
               <Button
                 size="small"
                 onClick={handleCreateRelation}
+                aria-label="Tạo quan hệ từ đối tượng đang chọn (không có phím tắt)"
                 sx={{
-                  minWidth: 42,
-                  height: 38,
-                  px: 1.1,
-                  borderRadius: 2,
-                  color: '#5b21b6',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  textTransform: 'none',
-                  display: 'flex',
-                  gap: 0.5,
-                  '&:hover': { bgcolor: '#f1edff' }
+                  minWidth: 44, width: 44, height: 44, p: 0,
+                  justifyContent: 'center',
+                  borderRadius: 1.5,
+                  color: '#7a1426',
+                  '&:hover': { bgcolor: '#fff1f2' }
                 }}
               >
-                <span style={{ fontSize: 18, lineHeight: 1 }}>∞</span> Quan hệ
+                <Network size={20} aria-hidden="true" />
               </Button>
             </Tooltip>
 
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.8 }} />
+            <Divider sx={{ mx: 0.5, my: 0.65 }} />
 
-            <Tooltip title="Hoàn tác (Ctrl+Z)" placement="bottom">
+            <Tooltip title="Hoàn tác (Ctrl+Z)" placement="right">
               <span>
                 <IconButton
                   size="small"
                   disabled={!canUndo}
                   onClick={undo}
+                  aria-label="Hoàn tác (Ctrl+Z)"
                   sx={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 2,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 1.5,
                     color: canUndo ? '#334155' : '#cbd5e1',
-                    '&:hover': { bgcolor: 'rgba(155, 25, 46, 0.08)' }
+                    '&:hover': { bgcolor: '#fff1f2' }
                   }}
                 >
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>↶</span>
+                  <Undo2 size={20} aria-hidden="true" />
                 </IconButton>
               </span>
             </Tooltip>
 
-            <Tooltip title="Làm lại (Ctrl+Y)" placement="bottom">
+            <Tooltip title="Làm lại (Ctrl+Y)" placement="right">
               <span>
                 <IconButton
                   size="small"
                   disabled={!canRedo}
                   onClick={redo}
+                  aria-label="Làm lại (Ctrl+Y)"
                   sx={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 2,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 1.5,
                     color: canRedo ? '#334155' : '#cbd5e1',
-                    '&:hover': { bgcolor: 'rgba(155, 25, 46, 0.08)' }
+                    '&:hover': { bgcolor: '#fff1f2' }
                   }}
                 >
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>↷</span>
+                  <Redo2 size={20} aria-hidden="true" />
                 </IconButton>
               </span>
             </Tooltip>
@@ -1705,17 +1878,19 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 position: 'absolute',
                 zIndex: 9,
                 top: 72,
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: { xs: 70, sm: '50%' },
+                right: { xs: 10, sm: 'auto' },
+                transform: { xs: 'none', sm: 'translateX(-50%)' },
                 display: 'flex',
                 alignItems: 'center',
+                flexWrap: 'wrap',
                 gap: 1.5,
                 px: 2,
                 py: 0.8,
                 borderRadius: 2,
                 bgcolor: '#ffffff',
                 border: '1px solid #fed7aa',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.1)'
+                boxShadow: '0 8px 20px rgba(15,23,42,0.14)'
               }}
             >
               <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#9a3412' }}>
@@ -1735,7 +1910,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                     fontWeight: 700,
                     textTransform: 'none',
                     py: 0.3,
-                    '&:hover': { bgcolor: '#851224' }
+                    '&:hover': { bgcolor: '#7a1426' }
                   }}
                 >
                   Hoàn tất (Enter)
@@ -1767,15 +1942,15 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               sx={{
                 position: 'absolute',
                 zIndex: 8,
-                bottom: 24,
+                bottom: { xs: 12, sm: 24 },
                 left: '50%',
                 transform: 'translateX(-50%)',
+                maxWidth: 'calc(100% - 32px)',
                 px: 2,
                 py: 1,
                 borderRadius: 2,
-                bgcolor: 'rgba(30, 41, 59, 0.92)',
+                bgcolor: '#1e293b',
                 color: '#ffffff',
-                backdropFilter: 'blur(4px)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.5
@@ -1792,9 +1967,12 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             <Paper
               elevation={4}
               sx={{
-                position: 'absolute', zIndex: 10, top: 72, left: 16, width: 320,
-                maxHeight: 'calc(100% - 160px)', overflowY: 'auto', borderRadius: 2,
-                border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.16)'
+                // The tool rail owns the upper-left corner and the drawing
+                // guide is centered. Keep validation feedback under the map
+                // controls so persistent overlays never cover each other.
+                position: 'absolute', zIndex: 10, top: { xs: 144, sm: 176 }, right: { xs: 10, sm: 16 }, width: { xs: 'calc(100% - 20px)', sm: 320 },
+                maxHeight: 'calc(100% - 192px)', overflowY: 'auto', borderRadius: 2,
+                border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.14)'
               }}
             >
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1.4, py: 1, borderBottom: '1px solid #e2e8f0', bgcolor: blockingIssues.length ? '#fff1f2' : '#f0fdf4' }}>
@@ -1805,7 +1983,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
                   {blockingIssues.length > 0 && <Chip label={`${blockingIssues.length} lỗi`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#fee2e2', color: '#b4233c' }} />}
                   {issues.length > blockingIssues.length && <Chip label={`${issues.length - blockingIssues.length} lưu ý`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#fef3c7', color: '#92400e' }} />}
-                  <Tooltip title="Thu gọn kiểm tra dữ liệu"><IconButton size="small" onClick={() => setIssuesOpen(false)} sx={{ color: '#64748b' }}>×</IconButton></Tooltip>
+                  <Tooltip title="Thu gọn kiểm tra dữ liệu"><IconButton size="small" aria-label="Thu gọn kiểm tra dữ liệu" onClick={() => setIssuesOpen(false)} sx={{ color: '#64748b' }}><X size={16} aria-hidden="true" /></IconButton></Tooltip>
                 </Stack>
               </Stack>
               {issues.length === 0 ? (
@@ -1831,7 +2009,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             </Paper>
           )}
           {graphVisible && changeCount > 0 && !issuesOpen && (
-            <Button onClick={() => setIssuesOpen(true)} size="small" variant="contained" sx={{ position: 'absolute', zIndex: 10, top: 72, left: 16, borderRadius: 1.5, bgcolor: blockingIssues.length ? '#b4233c' : '#15803d', textTransform: 'none', fontSize: 11, fontWeight: 800 }}>
+            <Button onClick={() => setIssuesOpen(true)} size="small" variant="contained" sx={{ position: 'absolute', zIndex: 10, top: { xs: 144, sm: 176 }, right: { xs: 10, sm: 16 }, borderRadius: 1.5, bgcolor: blockingIssues.length ? '#b4233c' : '#15803d', textTransform: 'none', fontSize: 11, fontWeight: 800 }}>
               Kiểm tra dữ liệu{issues.length ? ` · ${issues.length}` : ''}
             </Button>
           )}
@@ -1851,17 +2029,17 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 maxWidth: 440,
                 px: 1.5,
                 py: 1,
-                borderRadius: 2,
+                borderRadius: 1.5,
                 bgcolor: '#ffffff',
-                borderLeft: '4px solid #9b192e',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
+                border: '1px solid #ead6da',
+                boxShadow: '0 8px 20px rgba(15,23,42,0.14)'
               }}
             >
               <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b' }}>
                 {saveStatus}
               </Typography>
-              <IconButton size="small" onClick={() => setSaveStatus(null)} sx={{ color: '#94a3b8' }}>
-                <span style={{ fontSize: 16, lineHeight: 1 }}>×</span>
+              <IconButton size="small" aria-label="Đóng thông báo trạng thái" onClick={() => setSaveStatus(null)} sx={{ color: '#94a3b8' }}>
+                <X size={16} aria-hidden="true" />
               </IconButton>
             </Paper>
           )}
@@ -1875,12 +2053,15 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             drawMode={drawMode}
             drawVertices={drawVertices}
             selected={selected}
+            selectedFeatures={selectedFeatures}
+            selectedKeys={selectedKeys}
             selectedVertexId={selectedVertexId}
             changedKeys={changedKeys}
             onSelectVertex={setSelectedVertexId}
             onBoundsChange={refreshGraph}
             onSelect={handleSelectFeature}
             onSelectEntity={handleSelectEntity}
+            onSelectionContextMenu={handleSelectionContextMenu}
             onInsertVertex={handleInsertVertex}
             onDrawVertex={handleDrawVertex}
             onFinishDrawing={handleFinishDrawing}
@@ -1893,28 +2074,36 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         {/* Feature Inspector */}
         {selected && propertiesOpen && (
           <Paper
-            square
             component="aside"
             aria-label="Bảng chi tiết đối tượng đang chọn"
             sx={{
-              width: { xs: 'min(100vw, 392px)', md: propertiesWidth },
+              width: { xs: '100%', md: propertiesWidth },
               maxWidth: '100vw',
-              borderLeft: '1px solid #e2e8f0',
-              bgcolor: '#f8fafc',
+              minHeight: { xs: 252, md: 0 },
+              maxHeight: { xs: '46%', md: 'none' },
+              border: '1px solid #d9c3c8',
+              borderRadius: { xs: 2, md: 3 },
+              bgcolor: '#f4f6f8',
               display: 'flex',
               flexDirection: 'column',
               zIndex: 9,
-              boxShadow: '-8px 0 24px rgba(15, 23, 42, 0.10)',
+              boxShadow: { xs: '0 -8px 24px rgba(15, 23, 42, 0.12)', md: '-10px 0 28px rgba(15, 23, 42, 0.14)' },
               overflow: 'hidden'
             }}
           >
             <Box
               component="header"
-              sx={{ p: 2, pb: selectedWay ? 1 : 1.5, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}
+              sx={{
+                p: 2,
+                pb: selectedWay ? 1.25 : 1.75,
+                color: '#ffffff',
+                backgroundColor: '#9b192e',
+                borderBottom: '1px solid #5f1020'
+              }}
             >
               <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ color: '#64748b', fontSize: 10, fontWeight: 800, letterSpacing: 0.9, textTransform: 'uppercase', mb: 0.75 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.70)', fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', mb: 0.75 }}>
                     Đối tượng đang chọn
                   </Typography>
                   <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, mb: 0.7 }}>
@@ -1922,17 +2111,31 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                       label={selected.type === 'node' ? 'Điểm' : selected.type === 'way' ? (selected.geometry.type === 'Polygon' ? 'Vùng' : 'Đường') : 'Quan hệ'}
                       size="small"
                       sx={{
-                        bgcolor: '#fce7ea',
-                        color: '#9b192e',
+                        bgcolor: 'rgba(255,255,255,0.15)',
+                        color: '#ffffff',
                         fontWeight: 800,
                         fontSize: 10,
                         height: 22,
-                        border: '1px solid #fecdd3'
+                        border: '1px solid rgba(255,255,255,0.30)'
                       }}
                     />
-                    <Typography sx={{ color: '#64748b', fontFamily: 'monospace', fontSize: 11 }}>#{selected.id}</Typography>
+                    {selectedKeys.length > 1 && (
+                      <Chip
+                        label={`${selectedKeys.length} đang chọn`}
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(255,255,255,0.15)',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: 10,
+                          height: 22,
+                          border: '1px solid rgba(255,255,255,0.30)'
+                        }}
+                      />
+                    )}
+                    <Typography sx={{ color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', fontSize: 11 }}>#{selected.id}</Typography>
                   </Stack>
-                  <Typography noWrap sx={{ fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1.25 }}>
+                  <Typography noWrap sx={{ fontSize: 18, fontWeight: 800, color: '#ffffff', lineHeight: 1.25, letterSpacing: -0.2 }}>
                     {selectedName}
                   </Typography>
                 </Box>
@@ -1941,11 +2144,25 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                     size="small"
                     aria-label="Đóng bảng thuộc tính"
                     onClick={() => setPropertiesOpen(false)}
-                    sx={{ color: '#64748b', '&:hover': { bgcolor: '#fceef0', color: '#9b192e' }, '&:focus-visible': { outline: '2px solid #2563eb', outlineOffset: 2 } }}
+                    sx={{ color: '#ffffff', bgcolor: 'rgba(255,255,255,0.10)', '&:hover': { bgcolor: 'rgba(255,255,255,0.20)' }, '&:focus-visible': { outline: '2px solid #ffffff', outlineOffset: 2 } }}
                   >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>×</span>
+                    <X size={18} aria-hidden="true" />
                   </IconButton>
                 </Tooltip>
+              </Stack>
+              <Stack direction="row" sx={{ mt: 1.75, gap: 0.75 }}>
+                <Box sx={{ minWidth: 82, flex: 1, px: 1, py: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.66)', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase' }}>Tags</Typography>
+                  <Typography sx={{ mt: 0.2, color: '#ffffff', fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{Object.keys(selected.tags).length}</Typography>
+                </Box>
+                <Box sx={{ minWidth: 82, flex: 1, px: 1, py: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.66)', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase' }}>{selectedWay ? 'Đỉnh' : 'Geometry'}</Typography>
+                  <Typography sx={{ mt: 0.2, color: '#ffffff', fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{selectedWay ? (selectedWay.properties.nodeIds?.length ?? 0) : selected.geometry.type}</Typography>
+                </Box>
+                <Box sx={{ minWidth: 82, flex: 1, px: 1, py: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.66)', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase' }}>Trạng thái</Typography>
+                  <Typography noWrap sx={{ mt: 0.2, color: '#ffffff', fontSize: 11, fontWeight: 800, lineHeight: 1.45 }}>{changes.some(change => change.key === selectedKey) ? 'Đã sửa' : 'Gốc'}</Typography>
+                </Box>
               </Stack>
             </Box>
 
@@ -1955,10 +2172,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 onChange={(_, value: 'properties' | 'topology') => setInspectorTab(value)}
                 aria-label="Khu vực chỉnh sửa đối tượng"
                 variant="fullWidth"
-                sx={{ minHeight: 42, px: 1.25, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0', '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', bgcolor: '#9b192e' } }}
+                sx={{ minHeight: 48, px: 1.25, bgcolor: '#ffffff', borderBottom: '1px solid #cbd5e1', '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', bgcolor: '#9b192e' } }}
               >
-                <Tab value="properties" label="Thuộc tính" id="inspector-tab-properties" aria-controls="inspector-panel-properties" sx={{ minHeight: 42, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#7a1426' } }} />
-                <Tab value="topology" label="Topology" id="inspector-tab-topology" aria-controls="inspector-panel-topology" sx={{ minHeight: 42, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#7a1426' } }} />
+                <Tab value="properties" label="Thuộc tính" id="inspector-tab-properties" aria-controls="inspector-panel-properties" sx={{ minHeight: 48, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#9b192e' } }} />
+                <Tab value="topology" label="Topology" id="inspector-tab-topology" aria-controls="inspector-panel-topology" sx={{ minHeight: 48, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#9b192e' } }} />
               </Tabs>
             )}
 
@@ -2014,7 +2231,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 '&:hover': { bgcolor: '#fceef0' }
               }}
             >
-              <span style={{ fontSize: 16, fontWeight: 700 }}>›</span>
+              <ChevronRight size={18} aria-hidden="true" />
             </IconButton>
           </Tooltip>
         )}
@@ -2025,12 +2242,14 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         sx={{
           display: 'flex',
           alignItems: 'center',
-          px: 2,
-          bgcolor: '#1e293b',
+          minWidth: 0,
+          px: { xs: 1, sm: 2 },
+          bgcolor: '#321019',
           color: '#e2e8f0',
-          borderTop: '1px solid #0f172a',
+          borderTop: '1px solid #5f1020',
           fontSize: 11,
-          userSelect: 'none'
+          userSelect: 'none',
+          overflow: 'hidden'
         }}
       >
         {/* Status Indicator */}
@@ -2043,7 +2262,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               bgcolor: error ? '#ef4444' : loading ? '#f59e0b' : '#10b981'
             }}
           />
-          <Typography sx={{ fontSize: 11, color: '#f1f5f9' }}>
+          <Typography noWrap sx={{ fontSize: 11, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {error ? error : loading ? 'Đang tải dữ liệu...' : changeCount > 0 ? `${changeCount} thay đổi chưa lưu` : 'Sẵn sàng làm việc'}
           </Typography>
         </Stack>
@@ -2051,7 +2270,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         <Box sx={{ flex: 1 }} />
 
         {/* Pointer Position & Zoom HUD */}
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 2, mr: 2 }}>
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 2, mr: { xs: 0, sm: 2 }, display: { xs: 'none', sm: 'flex' } }}>
           <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8' }}>
             {Math.abs(pointerStatus.latitude).toFixed(5)}° {pointerStatus.latitude >= 0 ? 'B' : 'N'}, {Math.abs(pointerStatus.longitude).toFixed(5)}° {pointerStatus.longitude >= 0 ? 'Đ' : 'T'}
           </Typography>
@@ -2074,7 +2293,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           </Stack>
         )}
 
-        <Typography sx={{ fontSize: 10.5, color: '#64748b' }}>
+        <Typography noWrap sx={{ display: { xs: 'none', lg: 'block' }, fontSize: 10.5, color: '#94a3b8' }}>
           Hệ thống Quản lý Dữ liệu Địa lý
         </Typography>
       </Box>

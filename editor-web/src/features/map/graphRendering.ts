@@ -26,15 +26,16 @@ export function renderCollection(features: GraphFeature[]): FeatureCollection {
 
 // Selection is independent of viewport coverage and the graph's zoom threshold.
 // EditorStore owns the latest geometry, including unsaved edits.
-export function selectedFeatureCollection(selected: SelectedEntity | null): FeatureCollection {
-  return renderCollection(selected ? [{
+export function selectedFeatureCollection(selected: SelectedEntity | readonly SelectedEntity[] | null): FeatureCollection {
+  const selections = Array.isArray(selected) ? selected : selected ? [selected] : [];
+  return renderCollection(selections.map(feature => ({
     type: 'Feature',
     properties: {
-      entityType: selected.type, entityId: selected.id, version: selected.version,
-      tags: selected.tags, name: selected.tags.name
+      entityType: feature.type, entityId: feature.id, version: feature.version,
+      tags: feature.tags, name: feature.tags.name
     },
-    geometry: selected.geometry
-  }] : []);
+    geometry: feature.geometry
+  })));
 }
 
 interface TileMap {

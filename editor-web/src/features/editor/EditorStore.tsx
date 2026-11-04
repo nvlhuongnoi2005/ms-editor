@@ -31,6 +31,7 @@ interface EditorState {
   viewportKeys: EntityKey[];
   overrides: Record<EntityKey, GraphFeature | null>;
   selectedKey: EntityKey | null;
+  selectedKeys: EntityKey[];
   undoStack: EditorTransaction[];
   redoStack: EditorTransaction[];
   nextChangeId: number;
@@ -42,7 +43,7 @@ type EditorAction =
   | { type: 'hydrate'; features: GraphFeature[] }
   | { type: 'hydrate-support'; features: GraphFeature[] }
   | { type: 'resolve-conflicts'; plan: ResolutionPlan }
-  | { type: 'select'; key: EntityKey | null }
+  | { type: 'select'; key: EntityKey | null; mode: 'replace' | 'toggle' }
   | { type: 'loading'; value: boolean }
   | { type: 'error'; value: string | null }
   | { type: 'commit'; key: EntityKey; feature: GraphFeature | null; label: string }
@@ -56,6 +57,7 @@ export const initialState: EditorState = {
   viewportKeys: [],
   overrides: {},
   selectedKey: null,
+  selectedKeys: [],
   undoStack: [],
   redoStack: [],
   nextChangeId: 1,
@@ -183,7 +185,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const baseFeatures: Record<EntityKey, GraphFeature> = Object.fromEntries(
         // Keep selection even when the next bounded viewport omits it. Unlike
         // dirty baselines, a clean selection may still refresh from the server.
-        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key) || key === state.selectedKey)
+        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key) || state.selectedKeys.includes(key))
       );
       const viewportKeys: EntityKey[] = [];
       for (const feature of action.features) {
@@ -202,11 +204,21 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
           };
         }
       }
-      const selected = state.selectedKey ? readFeature({ ...state, baseFeatures }, state.selectedKey) : null;
-      return { ...state, baseFeatures, viewportKeys, selectedKey: selected ? state.selectedKey : null };
+      const selectedKeys = state.selectedKeys.filter(key => Boolean(readFeature({ ...state, baseFeatures }, key)));
+      const selectedKey = state.selectedKey && selectedKeys.includes(state.selectedKey)
+        ? state.selectedKey
+        : selectedKeys.at(-1) ?? null;
+      return { ...state, baseFeatures, viewportKeys, selectedKeys, selectedKey };
     }
-    case 'select':
-      return { ...state, selectedKey: action.key };
+    case 'select': {
+      if (!action.key) return { ...state, selectedKey: null, selectedKeys: [] };
+      if (action.mode === 'replace') return { ...state, selectedKey: action.key, selectedKeys: [action.key] };
+      if (!state.selectedKeys.includes(action.key)) {
+        return { ...state, selectedKey: action.key, selectedKeys: [...state.selectedKeys, action.key] };
+      }
+      const selectedKeys = state.selectedKeys.filter(key => key !== action.key);
+      return { ...state, selectedKeys, selectedKey: state.selectedKey === action.key ? selectedKeys.at(-1) ?? null : state.selectedKey };
+    }
     case 'loading':
       return { ...state, loading: action.value };
     case 'error':
@@ -304,6 +316,8 @@ interface EditorStoreValue {
   features: GraphFeature[];
   selected: SelectedEntity | null;
   selectedKey: EntityKey | null;
+  selectedKeys: EntityKey[];
+  selectedFeatures: SelectedEntity[];
   loading: boolean;
   error: string | null;
   changes: EditorChange[];
@@ -315,7 +329,7 @@ interface EditorStoreValue {
   resolveConflicts: (plan: ResolutionPlan) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  selectFeature: (feature: GraphFeature | null) => void;
+  selectFeature: (feature: GraphFeature | null, mode?: 'replace' | 'toggle') => void;
   updateTags: (key: EntityKey, tags: Tags, label?: string) => void;
   replaceFeature: (feature: GraphFeature | null, key: EntityKey, label: string) => void;
   replaceFeatures: (mutations: FeatureMutation[], label: string) => void;
@@ -334,7 +348,7 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
   const resolveConflicts = useCallback((plan: ResolutionPlan) => dispatch({ type: 'resolve-conflicts', plan }), []);
   const setLoading = useCallback((value: boolean) => dispatch({ type: 'loading', value }), []);
   const setError = useCallback((value: string | null) => dispatch({ type: 'error', value }), []);
-  const selectFeature = useCallback((feature: GraphFeature | null) => dispatch({ type: 'select', key: feature ? entityKey(feature) : null }), []);
+  const selectFeature = useCallback((feature: GraphFeature | null, mode: 'replace' | 'toggle' = 'replace') => dispatch({ type: 'select', key: feature ? entityKey(feature) : null, mode }), []);
   const replaceFeature = useCallback((feature: GraphFeature | null, key: EntityKey, label: string) => dispatch({ type: 'commit', key, feature, label }), []);
   const replaceFeatures = useCallback((mutations: FeatureMutation[], label: string) => dispatch({ type: 'commit-many', mutations, label }), []);
   const updateTags = useCallback((key: EntityKey, tags: Tags, label = 'Cập nhật thuộc tính') => {
@@ -354,12 +368,19 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
   const features = useMemo(() => visibleFeatures(state), [state.baseFeatures, state.viewportKeys, state.overrides]);
   const changes = useMemo(() => pendingChanges(state), [state.baseFeatures, state.overrides, state.undoStack]);
   const selected = useMemo(() => toSelectedEntity(state.selectedKey ? readFeature(state, state.selectedKey) : null), [state.baseFeatures, state.overrides, state.selectedKey]);
+  const selectedFeatures = useMemo(() => state.selectedKeys.flatMap(key => {
+    const feature = readFeature(state, key);
+    const entity = toSelectedEntity(feature);
+    return entity ? [entity] : [];
+  }), [state.baseFeatures, state.overrides, state.selectedKeys]);
 
   const value = useMemo<EditorStoreValue>(() => {
     return {
       features,
       selected,
       selectedKey: state.selectedKey,
+      selectedKeys: state.selectedKeys,
+      selectedFeatures,
       loading: state.loading,
       error: state.error,
       changes,
@@ -379,7 +400,7 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
       redo,
       discardChanges
     };
-  }, [changes, discardChanges, features, hydrateGraph, hydrateSupport, redo, replaceFeature, replaceFeatures, resolveConflicts, selected, selectFeature, setError, setLoading, state, undo, updateTags]);
+  }, [changes, discardChanges, features, hydrateGraph, hydrateSupport, redo, replaceFeature, replaceFeatures, resolveConflicts, selected, selectedFeatures, selectFeature, setError, setLoading, state, undo, updateTags]);
 
   return <EditorStoreContext.Provider value={value}>{children}</EditorStoreContext.Provider>;
 }

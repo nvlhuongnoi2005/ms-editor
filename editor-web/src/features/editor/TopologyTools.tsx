@@ -30,8 +30,8 @@ export const TopologyTools = memo(function TopologyTools({ way, features, vertex
   const mergeTarget = candidates.some(candidate => candidate.properties.entityId === mergeId) ? mergeId : '';
   return (
     <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, bgcolor: '#f8fafc' }}>
-      <Box sx={{ p: 1.25, border: '1px solid #dbeafe', borderRadius: 1.5, bgcolor: '#eff6ff' }}>
-        <Typography sx={{ color: '#1d4ed8', fontSize: 12, fontWeight: 800, mb: 0.35 }}>Chỉnh sửa cấu trúc đường/vùng</Typography>
+      <Box sx={{ p: 1.25, border: '1px solid #ead6da', borderRadius: 1.5, bgcolor: '#fff6f7' }}>
+        <Typography sx={{ color: '#7a1426', fontSize: 12, fontWeight: 800, mb: 0.35 }}>Chỉnh sửa cấu trúc đường/vùng</Typography>
         <Typography sx={{ color: '#475569', fontSize: 11, lineHeight: 1.45 }}>Chọn đỉnh trên bản đồ hoặc trong danh sách. Ctrl+Z để hoàn tác cả thao tác.</Typography>
       </Box>
 

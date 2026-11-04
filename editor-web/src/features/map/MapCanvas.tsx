@@ -25,12 +25,15 @@ interface MapCanvasProps {
   drawMode: DrawMode;
   drawVertices: SnappedVertex[];
   selected: SelectedEntity | null;
+  selectedFeatures: readonly SelectedEntity[];
+  selectedKeys: readonly string[];
   selectedVertexId: string | null;
   changedKeys: ReadonlySet<string>;
   onSelectVertex: (nodeId: string) => void;
   onBoundsChange: (viewport: MapViewport) => void;
-  onSelect: (feature: GraphFeature) => void;
-  onSelectEntity: (type: EntityType, id: string) => void;
+  onSelect: (feature: GraphFeature, toggleSelection: boolean) => void;
+  onSelectEntity: (type: EntityType, id: string, toggleSelection: boolean) => void;
+  onSelectionContextMenu: (position: { top: number; left: number }) => void;
   onInsertVertex: (vertex: SnappedVertex) => void;
   onDrawVertex: (vertex: SnappedVertex) => void;
   onFinishDrawing: () => void;
@@ -73,21 +76,28 @@ function coordinatesOfWay(feature: GraphFeature): Coordinate[] {
   return [];
 }
 
-function selectedVertexCollection(selected: SelectedEntity | null, features: GraphFeature[]): FeatureCollection {
-  if (!selected) return emptyCollection();
-  const feature = features.find(item => item.properties.entityType === selected.type && item.properties.entityId === selected.id);
-  if (!feature) return emptyCollection();
-  if (feature.properties.entityType === 'node' && feature.geometry.type === 'Point') {
-    return featureCollection([{ type: 'Feature', properties: { nodeId: feature.properties.entityId }, geometry: { type: 'Point', coordinates: feature.geometry.coordinates } }]);
-  }
-  if (feature.properties.entityType !== 'way' || !feature.properties.nodeIds) return emptyCollection();
-  const coordinates = coordinatesOfWay(feature);
-  const nodeIds = feature.properties.nodeIds;
-  const count = feature.geometry.type === 'Polygon' && nodeIds.at(0) === nodeIds.at(-1) ? nodeIds.length - 1 : nodeIds.length;
-  return featureCollection(nodeIds.slice(0, count).flatMap((nodeId, index) => {
+function selectedVertexCollection(selectedKeys: ReadonlySet<string>, features: GraphFeature[]): FeatureCollection {
+  const seen = new Set<string>();
+  return featureCollection(features.flatMap(feature => {
+    const key = `${feature.properties.entityType}/${feature.properties.entityId}`;
+    if (!selectedKeys.has(key)) return [];
+    if (feature.properties.entityType === 'node' && feature.geometry.type === 'Point') {
+      const nodeId = feature.properties.entityId;
+      if (seen.has(nodeId)) return [];
+      seen.add(nodeId);
+      return [{ type: 'Feature', properties: { nodeId }, geometry: { type: 'Point', coordinates: feature.geometry.coordinates } }];
+    }
+    if (feature.properties.entityType !== 'way' || !feature.properties.nodeIds) return [];
+    const coordinates = coordinatesOfWay(feature);
+    const nodeIds = feature.properties.nodeIds;
+    const count = feature.geometry.type === 'Polygon' && nodeIds.at(0) === nodeIds.at(-1) ? nodeIds.length - 1 : nodeIds.length;
+    return nodeIds.slice(0, count).flatMap((nodeId, index) => {
+      if (seen.has(nodeId)) return [];
+      seen.add(nodeId);
       const coordinate = coordinates[index];
       return coordinate ? [{ type: 'Feature', properties: { nodeId, index }, geometry: { type: 'Point', coordinates: coordinate } }] : [];
-    }));
+    });
+  }));
 }
 
 function draftCollection(mode: DrawMode, vertices: SnappedVertex[], pointer?: SnappedVertex): FeatureCollection {
@@ -125,6 +135,10 @@ const pointIconComponents = {
 
 const pointPinImageWidth = 96;
 const pointPinImageHeight = 120;
+// Map features such as narrow roads are difficult to target precisely with a
+// mouse. Keep the visual style unchanged, but use a small pixel hit area for
+// both hover feedback and click selection.
+const selectionHitRadius = 12;
 
 function pointPinDataURI(icon: LucideIcon, variant: 'normal' | 'selection' = 'normal'): string {
   const lucideSVG = variant === 'normal'
@@ -202,7 +216,7 @@ async function loadPointPinImages(map: Map, isDisposed: () => boolean): Promise<
   }));
 }
 
-export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode, drawVertices, selected, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
+export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode, drawVertices, selected, selectedFeatures, selectedKeys, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const featuresRef = useRef(features);
@@ -210,8 +224,10 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
   const drawVerticesRef = useRef(drawVertices);
   const pinpointRef = useRef(pinpoint);
   const selectedRef = useRef(selected);
+  const selectedFeaturesRef = useRef(selectedFeatures);
+  const selectedKeysRef = useRef(selectedKeys);
   const changedKeysRef = useRef(changedKeys);
-  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
+  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
   const topology = useMemo(() => buildTopologyGraph(features), [features]);
   const topologyRef = useRef(topology);
   topologyRef.current = topology;
@@ -222,8 +238,10 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
   drawVerticesRef.current = drawVertices;
   pinpointRef.current = pinpoint;
   selectedRef.current = selected;
+  selectedFeaturesRef.current = selectedFeatures;
+  selectedKeysRef.current = selectedKeys;
   changedKeysRef.current = changedKeys;
-  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
+  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
 
   useEffect(() => { updateDraftRef.current(); }, [drawMode, drawVertices]);
   useEffect(() => {
@@ -294,7 +312,11 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
     };
     const selectableFeatureAt = (point: maplibregl.Point) => {
       const layers = ['graph-fill', 'graph-line', 'graph-point-preview', 'graph-point', 'graph-relation-point', 'mvt-way-line', 'mvt-point'].filter(layer => map.getLayer(layer));
-      return layers.length ? map.queryRenderedFeatures(point, { layers }).find(feature => {
+      const hitBox: [maplibregl.Point, maplibregl.Point] = [
+        new maplibregl.Point(point.x - selectionHitRadius, point.y - selectionHitRadius),
+        new maplibregl.Point(point.x + selectionHitRadius, point.y + selectionHitRadius)
+      ];
+      return layers.length ? map.queryRenderedFeatures(hitBox, { layers }).find(feature => {
         const entityId = feature.properties?.entityId ?? feature.properties?.entity_id;
         const entityType = feature.properties?.entityType ?? feature.properties?.entity_type;
         return Boolean(entityId) && (entityType === 'node' || entityType === 'way' || entityType === 'relation');
@@ -316,8 +338,9 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
         const hit = selectableFeatureAt(event.point);
         const entityId = hit?.properties?.entityId ?? hit?.properties?.entity_id;
         const entityType = hit?.properties?.entityType ?? hit?.properties?.entity_type;
+        const toggleSelection = event.originalEvent.ctrlKey || event.originalEvent.metaKey;
         const selectedWay = selectedRef.current?.type === 'way' ? selectedRef.current : null;
-        if (selectedWay && entityType === 'way' && String(entityId) === selectedWay.id) {
+        if (!toggleSelection && selectedWay && entityType === 'way' && String(entityId) === selectedWay.id) {
           const vertexToInsert = snap(event.lngLat);
           if (vertexToInsert.segment?.wayId === selectedWay.id) {
             callbacksRef.current.onInsertVertex(vertexToInsert);
@@ -326,8 +349,8 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
         }
         if (!entityId || (entityType !== 'node' && entityType !== 'way' && entityType !== 'relation')) return;
         const feature = featuresRef.current.find(item => item.properties.entityType === entityType && item.properties.entityId === String(entityId));
-        if (feature) callbacksRef.current.onSelect(feature);
-        else callbacksRef.current.onSelectEntity(entityType, String(entityId));
+        if (feature) callbacksRef.current.onSelect(feature, toggleSelection);
+        else callbacksRef.current.onSelectEntity(entityType, String(entityId), toggleSelection);
         return;
       }
       if (mode !== 'point' && canFinish() && isNearFirstVertex(event.lngLat)) {
@@ -388,7 +411,12 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       callbacksRef.current.onFinishDrawing();
     };
     const onContextMenu = (event: MapMouseEvent) => {
-      if (drawModeRef.current === 'select') return;
+      if (drawModeRef.current === 'select') {
+        if (!selectedRef.current) return;
+        event.preventDefault();
+        callbacksRef.current.onSelectionContextMenu({ top: event.originalEvent.clientY, left: event.originalEvent.clientX });
+        return;
+      }
       event.preventDefault();
       callbacksRef.current.onCancelDrawing();
     };
@@ -420,7 +448,7 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       map.addLayer({ id: 'mvt-label', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'ways', minzoom: GRAPH_MIN_ZOOM, filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
       // Seed with current data even if React effects ran before map load.
       map.addSource('canonical-graph', { type: 'geojson', data: emptyCollection() });
-      map.addSource('editor-selection', { type: 'geojson', data: selectedFeatureCollection(selectedRef.current) });
+      map.addSource('editor-selection', { type: 'geojson', data: selectedFeatureCollection(selectedFeaturesRef.current) });
       map.addLayer({ id: 'graph-fill', type: 'fill', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.32 } });
       map.addLayer({ id: 'graph-line', type: 'line', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['coalesce', ['get', 'editorWidth'], 3] } });
       // Keep saved/local POIs visible before their richer icons are enabled at Z18.
@@ -436,7 +464,7 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       map.addLayer({ id: 'selection-halo-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#dc2626', 'circle-radius': 14, 'circle-opacity': 0.2, 'circle-stroke-color': '#dc2626', 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.8, 'circle-blur': 0.25 } });
       map.addLayer({ id: 'selection-origin-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 8, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'graph-label', type: 'symbol', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
-      map.addSource('editor-vertex-handles', { type: 'geojson', data: selectedVertexCollection(selectedRef.current, featuresRef.current) });
+      map.addSource('editor-vertex-handles', { type: 'geojson', data: selectedVertexCollection(new Set(selectedKeysRef.current), featuresRef.current) });
       map.addLayer({ id: 'editor-vertex-handles', type: 'circle', source: 'editor-vertex-handles', paint: { 'circle-color': '#ffffff', 'circle-radius': 5.5, 'circle-stroke-color': '#a51f38', 'circle-stroke-width': 2.5 } });
       map.addSource('editor-node-drag', { type: 'geojson', data: emptyCollection() });
       map.addLayer({ id: 'editor-node-drag', type: 'circle', source: 'editor-node-drag', paint: { 'circle-color': '#a51f38', 'circle-radius': 6, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
@@ -507,8 +535,8 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    geoJsonSource(map, 'editor-vertex-handles')?.setData(selectedVertexCollection(selected, features));
-  }, [features, selected]);
+    geoJsonSource(map, 'editor-vertex-handles')?.setData(selectedVertexCollection(new Set(selectedKeys), features));
+  }, [features, selectedKeys]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -520,8 +548,8 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    geoJsonSource(map, 'editor-selection')?.setData(selectedFeatureCollection(selected));
-  }, [features, selected]);
+    geoJsonSource(map, 'editor-selection')?.setData(selectedFeatureCollection(selectedFeatures));
+  }, [selectedFeatures]);
 
   useEffect(() => {
     const map = mapRef.current;

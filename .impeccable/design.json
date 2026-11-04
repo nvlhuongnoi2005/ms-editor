@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T10:32:06.8681546+07:00",
+  "title": "Design System: GEODATA WEBGIS",
+  "extensions": {
+    "colorMeta": {
+      "viettel-red": { "role": "primary", "displayName": "Đỏ Viettel vận hành", "canonical": "#a51f38", "tonalRamp": ["oklch(22% 0.06 20)", "oklch(31% 0.10 20)", "#7d172a", "#a51f38", "#ca5869", "#f3d8de", "oklch(91% 0.03 20)", "oklch(97% 0.01 20)"] },
+      "canvas": { "role": "neutral", "displayName": "Canvas xanh-xám", "canonical": "#edf0f3", "tonalRamp": ["oklch(18% 0.02 255)", "oklch(30% 0.02 255)", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#edf0f3", "#ffffff"] },
+      "ink": { "role": "neutral", "displayName": "Mực slate", "canonical": "#1e293b", "tonalRamp": ["oklch(18% 0.03 255)", "#1e293b", "oklch(30% 0.03 255)", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#f8fafc"] },
+      "status-success": { "role": "tertiary", "displayName": "Xanh thành công", "canonical": "#15803d", "tonalRamp": ["oklch(22% 0.06 145)", "oklch(32% 0.10 145)", "#15803d", "oklch(52% 0.14 145)", "oklch(66% 0.13 145)", "oklch(82% 0.08 145)", "oklch(92% 0.04 145)", "oklch(97% 0.01 145)"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Tên đối tượng đang chọn và tiêu đề vùng thông tin quan trọng." },
+      "body": { "displayName": "Body", "purpose": "Giá trị thuộc tính, mô tả và nội dung làm việc." },
+      "label": { "displayName": "Label", "purpose": "Nhãn nhóm, trạng thái và phân loại thông tin." },
+      "mono": { "displayName": "Technical metadata", "purpose": "ID, revision và tọa độ." }
+    },
+    "shadows": [
+      { "name": "map-control-lift", "value": "0 8px 24px rgba(70, 12, 26, 0.18)", "purpose": "Nhóm điều khiển nổi trực tiếp trên bản đồ." },
+      { "name": "overlay-lift", "value": "0 12px 30px rgba(70, 12, 26, 0.20)", "purpose": "Tool rail hoặc panel tách bạch với imagery bên dưới." },
+      { "name": "menu-lift", "value": "0 8px 24px rgba(0, 0, 0, 0.15)", "purpose": "Menu và popover tạm thời." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "160ms ease", "purpose": "Chuyển background, color, border-color và box-shadow cho controls." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Xác nhận thao tác có hậu quả rõ như lưu hoặc định vị.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">LƯU THAY ĐỔI</button>",
+      "css": ".ds-btn-primary { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 7px; background: #9b192e; color: #ffffff; font: 800 11px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .45px; cursor: pointer; transition: background-color 160ms ease, box-shadow 160ms ease; } .ds-btn-primary:hover { background: #7d172a; } .ds-btn-primary:focus-visible { outline: 2px solid #9b192e; outline-offset: 2px; box-shadow: 0 0 0 3px rgba(155,25,46,.12); } .ds-btn-primary:active { background: #4c0f1b; }"
+    },
+    {
+      "name": "Outlined Tool Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Thao tác thứ cấp trong toolbar và panel biên tập.",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">ĐẢO CHIỀU</button>",
+      "css": ".ds-btn-outline { min-height: 32px; padding: 5px 12px; border: 1px solid #e2e8f0; border-radius: 7px; background: #ffffff; color: #1e293b; font: 700 11px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease; } .ds-btn-outline:hover { background: #fff6f7; border-color: #ca5869; color: #9b192e; } .ds-btn-outline:focus-visible { outline: 2px solid #9b192e; outline-offset: 2px; } .ds-btn-outline:active { background: #f3d8de; }"
+    },
+    {
+      "name": "Property Field",
+      "kind": "input",
+      "refersTo": "field-default",
+      "description": "Nhóm nhãn, khóa kỹ thuật và giá trị thuộc tính của đối tượng bản đồ.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">TÊN</span><span class=\"ds-field-key\">name</span><input value=\"Hồ Tây\" aria-label=\"Tên\"></label>",
+      "css": ".ds-field { position: relative; display: grid; gap: 5px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; } .ds-field:focus-within { border-color: #9b192e; box-shadow: 0 0 0 3px rgba(155,25,46,.12); } .ds-field-label { color: #475569; font: 800 10.5px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .3px; } .ds-field-key { position: absolute; right: 12px; top: 10px; color: #94a3b8; font: 400 9.5px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; } .ds-field input { width: 100%; border: 0; outline: 0; padding: 0; background: transparent; color: #1e293b; font: 650 16px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Trạng thái ngắn cho dataset, validation hoặc số lượng đối tượng.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-chip-dot\"></span>SẴN SÀNG</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 22px; padding: 0 9px; border-radius: 999px; background: #f3d8de; color: #7d172a; font: 800 10px/1 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: .35px; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: #15803d; }"
+    },
+    {
+      "name": "Inspector Panel",
+      "kind": "card",
+      "refersTo": "inspector-header",
+      "description": "Panel cố định hiển thị đối tượng được chọn và thuộc tính có thể biên tập.",
+      "html": "<aside class=\"ds-inspector\"><header><span>ĐỐI TƯỢNG ĐANG CHỌN</span><strong>Đường chưa đặt tên</strong></header><div class=\"ds-inspector-body\">Thuộc tính đối tượng</div></aside>",
+      "css": ".ds-inspector { overflow: hidden; border: 1px solid #ead6da; border-radius: 12px; background: #ffffff; color: #1e293b; box-shadow: 0 12px 30px rgba(70,12,26,.20); font-family: Inter, ui-sans-serif, system-ui, sans-serif; } .ds-inspector header { display: grid; gap: 7px; padding: 16px; background: #9b192e; color: #ffffff; } .ds-inspector header span { color: rgba(255,255,255,.7); font-size: 10px; font-weight: 800; letter-spacing: 1px; } .ds-inspector header strong { font-size: 18px; line-height: 1.25; } .ds-inspector-body { padding: 16px; border-top: 1px solid #e2e8f0; font-size: 14px; }"
+    },
+    {
+      "name": "Tool Rail",
+      "kind": "nav",
+      "refersTo": "tool-rail",
+      "description": "Điều hướng công cụ icon-first, phục vụ thao tác trực tiếp trên map.",
+      "html": "<nav class=\"ds-tool-rail\" aria-label=\"Công cụ bản đồ\"><button class=\"ds-tool-active\" type=\"button\" aria-label=\"Chọn\">⌖</button><button type=\"button\" aria-label=\"Vẽ đường\">⌁</button></nav>",
+      "css": ".ds-tool-rail { display: grid; gap: 8px; width: 56px; padding: 8px; border: 1px solid #ead6da; border-radius: 12px; background: #ffffff; box-shadow: 0 12px 30px rgba(70,12,26,.20); } .ds-tool-rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 7px; background: transparent; color: #475569; font-size: 19px; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-tool-rail button:hover { background: #fff6f7; color: #9b192e; } .ds-tool-rail .ds-tool-active { background: #9b192e; color: #ffffff; } .ds-tool-rail button:focus-visible { outline: 2px solid #9b192e; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Trạm điều hành dữ liệu địa lý",
+    "overview": "GEODATA WEBGIS là môi trường làm việc chuyên dụng cho quản trị dữ liệu bản đồ. Giao diện phải tạo cảm giác chính xác, gọn và có kiểm soát: bản đồ là vùng làm việc chính, còn công cụ, trạng thái và thuộc tính xuất hiện như các lớp vận hành có thứ bậc rõ. Hệ thống ưu tiên bề mặt phẳng, đường viền tiết chế và phản hồi trạng thái rõ ràng hơn trang trí.",
+    "keyCharacteristics": ["Bản đồ giữ vai trò trung tâm.", "Nhanh, chính xác và dễ quét trạng thái.", "Phản hồi tương tác ngắn và rõ.", "Đỏ là tín hiệu kỷ luật."],
+    "rules": [
+      { "name": "Red-as-Signal", "body": "Đỏ chỉ biểu thị lựa chọn, thay đổi, xác nhận hoặc mức ưu tiên; mọi nội dung thường nhật phải dựa trên neutral để bản đồ luôn chiếm ưu thế.", "section": "colors" },
+      { "name": "Scan-First", "body": "Nhãn và giá trị phải có độ tương phản cấp bậc đủ để người dùng xác định loại thông tin trong một lần quét, không cần dựa vào màu đỏ.", "section": "typography" },
+      { "name": "Map-First", "body": "Không có panel cố định nào được chiếm diện tích đến mức làm thao tác geometry hoặc đối chiếu tọa độ trên map trở nên khó khăn.", "section": "layout" },
+      { "name": "Flat-by-Default", "body": "Không thêm shadow chỉ để trang trí; một shadow phải chứng minh được lớp tương tác mà nó nâng lên.", "section": "elevation" }
+    ],
+    "dos": ["Do để map là vùng có diện tích và độ nổi bật lớn nhất trên màn hình.", "Do dùng đỏ tín hiệu cho focus, selection, confirm và thay đổi cần chú ý.", "Do biểu đạt trạng thái bằng label, icon hoặc copy song song với màu.", "Do dùng monospace cho ID, revision và tọa độ để quét dữ liệu kỹ thuật."],
+    "donts": ["Don't phủ đỏ lên các surface thông thường hoặc dùng đỏ như màu văn bản mặc định.", "Don't thêm card, gradient hoặc shadow trang trí trong vùng cạnh tranh với map.", "Don't ẩn trạng thái save, validation, render hoặc selection chỉ bằng thay đổi màu.", "Don't làm thay đổi logic nghiệp vụ, tính chính xác dữ liệu hay tọa độ để phục vụ trình bày."]
+  }
+}
