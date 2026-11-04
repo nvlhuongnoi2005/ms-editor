@@ -14,20 +14,24 @@ import {
   MenuItem,
   Paper,
   Stack,
+  Tab,
   TextField,
+  Tabs,
   Toolbar,
   Tooltip,
   Typography
 } from '@mui/material';
 import { Banknote, Building2, BusFront, Fuel, GraduationCap, Hospital, Hotel, Landmark, MapPin, Route, ShoppingBag, TreePine, Utensils, Waves, type LucideIcon } from 'lucide-react';
 import { closeChangeset, createChangeset, ChangesetApiError, rollbackChangeset, toUploadChanges, uploadChangeset } from './api/changeset';
-import { DATASET_NAME, loadGraph, loadWayParents } from './api/graph';
+import { DATASET_NAME, loadGraph } from './api/graph';
 import { loadPublishStatus, type PublishStatus } from './api/publish';
+import { loadDatasets, type DatasetInfo } from './api/datasets';
+import { DatasetManagerDialog } from './features/editor/DatasetManagerDialog';
 import { EditorStoreProvider, entityKey, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
 import { insertNodeIntoFeature, makeNodeFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
 import { planDrawing, type WayExtension } from './features/editor/drawingTransactions';
 import { TopologyTools } from './features/editor/TopologyTools';
-import { disconnectVertex, mergeFeatures, removeVertex, reverseFeature, splitFeature, wayVertices, type TopologyAction } from './features/editor/topologyOperations';
+import { closeWay, disconnectVertex, isOpenWay, mergeFeatures, openWay, removeVertex, reverseFeature, splitFeature, wayVertices, type TopologyAction } from './features/editor/topologyOperations';
 import { findEditorIssues, type EditorIssue } from './features/editor/issues';
 import { ConflictDialog, type ConflictSession } from './features/editor/ConflictDialog';
 import { ChangesetHistoryDialog } from './features/editor/ChangesetHistoryDialog';
@@ -45,11 +49,11 @@ import {
 import { OSM_TAG_OPTIONS, type OsmTagOption } from './features/editor/tagCatalog';
 import { MapCanvas, type MapPointerStatus, type MapViewport } from './features/map/MapCanvas';
 import { ViewportGraphLoader } from './features/map/ViewportGraphLoader';
+import { GRAPH_MIN_ZOOM } from './features/map/graphRendering';
 import { resolvePointIcon, type PointIconName } from './features/map/styleRules';
 import type { Coordinate, EntityType, GraphFeature, RelationMember, SelectedEntity, Tags } from './types/osm';
 
 const propertiesWidth = 360;
-const GRAPH_MIN_ZOOM = 16;
 const CHANGESET_COMMENT = 'Chỉnh sửa từ Geodata WebGIS';
 const EMPTY_GRAPH: GraphFeature[] = [];
 
@@ -689,15 +693,35 @@ function PropertiesEditor({
 }
 
 export default function App() {
+  const [dataset, setDataset] = useState<DatasetInfo | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadDatasets(controller.signal).then(datasets => {
+      if (controller.signal.aborted) return;
+      const requested = new URLSearchParams(window.location.search).get('dataset');
+      const chosen = datasets.find(item => item.name === (requested ?? DATASET_NAME)) ?? (requested ? undefined : datasets[0]);
+      if (requested && !chosen) throw new Error('Dataset trong URL chưa sẵn sàng hoặc không tồn tại. Bỏ tham số dataset để mở dữ liệu mặc định.');
+      setDataset(chosen ?? { id: DATASET_NAME, name: DATASET_NAME, bounds: null, state: 'ready', canonicalRevision: 0, renderRevision: 0 });
+    }).catch(reason => { if (!controller.signal.aborted) setBootError(reason instanceof Error ? reason.message : 'Không tải được danh sách dataset.'); });
+    return () => controller.abort();
+  }, []);
+  const openDataset = (next: DatasetInfo) => {
+    const url = new URL(window.location.href); url.searchParams.set('dataset', next.name); window.history.replaceState(null, '', url);
+    setDataset(next);
+  };
+  if (!dataset) return <Box sx={{ p: 4 }}><Typography>{bootError ?? 'Đang kết nối dữ liệu…'}</Typography>{bootError && <Button onClick={() => window.location.reload()}>Thử lại sau khi khởi động lại API</Button>}</Box>;
   return (
-    <EditorStoreProvider>
-      <EditorShell />
+    <EditorStoreProvider key={dataset.id}>
+      <EditorShell dataset={dataset} onOpenDataset={openDataset} />
     </EditorStoreProvider>
   );
 }
 
-function EditorShell() {
+function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenDataset: (dataset: DatasetInfo) => void }) {
+  const [datasetManagerOpen, setDatasetManagerOpen] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [inspectorTab, setInspectorTab] = useState<'properties' | 'topology'>('properties');
   const [issuesOpen, setIssuesOpen] = useState(true);
   const [graphVisible, setGraphVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -715,10 +739,8 @@ function EditorShell() {
   const [pointerStatus, setPointerStatus] = useState<MapPointerStatus>({ longitude: 104.50728, latitude: 21.59988, zoom: 16 });
   const [drawMode, setDrawMode] = useState<DrawMode>('select');
   const [drawVertices, setDrawVertices] = useState<SnappedVertex[]>([]);
+  const [drawingExtension, setDrawingExtension] = useState<WayExtension | null>(null);
   const [selectedVertexId, setSelectedVertexId] = useState<string | null>(null);
-  const [extendingWay, setExtendingWay] = useState<WayExtension | null>(null);
-  const [topologyBusy, setTopologyBusy] = useState(false);
-  const topologyBusyRef = useRef(false);
   const entityRequestRef = useRef(0);
   const viewportRef = useRef<MapViewport | null>(null);
   const nextNodeIdRef = useRef(-1);
@@ -748,7 +770,6 @@ function EditorShell() {
     redo,
     discardChanges
   } = useEditorStore();
-  const selectedWay = features.find(feature => entityKey(feature) === selectedKey && feature.properties.entityType === 'way');
 
   const changedKeys = useMemo(() => new Set(changes.map(change => change.key)), [changes]);
   const issues = useMemo(() => findEditorIssues(features, changedKeys), [changedKeys, features]);
@@ -756,11 +777,11 @@ function EditorShell() {
 
   const refreshPublishStatus = useCallback(async () => {
     try {
-      setPublishStatus(await loadPublishStatus(DATASET_NAME));
+      setPublishStatus(await loadPublishStatus(dataset.name));
     } catch {
       // Ignore background sync errors quietly
     }
-  }, []);
+  }, [dataset.name]);
 
   useEffect(() => {
     void refreshPublishStatus();
@@ -769,8 +790,8 @@ function EditorShell() {
   }, [refreshPublishStatus]);
 
   const graphLoader = useMemo(() => new ViewportGraphLoader({
-    load: loadGraph, onFeatures: hydrateGraph, onRelations: hydrateSupport, onLoading: setLoading, onError: setError
-  }), [hydrateGraph, hydrateSupport, setLoading, setError]);
+    load: (bbox, signal, part) => loadGraph(bbox, signal, part, dataset.name), onFeatures: hydrateGraph, onRelations: hydrateSupport, onLoading: setLoading, onError: setError
+  }), [dataset.name, hydrateGraph, hydrateSupport, setLoading, setError]);
 
   useEffect(() => () => { graphLoader.cancel(); entityRequestRef.current += 1; }, [graphLoader]);
 
@@ -790,7 +811,7 @@ function EditorShell() {
     const requestId = ++entityRequestRef.current;
     setError(null);
     // A tile click only needs this entity, not another full viewport query.
-    void loadEntitySnapshots([`${type}/${id}`])
+    void loadEntitySnapshots([`${type}/${id}`], dataset.name)
       .then(result => {
         if (requestId !== entityRequestRef.current) return;
         const feature = result.snapshots[0]?.feature;
@@ -805,7 +826,7 @@ function EditorShell() {
       .catch(reason => {
         if (requestId === entityRequestRef.current) setError(reason instanceof Error ? reason.message : 'Không thể tải đối tượng.');
       });
-  }, [hydrateSupport, selectFeature, setError]);
+  }, [dataset.name, hydrateSupport, selectFeature, setError]);
 
   const refreshAfterCommit = useCallback(() => {
     entityRequestRef.current += 1;
@@ -837,7 +858,7 @@ function EditorShell() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (saving || topologyBusyRef.current || writeBusyRef.current || conflictSession || historyOpen) return;
+    if (saving || writeBusyRef.current || conflictSession || historyOpen || datasetManagerOpen) return;
     if (pendingCloseId) {
       await retryCloseChangeset(pendingCloseId);
       return;
@@ -869,7 +890,7 @@ function EditorShell() {
     setSaveStatus('Đang lưu dữ liệu...');
     let createdId: string | null = null;
     try {
-      const created = await createChangeset(DATASET_NAME, CHANGESET_COMMENT);
+      const created = await createChangeset(dataset.name, CHANGESET_COMMENT);
       createdId = created.id;
       setSaveStatus(`Đang áp dụng ${uploadPayload.length} thay đổi…`);
       await uploadChangeset(created.id, uploadPayload);
@@ -895,7 +916,7 @@ function EditorShell() {
         if (createdId) void closeChangeset(createdId).catch(() => undefined);
         if (reason.status === 409 && reason.code === 'version_conflict') {
           try {
-            const batch = await loadEntitySnapshots(snapshotKeys(changes));
+            const batch = await loadEntitySnapshots(snapshotKeys(changes), dataset.name);
             setConflictSession({ changes, batch });
             setSaveStatus('Có xung đột version. Bản nháp được giữ để so sánh và áp lại.');
           } catch (snapshotError) {
@@ -907,7 +928,7 @@ function EditorShell() {
       writeBusyRef.current = false;
       setSaving(false);
     }
-  }, [blockingIssues.length, changes, conflictSession, discardChanges, historyOpen, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
+  }, [blockingIssues.length, changes, conflictSession, dataset.name, datasetManagerOpen, discardChanges, historyOpen, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
 
   const handleApplyConflictResolution = useCallback((plan: ResolutionPlan) => {
     if (plan.blockers.length) return;
@@ -922,7 +943,7 @@ function EditorShell() {
 
   const handleExport = useCallback((format: 'osm' | 'osc') => {
     setExportAnchor(null);
-    const query = new URLSearchParams({ dataset: DATASET_NAME });
+    const query = new URLSearchParams({ dataset: dataset.name });
     if (format === 'osm') {
       const viewport = viewportRef.current;
       if (!viewport) {
@@ -933,7 +954,7 @@ function EditorShell() {
       query.set('limit', '5000');
     }
     window.location.assign(`/api/export/${format}?${query.toString()}`);
-  }, []);
+  }, [dataset.name]);
 
   const handleLocateCoordinate = useCallback(() => {
     const coordinate = parseLatLon(coordinateInput);
@@ -948,7 +969,7 @@ function EditorShell() {
   }, [coordinateInput]);
 
   const handleRollbackChangeset = useCallback(async (changesetId: string) => {
-    if (saving || writeBusyRef.current || topologyBusyRef.current) throw new Error('Đang có thao tác khác thực hiện.');
+    if (saving || writeBusyRef.current) throw new Error('Đang có thao tác khác thực hiện.');
     if (changeCount || pendingCloseId || conflictSession) throw new Error('Hãy hoàn tất lưu hoặc bỏ bản nháp trước khi revert.');
     writeBusyRef.current = true;
     setExportAnchor(null);
@@ -978,81 +999,6 @@ function EditorShell() {
     setSelectedVertexId(null);
     if (feature) setPropertiesOpen(true);
   }, [selectFeature]);
-
-  const handleTopologyAction = useCallback(async (action: TopologyAction, otherWayId?: string) => {
-    if (!selectedWay || saving || drawMode !== 'select' || topologyBusyRef.current) return;
-    topologyBusyRef.current = true;
-    setTopologyBusy(true);
-    graphLoader.cancel();
-    entityRequestRef.current += 1;
-    setLoading(false);
-    try {
-      let graph = features;
-      let way = selectedWay;
-      if (['split', 'merge', 'reverse'].includes(action)) {
-        const ids = [selectedWay.properties.entityId, ...(otherWayId ? [otherWayId] : [])].filter(id => !id.startsWith('-'));
-        if (ids.length) {
-          setSaveStatus('Đang kiểm tra relation cha…');
-          const dependencies = await loadWayParents(ids);
-          const byKey = new Map(features.map(feature => [entityKey(feature), feature]));
-          const dirty = new Set(changes.map(change => change.key));
-          for (const relation of dependencies.relations) if (!dirty.has(entityKey(relation))) byKey.set(entityKey(relation), relation);
-          for (const id of ids) {
-            const source = byKey.get(`way/${id}`);
-            if (source) byKey.set(`way/${id}`, { ...source, properties: { ...source.properties, parents: dependencies.wayParents[id] } });
-          }
-          graph = [...byKey.values()];
-          way = byKey.get(entityKey(selectedWay))!;
-          hydrateSupport(dependencies.relations);
-        }
-      }
-      let result;
-      let label: string;
-      switch (action) {
-        case 'split':
-          result = splitFeature(way, selectedVertexId ?? '', String(nextWayIdRef.current--), graph);
-          label = 'Tách way tại node';
-          break;
-        case 'merge': {
-          const other = graph.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === otherWayId);
-          if (!other) throw new Error('Hãy chọn way cần nối.');
-          result = mergeFeatures(way, other, graph);
-          label = 'Nối hai way';
-          break;
-        }
-        case 'disconnect':
-          result = disconnectVertex(selectedWay, selectedVertexId ?? '', String(nextNodeIdRef.current--));
-          label = 'Tách node khỏi way';
-          break;
-        case 'remove-vertex':
-          result = removeVertex(selectedWay, selectedVertexId ?? '');
-          label = 'Xóa đỉnh khỏi way';
-          break;
-        case 'reverse':
-          result = reverseFeature(way, graph);
-          label = 'Đảo chiều way';
-          break;
-      }
-      replaceFeatures(result.mutations, label);
-      selectFeature(result.selected);
-      setSelectedVertexId(result.vertexId ?? null);
-      setSaveStatus(`${label}. Ctrl+Z để hoàn tác.`);
-    } catch (reason) {
-      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể thực hiện thao tác topology.');
-    } finally {
-      topologyBusyRef.current = false;
-      setTopologyBusy(false);
-    }
-  }, [changes, drawMode, features, graphLoader, hydrateSupport, replaceFeatures, saving, selectFeature, selectedVertexId, selectedWay, setLoading]);
-
-  const handleContinueWay = useCallback(() => {
-    if (!selectedWay || !selectedVertexId || saving) return;
-    const vertex = wayVertices(selectedWay).find(node => node.id === selectedVertexId);
-    if (!vertex) return;
-    setExtendingWay({ key: entityKey(selectedWay), endpoint: vertex.id });
-    setDrawVertices([{ nodeId: vertex.id, coordinate: vertex.coordinates }]);
-    setDrawMode('line');
-  }, [saving, selectedVertexId, selectedWay]);
 
   const handleSelectIssue = useCallback((issue: EditorIssue) => {
     const feature = features.find(item => entityKey(item) === issue.entityKey);
@@ -1126,14 +1072,14 @@ function EditorShell() {
   const handlePointerStatus = useCallback((status: MapPointerStatus) => setPointerStatus(status), []);
 
   const activateDrawMode = useCallback((mode: DrawMode) => {
-    setExtendingWay(null);
     setDrawVertices([]);
+    setDrawingExtension(null);
     setDrawMode(mode);
   }, []);
 
   const handleCancelDrawing = useCallback(() => {
-    setExtendingWay(null);
     setDrawVertices([]);
+    setDrawingExtension(null);
     setDrawMode('select');
   }, []);
 
@@ -1160,21 +1106,97 @@ function EditorShell() {
     setDrawMode('select');
   }, [drawMode, features, handleSelectFeature, replaceFeatures]);
 
+  const handleInsertVertex = useCallback((vertex: SnappedVertex) => {
+    if (!vertex.segment) return;
+    const way = features.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === vertex.segment?.wayId);
+    if (!way) return;
+    const nodeId = String(nextNodeIdRef.current--);
+    try {
+      const updatedWay = insertNodeIntoFeature(way, nodeId, vertex.coordinate, vertex.segment.segmentIndex);
+      const node = makeNodeFeature(nodeId, vertex.coordinate);
+      replaceFeatures([
+        { key: `node/${nodeId}`, feature: node },
+        { key: entityKey(way), feature: updatedWay }
+      ], 'Thêm đỉnh vào way');
+      handleSelectFeature(updatedWay);
+      setSelectedVertexId(nodeId);
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể thêm đỉnh vào way.');
+    }
+  }, [features, handleSelectFeature, replaceFeatures]);
+
+  const selectedWay = useMemo(() => selected?.type === 'way'
+    ? features.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === selected.id) ?? null
+    : null, [features, selected]);
+
+  const handleTopologyAction = useCallback((action: TopologyAction, otherWayId?: string) => {
+    if (!selectedWay) return;
+    const needsVertex = action === 'split' || action === 'disconnect' || action === 'remove-vertex';
+    if (needsVertex && !selectedVertexId) return;
+    try {
+      const result = (() => {
+        switch (action) {
+          case 'split': return splitFeature(selectedWay, selectedVertexId!, String(nextWayIdRef.current--), features);
+          case 'disconnect': return disconnectVertex(selectedWay, selectedVertexId!, String(nextNodeIdRef.current--));
+          case 'remove-vertex': return removeVertex(selectedWay, selectedVertexId!);
+          case 'reverse': return reverseFeature(selectedWay, features);
+          case 'close': return closeWay(selectedWay);
+          case 'open': return openWay(selectedWay);
+          case 'merge': {
+            const otherWay = features.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === otherWayId);
+            if (!otherWay) throw new Error('Way cần nối không còn trong vùng dữ liệu đã tải.');
+            return mergeFeatures(selectedWay, otherWay, features);
+          }
+        }
+      })();
+      const labels: Record<TopologyAction, string> = {
+        split: 'Tách way',
+        merge: 'Nối hai way',
+        disconnect: 'Tách node khỏi way',
+        reverse: 'Đảo chiều way',
+        'remove-vertex': 'Xóa đỉnh khỏi way',
+        close: 'Đóng way thành vùng',
+        open: 'Mở vùng thành đường'
+      };
+      replaceFeatures(result.mutations, labels[action]);
+      handleSelectFeature(result.selected);
+      setSelectedVertexId(result.vertexId ?? selectedVertexId);
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể thực hiện thao tác topology.');
+    }
+  }, [features, handleSelectFeature, replaceFeatures, selectedVertexId, selectedWay]);
+
+  const handleContinueWay = useCallback(() => {
+    if (!selectedWay || !selectedVertexId || !isOpenWay(selectedWay)) return;
+    try {
+      const vertices = wayVertices(selectedWay);
+      const endpoint = vertices.find(node => node.id === selectedVertexId);
+      if (!endpoint || (vertices[0].id !== endpoint.id && vertices.at(-1)!.id !== endpoint.id)) {
+        throw new Error('Hãy chọn endpoint của way để tiếp tục vẽ.');
+      }
+      setDrawVertices([{ nodeId: endpoint.id, coordinate: [...endpoint.coordinates] as Coordinate }]);
+      setDrawingExtension({ key: entityKey(selectedWay), endpoint: endpoint.id });
+      setDrawMode('line');
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể tiếp tục way.');
+    }
+  }, [selectedVertexId, selectedWay]);
+
   const handleFinishDrawing = useCallback(() => {
     if (drawMode !== 'line' && drawMode !== 'area') return;
     const minimum = drawMode === 'area' ? 3 : 2;
     if (drawVertices.length < minimum) return;
     try {
-      const { way, mutations } = planDrawing(features, drawVertices, drawMode, () => String(nextWayIdRef.current--), extendingWay);
-      replaceFeatures(mutations, extendingWay ? 'Tiếp tục way từ endpoint' : drawMode === 'area' ? 'Vẽ vùng mới' : 'Vẽ đường mới');
+      const { way, mutations } = planDrawing(features, drawVertices, drawMode, () => String(nextWayIdRef.current--), drawingExtension);
+      replaceFeatures(mutations, drawingExtension ? 'Tiếp tục way' : drawMode === 'area' ? 'Vẽ vùng mới' : 'Vẽ đường mới');
       handleSelectFeature(way);
       setDrawVertices([]);
-      setExtendingWay(null);
+      setDrawingExtension(null);
       setDrawMode('select');
     } catch (reason) {
       setSaveStatus(reason instanceof Error ? reason.message : 'Không thể hoàn tất way.');
     }
-  }, [drawMode, drawVertices, extendingWay, features, handleSelectFeature, replaceFeatures]);
+  }, [drawMode, drawVertices, drawingExtension, features, handleSelectFeature, replaceFeatures]);
 
   const selectedName = selected?.tags.name || (selected ? (selected.type === 'node' ? 'Điểm chưa đặt tên' : selected.type === 'way' ? 'Đường/Vùng chưa đặt tên' : 'Quan hệ chưa đặt tên') : '');
 
@@ -1198,7 +1220,7 @@ function EditorShell() {
   // Keyboard shortcuts (like iD editor / JOSM)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (topologyBusyRef.current || saving || conflictSession || historyOpen) return;
+      if (saving || conflictSession || historyOpen || datasetManagerOpen) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, [contenteditable="true"]')) return;
       if (event.key === 'Escape') {
         if (drawMode !== 'select') {
@@ -1259,7 +1281,7 @@ function EditorShell() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, drawMode, handleCancelDrawing, handleDeleteSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
+  }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, handleCancelDrawing, handleDeleteSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
 
   return (
     <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '52px minmax(0, 1fr) 30px', overflow: 'hidden', bgcolor: '#f1f5f9' }}>
@@ -1435,13 +1457,15 @@ function EditorShell() {
                   <Typography sx={{ fontSize: 11, color: '#64748b' }}>Các chỉnh sửa đã lưu gần nhất</Typography>
                 </Box>
               </MenuItem>
-              <MenuItem disabled={saving || topologyBusy || drawMode !== 'select'} onClick={() => { setExportAnchor(null); setHistoryOpen(true); }}>
+              <MenuItem disabled={saving || drawMode !== 'select'} onClick={() => { setExportAnchor(null); setHistoryOpen(true); }}>
                 <Box>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#9b192e' }}>Lịch sử / Revert changeset</Typography>
                   <Typography sx={{ fontSize: 11, color: '#64748b' }}>Chọn một trong 3 changeset gần nhất</Typography>
                 </Box>
               </MenuItem>
             </Menu>
+
+            <Tooltip title={`Dataset đang mở: ${dataset.name}`}><Button color="inherit" disabled={saving || Boolean(conflictSession) || historyOpen} onClick={() => setDatasetManagerOpen(true)} sx={{ textTransform: 'none' }}>Dữ liệu / Import PBF</Button></Tooltip>
 
             {/* Prominent Save Button */}
             <Tooltip title={changeCount > 0 ? `Lưu ${changeCount} thay đổi vào hệ thống (Ctrl+S)` : 'Không có thay đổi nào cần lưu'}>
@@ -1478,11 +1502,15 @@ function EditorShell() {
         </Toolbar>
       </AppBar>
 
-      {conflictSession && <ConflictDialog session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} />}
-      {historyOpen && <ChangesetHistoryDialog dataset={DATASET_NAME} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} />}
+      {datasetManagerOpen && <DatasetManagerDialog activeId={dataset.id} canSwitch={!changeCount && !saving && !pendingCloseId && !conflictSession && !historyOpen && drawMode === 'select'} onClose={() => setDatasetManagerOpen(false)} onOpenDataset={next => {
+        if (changeCount || saving || pendingCloseId || conflictSession || historyOpen || drawMode !== 'select') return;
+        graphLoader.cancel(); entityRequestRef.current += 1; onOpenDataset(next);
+      }} />}
+      {conflictSession && <ConflictDialog dataset={dataset.name} session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} />}
+      {historyOpen && <ChangesetHistoryDialog dataset={dataset.name} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} />}
 
       {/* Main Workspace Body */}
-      <Box inert={topologyBusy || saving || undefined} sx={{ display: 'flex', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      <Box inert={saving || undefined} sx={{ display: 'flex', minHeight: 0, position: 'relative', overflow: 'hidden' }}>
         {/* Map Canvas Area */}
         <Box sx={{ position: 'relative', minWidth: 0, flex: 1, overflow: 'hidden', bgcolor: '#e2e8f0' }}>
           {/* iD Editor / JOSM Style Floating Central Toolbar */}
@@ -1692,7 +1720,7 @@ function EditorShell() {
             >
               <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#9a3412' }}>
                 {drawMode === 'point' && 'Nhấp chuột lên vị trí bất kỳ trên bản đồ để đặt điểm.'}
-                {drawMode === 'line' && `${extendingWay ? 'Đang tiếp tục way' : 'Đang vẽ đường'} (${drawVertices.length} điểm): Nhấp để thêm đỉnh, Enter để hoàn tất; Esc để hủy.`}
+                {drawMode === 'line' && `Đang vẽ đường (${drawVertices.length} điểm): Nhấp để thêm đỉnh, Enter để hoàn tất; Esc để hủy.`}
                 {drawMode === 'area' && `Đang vẽ vùng (${drawVertices.length} điểm): Nhấp điểm đầu hoặc Enter để khép vùng.`}
               </Typography>
               {(drawMode === 'line' || drawMode === 'area') && drawVertices.length >= (drawMode === 'area' ? 3 : 2) && (
@@ -1840,6 +1868,8 @@ function EditorShell() {
 
           {/* The Underlying Map Component */}
           <MapCanvas
+            dataset={dataset.name}
+            initialBounds={dataset.bounds}
             features={graphVisible ? features : EMPTY_GRAPH}
             pinpoint={pinpoint}
             drawMode={drawMode}
@@ -1851,6 +1881,7 @@ function EditorShell() {
             onBoundsChange={refreshGraph}
             onSelect={handleSelectFeature}
             onSelectEntity={handleSelectEntity}
+            onInsertVertex={handleInsertVertex}
             onDrawVertex={handleDrawVertex}
             onFinishDrawing={handleFinishDrawing}
             onCancelDrawing={handleCancelDrawing}
@@ -1859,53 +1890,58 @@ function EditorShell() {
           />
         </Box>
 
-        {/* Feature Properties Inspector Sidebar (iD / JOSM Style) */}
+        {/* Feature Inspector */}
         {selected && propertiesOpen && (
           <Paper
             square
+            component="aside"
+            aria-label="Bảng chi tiết đối tượng đang chọn"
             sx={{
-              width: propertiesWidth,
+              width: { xs: 'min(100vw, 392px)', md: propertiesWidth },
+              maxWidth: '100vw',
               borderLeft: '1px solid #e2e8f0',
-              bgcolor: '#ffffff',
+              bgcolor: '#f8fafc',
               display: 'flex',
               flexDirection: 'column',
               zIndex: 9,
-              boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.06)',
-              overflowY: 'auto'
+              boxShadow: '-8px 0 24px rgba(15, 23, 42, 0.10)',
+              overflow: 'hidden'
             }}
           >
-            {/* Inspector Header */}
             <Box
-              sx={{
-                p: 2,
-                bgcolor: '#fff7f8',
-                borderBottom: '1px solid #ebd7db'
-              }}
+              component="header"
+              sx={{ p: 2, pb: selectedWay ? 1 : 1.5, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}
             >
               <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Stack direction="row" sx={{ alignItems: 'center', gap: 0.8, mb: 0.5 }}>
+                  <Typography sx={{ color: '#64748b', fontSize: 10, fontWeight: 800, letterSpacing: 0.9, textTransform: 'uppercase', mb: 0.75 }}>
+                    Đối tượng đang chọn
+                  </Typography>
+                  <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, mb: 0.7 }}>
                     <Chip
                       label={selected.type === 'node' ? 'Điểm' : selected.type === 'way' ? (selected.geometry.type === 'Polygon' ? 'Vùng' : 'Đường') : 'Quan hệ'}
                       size="small"
                       sx={{
-                        bgcolor: '#9b192e',
-                        color: '#ffffff',
+                        bgcolor: '#fce7ea',
+                        color: '#9b192e',
                         fontWeight: 800,
                         fontSize: 10,
-                        height: 20
+                        height: 22,
+                        border: '1px solid #fecdd3'
                       }}
                     />
+                    <Typography sx={{ color: '#64748b', fontFamily: 'monospace', fontSize: 11 }}>#{selected.id}</Typography>
                   </Stack>
-                  <Typography noWrap sx={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
+                  <Typography noWrap sx={{ fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1.25 }}>
                     {selectedName}
                   </Typography>
                 </Box>
                 <Tooltip title="Đóng bảng thuộc tính (Esc)">
                   <IconButton
                     size="small"
+                    aria-label="Đóng bảng thuộc tính"
                     onClick={() => setPropertiesOpen(false)}
-                    sx={{ color: '#64748b', '&:hover': { bgcolor: '#fceef0', color: '#9b192e' } }}
+                    sx={{ color: '#64748b', '&:hover': { bgcolor: '#fceef0', color: '#9b192e' }, '&:focus-visible': { outline: '2px solid #2563eb', outlineOffset: 2 } }}
                   >
                     <span style={{ fontSize: 18, lineHeight: 1 }}>×</span>
                   </IconButton>
@@ -1913,14 +1949,52 @@ function EditorShell() {
               </Stack>
             </Box>
 
-            {/* Inspector Form Editor */}
-            {selectedWay && <TopologyTools key={entityKey(selectedWay)} way={selectedWay} features={features} vertexId={selectedVertexId} onVertex={setSelectedVertexId} onAction={handleTopologyAction} onContinue={handleContinueWay} disabled={saving || topologyBusy || drawMode !== 'select'} />}
-            <PropertiesEditor
-              selected={selected}
-              onUpdate={handleUpdateTags}
-              onDelete={handleDeleteSelected}
-              onUpdateMembers={handleUpdateRelationMembers}
-            />
+            {selectedWay && (
+              <Tabs
+                value={inspectorTab}
+                onChange={(_, value: 'properties' | 'topology') => setInspectorTab(value)}
+                aria-label="Khu vực chỉnh sửa đối tượng"
+                variant="fullWidth"
+                sx={{ minHeight: 42, px: 1.25, bgcolor: '#ffffff', borderBottom: '1px solid #e2e8f0', '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', bgcolor: '#9b192e' } }}
+              >
+                <Tab value="properties" label="Thuộc tính" id="inspector-tab-properties" aria-controls="inspector-panel-properties" sx={{ minHeight: 42, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#7a1426' } }} />
+                <Tab value="topology" label="Topology" id="inspector-tab-topology" aria-controls="inspector-panel-topology" sx={{ minHeight: 42, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#7a1426' } }} />
+              </Tabs>
+            )}
+
+            <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto', scrollPaddingBlock: 2 }}>
+              <Box
+                role="tabpanel"
+                id="inspector-panel-properties"
+                aria-labelledby="inspector-tab-properties"
+                hidden={Boolean(selectedWay) && inspectorTab !== 'properties'}
+              >
+                <PropertiesEditor
+                  selected={selected}
+                  onUpdate={handleUpdateTags}
+                  onDelete={handleDeleteSelected}
+                  onUpdateMembers={handleUpdateRelationMembers}
+                />
+              </Box>
+              {selectedWay && (
+                <Box
+                  role="tabpanel"
+                  id="inspector-panel-topology"
+                  aria-labelledby="inspector-tab-topology"
+                  hidden={inspectorTab !== 'topology'}
+                >
+                  <TopologyTools
+                    way={selectedWay}
+                    features={features}
+                    vertexId={selectedVertexId}
+                    disabled={saving || drawMode !== 'select'}
+                    onVertex={setSelectedVertexId}
+                    onAction={handleTopologyAction}
+                    onContinue={handleContinueWay}
+                  />
+                </Box>
+              )}
+            </Box>
           </Paper>
         )}
 

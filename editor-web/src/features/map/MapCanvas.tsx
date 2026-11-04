@@ -9,7 +9,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildTopologyGraph, snapCoordinate, type DrawMode, type SnappedVertex } from '../editor/drawing';
 import type { Coordinate, EntityType, GraphFeature, SelectedEntity } from '../../types/osm';
 import type { PointIconName } from './styleRules';
-import { GraphTileHandoff, renderCollection, renderFeature } from './graphRendering';
+import { GRAPH_MIN_ZOOM, GraphTileHandoff, renderCollection, selectedFeatureCollection } from './graphRendering';
+import type { DatasetBounds } from '../../api/datasets';
 
 export interface MapViewport {
   bbox: [number, number, number, number];
@@ -17,6 +18,8 @@ export interface MapViewport {
 }
 
 interface MapCanvasProps {
+  dataset: string;
+  initialBounds: DatasetBounds | null;
   features: GraphFeature[];
   pinpoint: Coordinate | null;
   drawMode: DrawMode;
@@ -28,6 +31,7 @@ interface MapCanvasProps {
   onBoundsChange: (viewport: MapViewport) => void;
   onSelect: (feature: GraphFeature) => void;
   onSelectEntity: (type: EntityType, id: string) => void;
+  onInsertVertex: (vertex: SnappedVertex) => void;
   onDrawVertex: (vertex: SnappedVertex) => void;
   onFinishDrawing: () => void;
   onCancelDrawing: () => void;
@@ -41,14 +45,14 @@ export interface MapPointerStatus {
   zoom: number;
 }
 
-const tileStyle: StyleSpecification = {
+const tileStyle = (dataset: string): StyleSpecification => ({
   version: 8,
   sources: {
     satellite2: { type: 'raster', url: "http://localhost:8081/datas/satellite2.json"},
-    canonicalMvt: { type: 'vector', tiles: ['/api/mvt/{z}/{x}/{y}.pbf?dataset=vietnam-260901'], minzoom: 16, maxzoom: 22 }
+    canonicalMvt: { type: 'vector', tiles: [`/api/mvt/{z}/{x}/{y}.pbf?${new URLSearchParams({ dataset })}`], minzoom: GRAPH_MIN_ZOOM, maxzoom: 22 }
   },
   layers: [{ id: 'satellite2', type: 'raster', source: 'satellite2' }]
-};
+});
 
 maplibregl.setWorkerUrl(mapLibreWorkerUrl);
 
@@ -84,18 +88,6 @@ function selectedVertexCollection(selected: SelectedEntity | null, features: Gra
       const coordinate = coordinates[index];
       return coordinate ? [{ type: 'Feature', properties: { nodeId, index }, geometry: { type: 'Point', coordinates: coordinate } }] : [];
     }));
-}
-
-function selectedFeatureCollection(selected: SelectedEntity | null, features: GraphFeature[]): FeatureCollection {
-  if (!selected) return emptyCollection();
-  const feature = features.find(item => item.properties.entityType === selected.type && item.properties.entityId === selected.id);
-  if (!feature) return emptyCollection();
-  const styled = renderFeature(feature);
-  return featureCollection([{
-    type: 'Feature',
-    properties: styled.properties,
-    geometry: styled.geometry
-  }]);
 }
 
 function draftCollection(mode: DrawMode, vertices: SnappedVertex[], pointer?: SnappedVertex): FeatureCollection {
@@ -210,7 +202,7 @@ async function loadPointPinImages(map: Map, isDisposed: () => boolean): Promise<
   }));
 }
 
-export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
+export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode, drawVertices, selected, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const featuresRef = useRef(features);
@@ -219,7 +211,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
   const pinpointRef = useRef(pinpoint);
   const selectedRef = useRef(selected);
   const changedKeysRef = useRef(changedKeys);
-  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
+  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
   const topology = useMemo(() => buildTopologyGraph(features), [features]);
   const topologyRef = useRef(topology);
   topologyRef.current = topology;
@@ -231,7 +223,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
   pinpointRef.current = pinpoint;
   selectedRef.current = selected;
   changedKeysRef.current = changedKeys;
-  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
+  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
 
   useEffect(() => { updateDraftRef.current(); }, [drawMode, drawVertices]);
   useEffect(() => {
@@ -240,7 +232,8 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
 
   useEffect(() => {
     if (!container.current) return;
-    const map = new maplibregl.Map({ container: container.current, style: tileStyle, center: [104.50728, 21.59988], zoom: 16 });
+    const map = new maplibregl.Map({ container: container.current, style: tileStyle(dataset), center: [104.50728, 21.59988], zoom: 4,
+      ...(initialBounds ? { bounds: [[initialBounds[0], initialBounds[1]], [initialBounds[2], initialBounds[3]]] as [[number, number], [number, number]], fitBoundsOptions: { padding: 48, maxZoom: 4 } } : {}) });
     mapRef.current = map;
     let disposed = false;
     const handoff = new GraphTileHandoff(map);
@@ -323,6 +316,14 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
         const hit = selectableFeatureAt(event.point);
         const entityId = hit?.properties?.entityId ?? hit?.properties?.entity_id;
         const entityType = hit?.properties?.entityType ?? hit?.properties?.entity_type;
+        const selectedWay = selectedRef.current?.type === 'way' ? selectedRef.current : null;
+        if (selectedWay && entityType === 'way' && String(entityId) === selectedWay.id) {
+          const vertexToInsert = snap(event.lngLat);
+          if (vertexToInsert.segment?.wayId === selectedWay.id) {
+            callbacksRef.current.onInsertVertex(vertexToInsert);
+            return;
+          }
+        }
         if (!entityId || (entityType !== 'node' && entityType !== 'way' && entityType !== 'relation')) return;
         const feature = featuresRef.current.find(item => item.properties.entityType === entityType && item.properties.entityId === String(entityId));
         if (feature) callbacksRef.current.onSelect(feature);
@@ -401,7 +402,9 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
         map.addLayer({ id: 'selection-halo-point', type: 'symbol', source: 'editor-selection', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-halo-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true }, paint: { 'icon-opacity': 0.72 } });
         map.addLayer({ id: 'selection-origin-point', type: 'symbol', source: 'editor-selection', minzoom: 18, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], layout: { 'icon-image': ['concat', 'editor-point-pin-', ['coalesce', ['get', 'pointIcon'], 'generic']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 18, 0.72, 22, 0.72], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
         // Keep lightweight POIs visible while icons are loading, even above Z18.
-        map.setLayerZoomRange('graph-point-preview', 16, 18);
+        map.setLayerZoomRange('graph-point-preview', GRAPH_MIN_ZOOM, 18);
+        map.setLayerZoomRange('selection-halo-point-preview', 0, 18);
+        map.setLayerZoomRange('selection-origin-point-preview', 0, 18);
         handoff.sync();
       }).catch(error => {
         pointIconLoadStarted = false;
@@ -413,22 +416,26 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
       // optional progressive enhancement, loaded separately below.
       updateBounds();
       schedulePointerStatus();
-      map.addLayer({ id: 'mvt-way-line', type: 'line', source: 'canonicalMvt', 'source-layer': 'ways', paint: { 'line-color': ['get', 'editor_color'], 'line-width': ['get', 'editor_width'], 'line-opacity': 0.9 } });
-      map.addLayer({ id: 'mvt-label', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'ways', filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
+      map.addLayer({ id: 'mvt-way-line', type: 'line', source: 'canonicalMvt', 'source-layer': 'ways', minzoom: GRAPH_MIN_ZOOM, paint: { 'line-color': ['get', 'editor_color'], 'line-width': ['get', 'editor_width'], 'line-opacity': 0.9 } });
+      map.addLayer({ id: 'mvt-label', type: 'symbol', source: 'canonicalMvt', 'source-layer': 'ways', minzoom: GRAPH_MIN_ZOOM, filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
       // Seed with current data even if React effects ran before map load.
       map.addSource('canonical-graph', { type: 'geojson', data: emptyCollection() });
-      map.addSource('editor-selection', { type: 'geojson', data: selectedFeatureCollection(selectedRef.current, featuresRef.current) });
-      map.addLayer({ id: 'graph-fill', type: 'fill', source: 'canonical-graph', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.32 } });
-      map.addLayer({ id: 'graph-line', type: 'line', source: 'canonical-graph', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['coalesce', ['get', 'editorWidth'], 3] } });
+      map.addSource('editor-selection', { type: 'geojson', data: selectedFeatureCollection(selectedRef.current) });
+      map.addLayer({ id: 'graph-fill', type: 'fill', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.32 } });
+      map.addLayer({ id: 'graph-line', type: 'line', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['coalesce', ['get', 'editorWidth'], 3] } });
       // Keep saved/local POIs visible before their richer icons are enabled at Z18.
-      map.addLayer({ id: 'graph-point-preview', type: 'circle', source: 'canonical-graph', minzoom: 16, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], paint: { 'circle-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 3.5, 18, 4.5], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } });
-      map.addLayer({ id: 'graph-relation-point', type: 'circle', source: 'canonical-graph', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
+      map.addLayer({ id: 'graph-point-preview', type: 'circle', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node'], ['!=', ['get', 'topologyNode'], true]], paint: { 'circle-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], GRAPH_MIN_ZOOM, 2.5, 16, 3.5, 18, 4.5], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 } });
+      map.addLayer({ id: 'graph-relation-point', type: 'circle', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
       map.addLayer({ id: 'selection-fill', type: 'fill', source: 'editor-selection', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['coalesce', ['get', 'editorColor'], '#62a85d'], 'fill-opacity': 0.18 } });
       map.addLayer({ id: 'selection-halo-line', type: 'line', source: 'editor-selection', filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'Polygon']], paint: { 'line-color': '#dc2626', 'line-width': 10, 'line-opacity': 0.36, 'line-blur': 2 } });
       map.addLayer({ id: 'selection-origin-line', type: 'line', source: 'editor-selection', filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'Polygon']], paint: { 'line-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'line-width': ['+', ['coalesce', ['get', 'editorWidth'], 3], 1], 'line-opacity': 1 } });
+      // Selected nodes remain visible below both the icon and graph thresholds.
+      // These circles also cover asynchronous icon loading above Z18.
+      map.addLayer({ id: 'selection-halo-point-preview', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], paint: { 'circle-color': '#dc2626', 'circle-radius': 12, 'circle-opacity': 0.3, 'circle-stroke-color': '#dc2626', 'circle-stroke-width': 2, 'circle-blur': 0.25 } });
+      map.addLayer({ id: 'selection-origin-point-preview', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'node']], paint: { 'circle-color': ['coalesce', ['get', 'editorColor'], '#5f9fe0'], 'circle-radius': 5, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'selection-halo-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#dc2626', 'circle-radius': 14, 'circle-opacity': 0.2, 'circle-stroke-color': '#dc2626', 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.8, 'circle-blur': 0.25 } });
       map.addLayer({ id: 'selection-origin-relation', type: 'circle', source: 'editor-selection', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'entityType'], 'relation']], paint: { 'circle-color': '#7c3aed', 'circle-radius': 8, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
-      map.addLayer({ id: 'graph-label', type: 'symbol', source: 'canonical-graph', filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
+      map.addLayer({ id: 'graph-label', type: 'symbol', source: 'canonical-graph', minzoom: GRAPH_MIN_ZOOM, filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-padding': 4, 'symbol-placement': 'line' }, paint: { 'text-color': '#18242d', 'text-halo-color': '#fff', 'text-halo-width': 1.5 } });
       map.addSource('editor-vertex-handles', { type: 'geojson', data: selectedVertexCollection(selectedRef.current, featuresRef.current) });
       map.addLayer({ id: 'editor-vertex-handles', type: 'circle', source: 'editor-vertex-handles', paint: { 'circle-color': '#ffffff', 'circle-radius': 5.5, 'circle-stroke-color': '#a51f38', 'circle-stroke-width': 2.5 } });
       map.addSource('editor-node-drag', { type: 'geojson', data: emptyCollection() });
@@ -448,6 +455,10 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
         if (selectedRef.current) {
           map.setPaintProperty('selection-halo-line', 'line-width', 9 + phase * 6);
           map.setPaintProperty('selection-halo-line', 'line-opacity', 0.22 + phase * 0.38);
+          for (const layer of ['selection-halo-point-preview', 'selection-halo-relation']) {
+            map.setPaintProperty(layer, 'circle-radius', 11 + phase * 5);
+            map.setPaintProperty(layer, 'circle-opacity', 0.18 + phase * 0.3);
+          }
           if (map.getLayer('selection-halo-point')) map.setPaintProperty('selection-halo-point', 'icon-opacity', 0.28 + phase * 0.68);
         }
         selectionPulseTimer = window.setTimeout(pulseSelection, 60);
@@ -509,7 +520,7 @@ export function MapCanvas({ features, pinpoint, drawMode, drawVertices, selected
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    geoJsonSource(map, 'editor-selection')?.setData(selectedFeatureCollection(selected, features));
+    geoJsonSource(map, 'editor-selection')?.setData(selectedFeatureCollection(selected));
   }, [features, selected]);
 
   useEffect(() => {

@@ -5,6 +5,28 @@ import (
 	"testing"
 )
 
+func TestGraphBboxSupportsZoom12WithoutRelaxingExport(t *testing.T) {
+	// A buffered, wide-screen Z12 viewport is wider than .3 degrees.
+	const viewport = "105.4,20.5,106.6,21.3"
+	if _, ok := parseBboxWithMaxSpan(viewport, 2); !ok {
+		t.Fatal("graph must accept a wide Z12 viewport")
+	}
+	if _, ok := parseBbox(viewport); ok {
+		t.Fatal("export must retain its compact bbox limit")
+	}
+	for _, value := range []string{
+		"105,20,108,21", "105,20,106,23", "NaN,20,106,21", "105,20,+Inf,21",
+		"105,20,105,21", "106,20,105,21", "-181,20,-180,21", "105,89,106,91", "105,20,106",
+	} {
+		if _, ok := parseBboxWithMaxSpan(value, 2); ok {
+			t.Errorf("accepted invalid graph bbox %q", value)
+		}
+	}
+	if _, ok := parseBbox("105,20,105.1,20.1"); !ok {
+		t.Fatal("existing compact viewports must remain valid")
+	}
+}
+
 func TestNormalizeRelationMapsCreatedMembers(t *testing.T) {
 	raw := json.RawMessage(`{
 		"operation":"create",

@@ -147,8 +147,8 @@ function parseGraphResponse(value: unknown): GraphResponse {
 
 export type GraphPart = 'all' | 'geometry' | 'relations';
 
-export async function loadGraph(bbox: [number, number, number, number], signal?: AbortSignal, part: GraphPart = 'all'): Promise<GraphResponse> {
-  const parameters = new URLSearchParams({ dataset: DATASET_NAME, bbox: bbox.join(','), limit: '1200', part });
+export async function loadGraph(bbox: [number, number, number, number], signal?: AbortSignal, part: GraphPart = 'all', dataset = DATASET_NAME): Promise<GraphResponse> {
+  const parameters = new URLSearchParams({ dataset, bbox: bbox.join(','), limit: '1200', part });
   const response = await fetch(`/api/graph?${parameters}`, { signal });
   if (!response.ok) throw new Error(`Không thể tải graph (${response.status}).`);
   const graph = parseGraphResponse(await response.json());
@@ -159,8 +159,8 @@ export async function loadGraph(bbox: [number, number, number, number], signal?:
   return graph;
 }
 
-export async function loadWayParents(ids: string[]): Promise<{ wayParents: Record<string, RelationParent[]>; relations: GraphFeature[] }> {
-  const parameters = new URLSearchParams({ dataset: DATASET_NAME, ids: ids.join(',') });
+export async function loadWayParents(ids: string[], dataset = DATASET_NAME): Promise<{ wayParents: Record<string, RelationParent[]>; relations: GraphFeature[] }> {
+  const parameters = new URLSearchParams({ dataset, ids: ids.join(',') });
   const response = await fetch(`/api/topology/way-parents?${parameters}`);
   if (!response.ok) throw new Error(`Không thể tải relation cha (${response.status}). Hãy kiểm tra Editor API đã được khởi động lại.`);
   const payload: unknown = await response.json();

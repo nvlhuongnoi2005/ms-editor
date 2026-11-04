@@ -55,8 +55,36 @@ services:
       RENDER_DB_NAME: render
       RENDER_DB_USER: render_owner
       RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
+      EDITOR_IMPORT_DIR: /var/lib/map-service/imports
+      EDITOR_IMPORT_TOKEN: ${EDITOR_IMPORT_TOKEN:-}
+      EDITOR_IMPORT_MAX_BYTES: ${EDITOR_IMPORT_MAX_BYTES:-10737418240}
+    volumes:
+      - ../data/imports:/var/lib/map-service/imports
     ports:
       - "${EDITOR_API_PORT:-4173}:4173"
+
+  import-worker:
+    build:
+      context: ../canonical-importer
+      dockerfile: Worker.Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: canonical
+      DB_USER: canonical_owner
+      DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      RENDER_DB_HOST: postgres
+      RENDER_DB_PORT: 5432
+      RENDER_DB_NAME: render
+      RENDER_DB_USER: render_owner
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
+      EDITOR_IMPORT_DIR: /var/lib/map-service/imports
+    volumes:
+      - ../data/imports:/var/lib/map-service/imports
+    restart: unless-stopped
 
   render-sync-worker:
     build:

@@ -28,12 +28,13 @@ const (
 )
 
 type renderEvent struct {
-	ID          int64
-	DatasetID   string
-	DatasetName string
-	Revision    int64
-	ChangesetID int64
-	RenderedAt  *time.Time
+	ID           int64
+	DatasetID    string
+	DatasetName  string
+	Revision     int64
+	ChangesetID  int64
+	RenderedAt   *time.Time
+	RenderSchema string
 }
 
 func runRenderWorker(ctx context.Context, db *pgxpool.Pool) error {
@@ -68,8 +69,7 @@ func runRenderWorker(ctx context.Context, db *pgxpool.Pool) error {
 	}
 }
 
-func claimRenderEvent(ctx context.Context, db *pgxpool.Pool, workerID string, lockTimeout time.Duration) (renderEvent, bool, error) {
-	const query = `WITH candidate AS (
+const claimRenderEventSQL = `WITH candidate AS (
 		SELECT event.id
 		FROM editor.outbox_event event
 		WHERE event.type='canonical.changeset.committed'
@@ -86,15 +86,16 @@ func claimRenderEvent(ctx context.Context, db *pgxpool.Pool, workerID string, lo
 	)
 	UPDATE editor.outbox_event event
 	SET processing_at=now(), locked_by=$1, attempt_count=event.attempt_count+1, next_attempt_at=NULL
-	FROM candidate
-	JOIN editor.dataset_revision revision ON revision.dataset_id=event.dataset_id AND revision.revision=event.revision
-	JOIN editor.dataset dataset ON dataset.id=event.dataset_id
+	FROM candidate, editor.dataset_revision revision, editor.dataset dataset
 	WHERE event.id=candidate.id
-	RETURNING event.id, event.dataset_id::text, dataset.name, event.revision, revision.changeset_id, event.rendered_at`
+	  AND revision.dataset_id=event.dataset_id AND revision.revision=event.revision
+	  AND dataset.id=event.dataset_id
+	RETURNING event.id, event.dataset_id::text, dataset.name, event.revision, revision.changeset_id, event.rendered_at, dataset.render_schema`
 
+func claimRenderEvent(ctx context.Context, db *pgxpool.Pool, workerID string, lockTimeout time.Duration) (renderEvent, bool, error) {
 	var event renderEvent
-	err := db.QueryRow(ctx, query, workerID, int64(lockTimeout.Seconds())).Scan(
-		&event.ID, &event.DatasetID, &event.DatasetName, &event.Revision, &event.ChangesetID, &event.RenderedAt,
+	err := db.QueryRow(ctx, claimRenderEventSQL, workerID, int64(lockTimeout.Seconds())).Scan(
+		&event.ID, &event.DatasetID, &event.DatasetName, &event.Revision, &event.ChangesetID, &event.RenderedAt, &event.RenderSchema,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return renderEvent{}, false, nil
@@ -115,7 +116,7 @@ func processRenderEvent(ctx context.Context, db *pgxpool.Pool, event renderEvent
 			return err
 		}
 		defer cleanup()
-		if err := appendOSCToRenderDB(ctx, oscPath); err != nil {
+		if err := appendOSCToRenderDB(ctx, oscPath, event.RenderSchema); err != nil {
 			return err
 		}
 		if _, err := db.Exec(ctx, `UPDATE editor.outbox_event SET rendered_at=now(), last_error=NULL WHERE id=$1`, event.ID); err != nil {
@@ -173,7 +174,7 @@ func writeRenderOSC(ctx context.Context, db *pgxpool.Pool, event renderEvent) (s
 	return path, cleanup, nil
 }
 
-func appendOSCToRenderDB(parent context.Context, oscPath string) error {
+func appendOSCToRenderDB(parent context.Context, oscPath string, schema string) error {
 	if getenv("RENDER_SYNC_DRY_RUN", "") == "1" {
 		log.Printf("RENDER_SYNC_DRY_RUN=1: skipped osm2pgsql --append for %s", oscPath)
 		return nil
@@ -181,7 +182,7 @@ func appendOSCToRenderDB(parent context.Context, oscPath string) error {
 	ctx, cancel := context.WithTimeout(parent, durationEnv("RENDER_SYNC_TIMEOUT", defaultRenderTimeout))
 	defer cancel()
 	args := []string{
-		"--append", "--slim", "--hstore", "--schema", getenv("RENDER_DB_SCHEMA", "render"),
+		"--append", "--slim", "--hstore", "--schema", schema,
 		"-H", getenv("RENDER_DB_HOST", "127.0.0.1"),
 		"-P", getenv("RENDER_DB_PORT", "5432"),
 		"-U", getenv("RENDER_DB_USER", "render_owner"),

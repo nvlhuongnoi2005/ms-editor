@@ -1,6 +1,7 @@
 # Large source extracts and local database credentials never belong in Git.
 data/*.osm.pbf
 data/*.pbf
+data/imports/
 data/*.mbtiles
 infra/tile-server-data/**/*.mbtiles
 infra/tile-server-data/**/*-journal

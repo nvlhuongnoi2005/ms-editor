@@ -11,7 +11,7 @@ const { editorReducer, initialState } = await import(await loadSource('../src/fe
   './conflictResolution': await loadSource('../src/features/editor/conflictResolution.ts')
 }));
 const { toUploadChanges } = await import(await loadSource('../src/api/changeset.ts'));
-const { splitFeature, mergeFeatures, reverseFeature, reverseWayTags, removeVertex, disconnectVertex, extendFeature, wayVertices } = operations;
+const { closeWay, disconnectVertex, extendFeature, mergeFeatures, openWay, removeVertex, reverseFeature, reverseWayTags, splitFeature, wayVertices } = operations;
 
 function way(id, refs, tags = {}, parents = []) {
   const nodes = refs.map(ref => ({ id: String(ref), version: 1, tags: {}, coordinates: [Number(ref), 1] }));
@@ -21,6 +21,26 @@ function relation(id, type, members) {
   return { type: 'Feature', properties: { entityType: 'relation', entityId: String(id), version: 1, tags: { type }, members: members.map(([ref, role = ''], sequence) => ({ type: 'way', ref: String(ref), role, sequence })) }, geometry: { type: 'Point', coordinates: [1, 1] } };
 }
 function changed(result, key) { return result.mutations.find(m => m.key === key)?.feature; }
+
+test('viewport reload retains only the current clean selection and refreshes it when returned', () => {
+  const input = way(10, [1, 2, 3]);
+  let state = editorReducer(initialState, { type: 'hydrate', features: [input, way(20, [4, 5])] });
+  state = editorReducer(state, { type: 'select', key: 'way/10' });
+  state = editorReducer(state, { type: 'hydrate', features: [] });
+  assert.equal(state.selectedKey, 'way/10');
+  assert.deepEqual(state.baseFeatures['way/10'], input);
+  assert.equal(state.baseFeatures['way/20'], undefined);
+  assert.deepEqual(state.viewportKeys, [], 'retained selection must not become viewport coverage');
+  assert.deepEqual(state.overrides, {}, 'retaining selection must not create pending changes');
+  const refreshed = way(10, [1, 2, 4]);
+  refreshed.properties.version = 2;
+  state = editorReducer(state, { type: 'hydrate', features: [refreshed] });
+  assert.deepEqual(state.baseFeatures['way/10'], refreshed);
+  state = editorReducer(state, { type: 'select', key: null });
+  state = editorReducer(state, { type: 'hydrate', features: [] });
+  assert.equal(state.selectedKey, null);
+  assert.equal(state.baseFeatures['way/10'], undefined);
+});
 
 test('split keeps original ID/version and creates a new way, with consistent geometry', () => {
   const input = way(10, [1, 2, 3], { highway: 'residential' });
@@ -111,6 +131,23 @@ test('remove vertex preserves closure, minimum size, and original node entity', 
   assert.equal(result.mutations.length, 1);
   assert.throws(() => removeVertex(result.selected, '2'), /đủ đỉnh/);
   assert.throws(() => removeVertex(way(10, [1, 2]), '2'), /đủ đỉnh/);
+});
+test('close and open way preserve node topology while enforcing compatible tags', () => {
+  const line = way(10, [1, 2, 3], { name: 'Plaza' });
+  const closed = closeWay(line).selected;
+  assert.equal(closed.geometry.type, 'Polygon');
+  assert.deepEqual(closed.properties.nodeIds, ['1', '2', '3', '1']);
+  assert.equal(closed.properties.tags.area, 'yes');
+  assert.deepEqual(line.properties.nodeIds, ['1', '2', '3']);
+
+  const opened = openWay(closed).selected;
+  assert.equal(opened.geometry.type, 'LineString');
+  assert.deepEqual(opened.properties.nodeIds, ['1', '2', '3']);
+  assert.equal(opened.properties.tags.area, undefined);
+
+  assert.throws(() => closeWay(way(11, [1, 2, 3], { highway: 'residential' })), /tuyến tính/);
+  const building = closeWay(way(12, [1, 2, 3], { building: 'yes' })).selected;
+  assert.throws(() => openWay(building), /bắt buộc là vùng/);
 });
 test('continue from either endpoint keeps identity, direction, tags and node metadata', () => {
   const input = way(10, [1, 2], { name: 'Road' });

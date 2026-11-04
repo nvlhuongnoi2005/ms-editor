@@ -1,5 +1,9 @@
 # Công cụ topology
 
+> Khối **Công cụ topology** đã được gỡ khỏi bảng thuộc tính. Tài liệu bên dưới
+> lưu mô tả giao diện trước đây; các phép toán topology nội bộ và test vẫn được giữ.
+> Kéo đỉnh trên bản đồ và undo/redo vẫn hoạt động bình thường.
+
 Chọn way trên bản đồ để mở **Công cụ topology** trong bảng thuộc tính.
 Click một vertex (điểm tròn) hoặc chọn node trong danh sách; vertex đang chọn
 được tô vàng. Kéo quá 3 pixel mới được tính là di chuyển node.

@@ -181,7 +181,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...[...state.undoStack, ...state.redoStack].flatMap(entry => entry.changes.map(change => change.key))
       ]);
       const baseFeatures: Record<EntityKey, GraphFeature> = Object.fromEntries(
-        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key))
+        // Keep selection even when the next bounded viewport omits it. Unlike
+        // dirty baselines, a clean selection may still refresh from the server.
+        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key) || key === state.selectedKey)
       );
       const viewportKeys: EntityKey[] = [];
       for (const feature of action.features) {

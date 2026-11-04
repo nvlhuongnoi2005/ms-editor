@@ -54,6 +54,10 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case r.URL.Path == "/api/graph" && r.Method == http.MethodGet:
 		err = a.serveGraph(r.Context(), w, r)
+	case r.URL.Path == "/api/datasets" && r.Method == http.MethodGet:
+		err = a.serveDatasets(r.Context(), w, r)
+	case r.URL.Path == "/api/imports" || strings.HasPrefix(r.URL.Path, "/api/imports/"):
+		err = a.serveImports(r.Context(), w, r)
 	case r.URL.Path == "/api/entities/snapshots" && r.Method == http.MethodPost:
 		err = a.serveEntitySnapshots(r.Context(), w, r)
 	case r.URL.Path == "/api/changesets/recent" && r.Method == http.MethodGet:
@@ -100,7 +104,9 @@ func (a *app) serveGraph(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if dataset == "" {
 		dataset = "vietnam-260901"
 	}
-	bbox, ok := parseBbox(r.URL.Query().Get("bbox"))
+	// Z12 viewports (including the prefetch margin on wide screens) exceed
+	// export's .3-degree limit. Graph responses still have bounded entity counts.
+	bbox, ok := parseBboxWithMaxSpan(r.URL.Query().Get("bbox"), 2)
 	if !ok || !validDataset(dataset) {
 		return fail(400, "A valid, compact bbox and dataset are required.")
 	}
@@ -220,19 +226,20 @@ func (a *app) serveMVT(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return fail(400, "MVT y is outside the zoom range.")
 	}
 	var renderRevision int64
-	if err := a.db.QueryRow(ctx, "SELECT render_revision FROM editor.dataset WHERE name=$1 AND state='ready' ORDER BY created_at DESC LIMIT 1", dataset).Scan(&renderRevision); errors.Is(err, pgx.ErrNoRows) {
+	var datasetID, renderSchema string
+	if err := a.db.QueryRow(ctx, "SELECT id::text,render_revision,render_schema FROM editor.dataset WHERE name=$1 AND state='ready' ORDER BY created_at DESC LIMIT 1", dataset).Scan(&datasetID, &renderRevision, &renderSchema); errors.Is(err, pgx.ErrNoRows) {
 		return fail(409, "The requested canonical dataset is not ready.")
 	} else if err != nil {
 		return err
 	}
-	etag := fmt.Sprintf("\"render-r%d\"", renderRevision)
+	etag := fmt.Sprintf("\"%s-r%d\"", datasetID, renderRevision)
 	if r.Header.Get("If-None-Match") == etag {
 		w.Header().Set("ETag", etag)
 		w.WriteHeader(http.StatusNotModified)
 		return nil
 	}
 	var tile []byte
-	if err := a.renderDB.QueryRow(ctx, renderMVTSQL, z, x, y).Scan(&tile); err != nil {
+	if err := a.renderDB.QueryRow(ctx, renderMVTQuery(renderSchema), z, x, y).Scan(&tile); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/vnd.mapbox-vector-tile")
@@ -240,6 +247,10 @@ func (a *app) serveMVT(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	w.Header().Set("ETag", etag)
 	_, err = w.Write(tile)
 	return err
+}
+
+func renderMVTQuery(schema string) string {
+	return strings.ReplaceAll(renderMVTSQL, "render.", pgx.Identifier{schema}.Sanitize()+".")
 }
 
 const renderMVTSQL = `WITH tile AS (SELECT ST_TileEnvelope($1,$2,$3) AS geom_3857),

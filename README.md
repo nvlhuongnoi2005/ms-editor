@@ -26,3 +26,9 @@ allowed to create missing indexes at startup.
 The local PostGIS, Render DB and Canonical PBF importer live in
 [`infra`](infra). Follow [its setup guide](infra/README.md) before connecting
 the editor to real data.
+
+## Upload PBF from the editor
+
+Use **Dữ liệu / Import PBF** to upload a snapshot, follow its background import,
+and open a ready dataset. Each import has its own render schema and never
+replaces existing data. See [setup, security and worker instructions](docs/pbf-import.md).

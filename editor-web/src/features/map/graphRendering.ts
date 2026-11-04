@@ -1,7 +1,9 @@
 import type { Feature, FeatureCollection } from 'geojson';
 import type { FilterSpecification } from 'maplibre-gl';
-import type { GraphFeature } from '../../types/osm';
+import type { GraphFeature, SelectedEntity } from '../../types/osm';
 import { resolveFeatureStyle, resolvePointIcon } from './styleRules';
+
+export const GRAPH_MIN_ZOOM = 14;
 
 // Topology/tags stay in EditorStore. Sending duplicate node metadata and full
 // relation members into the map worker increases serialization and tile costs.
@@ -20,6 +22,19 @@ export function renderFeature(feature: GraphFeature): Feature {
 
 export function renderCollection(features: GraphFeature[]): FeatureCollection {
   return { type: 'FeatureCollection', features: features.map(renderFeature) };
+}
+
+// Selection is independent of viewport coverage and the graph's zoom threshold.
+// EditorStore owns the latest geometry, including unsaved edits.
+export function selectedFeatureCollection(selected: SelectedEntity | null): FeatureCollection {
+  return renderCollection(selected ? [{
+    type: 'Feature',
+    properties: {
+      entityType: selected.type, entityId: selected.id, version: selected.version,
+      tags: selected.tags, name: selected.tags.name
+    },
+    geometry: selected.geometry
+  }] : []);
 }
 
 interface TileMap {

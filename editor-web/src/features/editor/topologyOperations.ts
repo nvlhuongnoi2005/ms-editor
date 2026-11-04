@@ -2,7 +2,7 @@ import { splitWayAtNode } from '../topology/graph';
 import type { GraphFeature, RelationMember, Tags, WayNode } from '../../types/osm';
 import type { FeatureMutation } from './EditorStore';
 
-export type TopologyAction = 'split' | 'merge' | 'disconnect' | 'reverse' | 'remove-vertex';
+export type TopologyAction = 'split' | 'merge' | 'disconnect' | 'reverse' | 'remove-vertex' | 'close' | 'open';
 export interface TopologyResult {
   mutations: FeatureMutation[];
   selected: GraphFeature;
@@ -152,6 +152,41 @@ export function removeVertex(way: GraphFeature, nodeId: string): TopologyResult 
   const updated = rebuildWay(way, remaining);
   // Leave the node entity intact: unloaded ways/relations may still reference it.
   return { mutations: [mutation(updated)], selected: updated };
+}
+
+function lineOnlyTags(tags: Tags): boolean {
+  return Boolean(tags.highway || tags.railway || tags.waterway || tags.aerialway || tags.barrier || ['coastline', 'cliff'].includes(tags.natural ?? ''));
+}
+
+function areaOnlyTags(tags: Tags): boolean {
+  return Boolean(tags.building || tags.landuse || tags.leisure === 'park' || tags.natural === 'water' || tags.shop || tags.tourism);
+}
+
+/** Close an open way as an area and make its area semantics explicit. */
+export function closeWay(way: GraphFeature): TopologyResult {
+  requireOpenWay(way);
+  if (lineOnlyTags(way.properties.tags)) throw new Error('Way có tag tuyến tính; hãy đổi thuộc tính trước khi đóng thành vùng.');
+  const vertices = wayVertices(way);
+  if (vertices.length < 3) throw new Error('Cần ít nhất ba đỉnh để đóng thành vùng.');
+  const ring = [...vertices, { ...vertices[0], coordinates: [...vertices[0].coordinates] as [number, number] }];
+  const tags = { ...way.properties.tags, area: 'yes' };
+  const rebuilt = rebuildWay(way, ring, tags);
+  const closed: GraphFeature = { ...rebuilt, geometry: { type: 'Polygon', coordinates: [ring.map(node => [...node.coordinates] as [number, number])] } };
+  return { mutations: [mutation(closed)], selected: closed };
+}
+
+/** Open an area as a line. Tags that require an area must be changed first. */
+export function openWay(way: GraphFeature): TopologyResult {
+  const vertices = wayVertices(way);
+  const closed = vertices.length >= 4 && vertices[0].id === vertices.at(-1)!.id;
+  if (!closed) throw new Error('Way chưa là vùng khép kín.');
+  if (areaOnlyTags(way.properties.tags)) throw new Error('Way có tag bắt buộc là vùng; hãy đổi thuộc tính trước khi mở thành đường.');
+  const tags = { ...way.properties.tags };
+  if (tags.area === 'yes') delete tags.area;
+  const lineNodes = vertices.slice(0, -1);
+  const rebuilt = rebuildWay(way, lineNodes, tags);
+  const opened: GraphFeature = { ...rebuilt, geometry: { type: 'LineString', coordinates: lineNodes.map(node => [...node.coordinates] as [number, number]) } };
+  return { mutations: [mutation(opened)], selected: opened };
 }
 
 export function disconnectVertex(way: GraphFeature, nodeId: string, newId: string): TopologyResult {

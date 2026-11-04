@@ -14,7 +14,7 @@ import sys
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import osmium
 import psycopg
@@ -110,18 +110,24 @@ ON CONFLICT (dataset_id, entity_type, entity_id) DO UPDATE SET
 
 
 class CanonicalImporter(osmium.SimpleHandler):
-    def __init__(self, conn: psycopg.Connection, dataset_id: uuid.UUID, batch_size: int) -> None:
+    def __init__(self, conn: psycopg.Connection, dataset_id: uuid.UUID, batch_size: int, progress: Callable[[dict[str, int]], None] | None = None) -> None:
         super().__init__()
         self.conn = conn
         self.dataset_id = dataset_id
         self.batch_size = batch_size
         self.batch: list[Primitive] = []
         self.counts = {"node": 0, "way": 0, "relation": 0}
+        self.progress = progress
+        self.bounds: list[float] | None = None
 
     def node(self, node: Any) -> None:
         version, visible, changeset, timestamp, uid, user = entity_metadata(node)
         lon = float(node.location.lon)
         lat = float(node.location.lat)
+        if self.bounds is None:
+            self.bounds = [lon, lat, lon, lat]
+        else:
+            self.bounds = [min(self.bounds[0], lon), min(self.bounds[1], lat), max(self.bounds[2], lon), max(self.bounds[3], lat)]
         self.add(
             Primitive(
                 "node", int(node.id), version, visible, dict(node.tags),
@@ -201,6 +207,8 @@ class CanonicalImporter(osmium.SimpleHandler):
         total = sum(self.counts.values())
         LOG.info("imported %s primitives (nodes=%s ways=%s relations=%s)", total, self.counts["node"], self.counts["way"], self.counts["relation"])
         self.batch.clear()
+        if self.progress:
+            self.progress(self.counts)
 
 
 class PrimitiveCounter(osmium.SimpleHandler):

@@ -87,6 +87,9 @@ func main() {
 			log.Fatalf("ensure spatial indexes: %v", err)
 		}
 	}
+	if err := ensureImportsSchema(ctx, pool); err != nil {
+		log.Fatalf("ensure import schema: %v", err)
+	}
 	if os.Getenv("EDITOR_MODE") == "render-worker" {
 		if err := runRenderWorker(ctx, pool); err != nil {
 			log.Fatal(err)
@@ -256,6 +259,10 @@ func uniqueIDs(values []int64) []int64 {
 	return result
 }
 func parseBbox(value string) ([4]float64, bool) {
+	return parseBboxWithMaxSpan(value, .3)
+}
+
+func parseBboxWithMaxSpan(value string, maxSpan float64) ([4]float64, bool) {
 	var bbox [4]float64
 	parts := strings.Split(value, ",")
 	if len(parts) != 4 {
@@ -268,7 +275,7 @@ func parseBbox(value string) ([4]float64, bool) {
 		}
 		bbox[i] = number
 	}
-	return bbox, bbox[0] >= -180 && bbox[2] <= 180 && bbox[1] >= -90 && bbox[3] <= 90 && bbox[0] < bbox[2] && bbox[1] < bbox[3] && bbox[2]-bbox[0] <= .3 && bbox[3]-bbox[1] <= .3
+	return bbox, bbox[0] >= -180 && bbox[2] <= 180 && bbox[1] >= -90 && bbox[3] <= 90 && bbox[0] < bbox[2] && bbox[1] < bbox[3] && bbox[2]-bbox[0] <= maxSpan && bbox[3]-bbox[1] <= maxSpan
 }
 func validDataset(value string) bool {
 	if value == "" {

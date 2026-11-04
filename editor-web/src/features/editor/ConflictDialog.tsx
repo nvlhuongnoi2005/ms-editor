@@ -5,14 +5,14 @@ import { loadEntitySnapshots, type SnapshotBatch } from '../../api/conflicts';
 import { planConflictResolution, snapshotKeys, type ConflictChoice, type ResolutionPlan } from './conflictResolution';
 
 export interface ConflictSession { changes: EditorChange[]; batch: SnapshotBatch }
-interface Props { session: ConflictSession; onClose: () => void; onApply: (plan: ResolutionPlan) => void }
+interface Props { session: ConflictSession; dataset: string; onClose: () => void; onApply: (plan: ResolutionPlan) => void }
 
 function display(value: unknown): string {
   if (value === undefined || value === null) return '—';
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 }
 
-export function ConflictDialog({ session, onClose, onApply }: Props) {
+export function ConflictDialog({ session, dataset, onClose, onApply }: Props) {
   const [batch, setBatch] = useState(session.batch);
   const [choices, setChoices] = useState<Record<string, ConflictChoice>>({});
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export function ConflictDialog({ session, onClose, onApply }: Props) {
   const originalVersions = new Map(session.changes.map(change => [change.key, change.before?.properties.version]));
   const reload = async () => {
     setLoading(true); setError(null);
-    try { setBatch(await loadEntitySnapshots(snapshotKeys(session.changes))); setChoices({}); setConfirmDiscard(false); }
+    try { setBatch(await loadEntitySnapshots(snapshotKeys(session.changes), dataset)); setChoices({}); setConfirmDiscard(false); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được bản server.'); }
     finally { setLoading(false); }
   };

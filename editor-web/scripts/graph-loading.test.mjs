@@ -7,7 +7,7 @@ const { ViewportGraphLoader } = await import(await loadSource('../src/features/m
 const rules = await readFile(new URL('../src/features/map/style-rules.json', import.meta.url), 'utf8');
 const rulesURL = `data:text/javascript;base64,${Buffer.from(`export default ${rules}`).toString('base64')}`;
 const styleURL = await loadSource('../src/features/map/styleRules.ts', { './style-rules.json': rulesURL });
-const { GraphTileHandoff, renderCollection } = await import(await loadSource('../src/features/map/graphRendering.ts', { './styleRules': styleURL }));
+const { GRAPH_MIN_ZOOM, GraphTileHandoff, renderCollection, selectedFeatureCollection } = await import(await loadSource('../src/features/map/graphRendering.ts', { './styleRules': styleURL }));
 const { loadGraph } = await import(await loadSource('../src/api/graph.ts'));
 const bbox = [106.175, 20.388, 106.185, 20.397];
 const elsewhere = [107, 21, 107.01, 21.01];
@@ -19,6 +19,28 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 const tick = async () => { await Promise.resolve(); await Promise.resolve(); };
+
+test('graph starts at Z12; node, way and relation selection render without viewport features', () => {
+  assert.equal(GRAPH_MIN_ZOOM, 12);
+  for (const type of ['node', 'way', 'relation']) {
+    const geometry = type === 'way'
+      ? { type: 'LineString', coordinates: [[106, 20], [106.1, 20.1]] }
+      : { type: 'Point', coordinates: [106, 20] };
+    const selected = { type, id: '123', version: 2, tags: { name: 'Selected', shop: 'motorcycle_repair' }, geometry };
+    const before = structuredClone(selected);
+    const output = selectedFeatureCollection(selected).features[0];
+    assert.equal(output.properties.entityId, '123');
+    assert.equal(output.properties.entityType, type);
+    assert.equal(output.properties.name, 'Selected');
+    assert.strictEqual(output.geometry, geometry);
+    assert.equal(typeof output.properties.editorColor, 'string');
+    if (type === 'node') assert.equal(typeof output.properties.pointIcon, 'string');
+    assert.deepEqual(selected, before);
+    const moved = { ...selected, geometry: { type: 'Point', coordinates: [107, 21] } };
+    assert.strictEqual(selectedFeatureCollection(moved).features[0].geometry, moved.geometry);
+  }
+  assert.deepEqual(selectedFeatureCollection(null), { type: 'FeatureCollection', features: [] });
+});
 function setup(load) {
   const shown = [], relations = [], loading = [], errors = [], calls = [];
   const loader = new ViewportGraphLoader({

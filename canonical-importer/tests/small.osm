@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="ms-editor-import-test">
+  <node id="1" version="1" lat="20.3900" lon="106.1800" />
+  <node id="2" version="1" lat="20.3900" lon="106.1810"><tag k="shop" v="bicycle"/><tag k="name" v="Import test shop"/></node>
+  <node id="3" version="1" lat="20.3910" lon="106.1810" />
+  <node id="4" version="1" lat="20.3910" lon="106.1800" />
+  <way id="10" version="1"><nd ref="1"/><nd ref="2"/><tag k="highway" v="residential"/><tag k="name" v="Import test road"/></way>
+  <way id="20" version="1"><nd ref="1"/><nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="1"/><tag k="building" v="yes"/></way>
+  <relation id="100" version="1"><member type="way" ref="20" role="outer"/><tag k="type" v="multipolygon"/><tag k="landuse" v="grass"/></relation>
+</osm>

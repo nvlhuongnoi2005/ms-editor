@@ -9,9 +9,9 @@ export interface EntitySnapshot {
 }
 export interface SnapshotBatch { snapshots: EntitySnapshot[]; support: GraphFeature[] }
 
-export async function loadEntitySnapshots(keys: string[]): Promise<SnapshotBatch> {
+export async function loadEntitySnapshots(keys: string[], dataset = DATASET_NAME): Promise<SnapshotBatch> {
   if (!keys.length) return { snapshots: [], support: [] };
-  const response = await fetch('/api/entities/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30_000), body: JSON.stringify({ dataset: DATASET_NAME, keys }) });
+  const response = await fetch('/api/entities/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30_000), body: JSON.stringify({ dataset, keys }) });
   const payload = await response.json();
   if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : `Không tải được bản server (${response.status}).`);
   if (!Array.isArray(payload?.snapshots) || !Array.isArray(payload?.support)) throw new Error('Snapshot server không hợp lệ.');
