@@ -31,14 +31,15 @@ interface MapCanvasProps {
   changedKeys: ReadonlySet<string>;
   onSelectVertex: (nodeId: string) => void;
   onBoundsChange: (viewport: MapViewport) => void;
-  onSelect: (feature: GraphFeature, toggleSelection: boolean) => void;
-  onSelectEntity: (type: EntityType, id: string, toggleSelection: boolean) => void;
+  onSelect: (feature: GraphFeature, toggleSelection: boolean, selectOnly: boolean) => void;
+  onSelectEntity: (type: EntityType, id: string, toggleSelection: boolean, selectOnly: boolean) => void;
   onSelectionContextMenu: (position: { top: number; left: number }) => void;
   onInsertVertex: (vertex: SnappedVertex) => void;
   onDrawVertex: (vertex: SnappedVertex) => void;
   onFinishDrawing: () => void;
   onCancelDrawing: () => void;
   onMoveNode: (nodeId: string, coordinate: Coordinate) => void;
+  onMoveFeatures: (keys: readonly string[], offset: Coordinate) => void;
   onPointerStatus: (status: MapPointerStatus) => void;
 }
 
@@ -74,6 +75,21 @@ function coordinatesOfWay(feature: GraphFeature): Coordinate[] {
   if (feature.geometry.type === 'LineString') return feature.geometry.coordinates.map(([longitude, latitude]) => [longitude, latitude]);
   if (feature.geometry.type === 'Polygon') return (feature.geometry.coordinates[0] ?? []).map(([longitude, latitude]) => [longitude, latitude]);
   return [];
+}
+
+function translatedSelectionCollection(keys: readonly string[], features: GraphFeature[], offset: Coordinate): FeatureCollection {
+  const selectedKeys = new Set(keys);
+  const translate = ([longitude, latitude]: Coordinate): Coordinate => [longitude + offset[0], latitude + offset[1]];
+  const translated: GraphFeature[] = [];
+  for (const feature of features) {
+    const key = `${feature.properties.entityType}/${feature.properties.entityId}`;
+    if (!selectedKeys.has(key) || feature.properties.entityType === 'relation') continue;
+    const geometry = feature.geometry;
+    if (geometry.type === 'Point') translated.push({ ...feature, geometry: { type: 'Point', coordinates: translate(geometry.coordinates) } });
+    else if (geometry.type === 'LineString') translated.push({ ...feature, geometry: { type: 'LineString', coordinates: geometry.coordinates.map(translate) } });
+    else if (geometry.type === 'Polygon') translated.push({ ...feature, geometry: { type: 'Polygon', coordinates: geometry.coordinates.map(ring => ring.map(translate)) } });
+  }
+  return renderCollection(translated);
 }
 
 function selectedVertexCollection(selectedKeys: ReadonlySet<string>, features: GraphFeature[]): FeatureCollection {
@@ -216,7 +232,7 @@ async function loadPointPinImages(map: Map, isDisposed: () => boolean): Promise<
   }));
 }
 
-export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode, drawVertices, selected, selectedFeatures, selectedKeys, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus }: MapCanvasProps) {
+export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode, drawVertices, selected, selectedFeatures, selectedKeys, selectedVertexId, changedKeys, onSelectVertex, onBoundsChange, onSelect, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onMoveFeatures, onPointerStatus }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const featuresRef = useRef(features);
@@ -227,7 +243,7 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
   const selectedFeaturesRef = useRef(selectedFeatures);
   const selectedKeysRef = useRef(selectedKeys);
   const changedKeysRef = useRef(changedKeys);
-  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange });
+  const callbacksRef = useRef({ onSelect, onSelectVertex, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onMoveFeatures, onPointerStatus, onBoundsChange });
   const topology = useMemo(() => buildTopologyGraph(features), [features]);
   const topologyRef = useRef(topology);
   topologyRef.current = topology;
@@ -241,7 +257,7 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
   selectedFeaturesRef.current = selectedFeatures;
   selectedKeysRef.current = selectedKeys;
   changedKeysRef.current = changedKeys;
-  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onPointerStatus, onBoundsChange };
+  callbacksRef.current = { onSelect, onSelectVertex, onSelectEntity, onSelectionContextMenu, onInsertVertex, onDrawVertex, onFinishDrawing, onCancelDrawing, onMoveNode, onMoveFeatures, onPointerStatus, onBoundsChange };
 
   useEffect(() => { updateDraftRef.current(); }, [drawMode, drawVertices]);
   useEffect(() => {
@@ -330,6 +346,10 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       if (performance.now() < suppressClickUntil) return;
       const mode = drawModeRef.current;
       if (mode === 'select') {
+        // MapLibre emits click twice before dblclick. The double-click handler
+        // below owns the second interaction so a grouped way does not gain a
+        // vertex before switching back to its single-object selection.
+        if (event.originalEvent.detail > 1) return;
         const vertex = map.getLayer('editor-vertex-handles') ? map.queryRenderedFeatures(event.point, { layers: ['editor-vertex-handles'] })[0] : undefined;
         if (vertex?.properties?.nodeId) {
           callbacksRef.current.onSelectVertex(String(vertex.properties.nodeId));
@@ -349,8 +369,8 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
         }
         if (!entityId || (entityType !== 'node' && entityType !== 'way' && entityType !== 'relation')) return;
         const feature = featuresRef.current.find(item => item.properties.entityType === entityType && item.properties.entityId === String(entityId));
-        if (feature) callbacksRef.current.onSelect(feature, toggleSelection);
-        else callbacksRef.current.onSelectEntity(entityType, String(entityId), toggleSelection);
+        if (feature) callbacksRef.current.onSelect(feature, toggleSelection, false);
+        else callbacksRef.current.onSelectEntity(entityType, String(entityId), toggleSelection, false);
         return;
       }
       if (mode !== 'point' && canFinish() && isNearFirstVertex(event.lngLat)) {
@@ -360,7 +380,8 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       callbacksRef.current.onDrawVertex(snap(event.lngLat));
     };
     let draggingNodeId: string | null = null;
-    let dragStart: maplibregl.Point | null = null;
+    let draggingFeatureKeys: string[] | null = null;
+    let dragStart: { point: maplibregl.Point; coordinate: Coordinate } | null = null;
     let suppressClickUntil = 0;
     const setDragPreview = (coordinate?: Coordinate) => {
       geoJsonSource(map, 'editor-node-drag')?.setData(coordinate
@@ -373,11 +394,39 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       if (typeof nodeId !== 'string') return;
       event.preventDefault();
       draggingNodeId = nodeId;
-      dragStart = event.point;
+      dragStart = { point: event.point, coordinate: [event.lngLat.lng, event.lngLat.lat] };
       callbacksRef.current.onSelectVertex(nodeId);
       map.dragPan.disable();
       map.getCanvas().style.cursor = 'grabbing';
       setDragPreview([event.lngLat.lng, event.lngLat.lat]);
+    };
+    const setFeatureDragPreview = (offset?: Coordinate) => {
+      geoJsonSource(map, 'editor-feature-drag')?.setData(offset && draggingFeatureKeys
+        ? translatedSelectionCollection(draggingFeatureKeys, featuresRef.current, offset)
+        : emptyCollection());
+    };
+    const onFeatureDown = (event: MapMouseEvent) => {
+      if (drawModeRef.current !== 'select' || event.originalEvent.button !== 0 || draggingNodeId) return;
+      const vertex = map.getLayer('editor-vertex-handles')
+        ? map.queryRenderedFeatures(event.point, { layers: ['editor-vertex-handles'] })[0]
+        : undefined;
+      // Vertex handles always own their drag gesture. They edit one node rather
+      // than translating the selected feature as a whole.
+      if (vertex?.properties?.nodeId) return;
+      const hit = selectableFeatureAt(event.point);
+      const entityId = hit?.properties?.entityId ?? hit?.properties?.entity_id;
+      const entityType = hit?.properties?.entityType ?? hit?.properties?.entity_type;
+      if (!entityId || (entityType !== 'node' && entityType !== 'way' && entityType !== 'relation')) return;
+      const hitKey = `${entityType}/${entityId}`;
+      if (!selectedKeysRef.current.includes(hitKey)) return;
+      const movableKeys = selectedKeysRef.current.filter(key => !key.startsWith('relation/'));
+      if (!movableKeys.length) return;
+      event.preventDefault();
+      draggingFeatureKeys = [...movableKeys];
+      dragStart = { point: event.point, coordinate: [event.lngLat.lng, event.lngLat.lat] };
+      map.dragPan.disable();
+      map.getCanvas().style.cursor = 'grabbing';
+      setFeatureDragPreview([0, 0]);
     };
     const onMouseMove = (event: MapMouseEvent) => {
       pointer = event.lngLat;
@@ -386,27 +435,52 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
         setDragPreview([event.lngLat.lng, event.lngLat.lat]);
         return;
       }
+      if (draggingFeatureKeys && dragStart) {
+        setFeatureDragPreview([event.lngLat.lng - dragStart.coordinate[0], event.lngLat.lat - dragStart.coordinate[1]]);
+        return;
+      }
       if (drawModeRef.current !== 'select') updateDraft(snap(event.lngLat));
       else setSelectCursor(event.point);
     };
     const onMouseUp = (event: MapMouseEvent) => {
-      if (!draggingNodeId) return;
+      if (!draggingNodeId && !draggingFeatureKeys) return;
       const nodeId = draggingNodeId;
+      const featureKeys = draggingFeatureKeys;
+      const startedAt = dragStart;
       draggingNodeId = null;
+      draggingFeatureKeys = null;
       map.dragPan.enable();
       map.getCanvas().style.cursor = drawModeRef.current === 'select' ? '' : 'crosshair';
       setDragPreview();
-      if (dragStart && dragStart.dist(event.point) > 3) {
+      setFeatureDragPreview();
+      if (startedAt && startedAt.point.dist(event.point) > 3) {
         suppressClickUntil = performance.now() + 150;
-        callbacksRef.current.onMoveNode(nodeId, [event.lngLat.lng, event.lngLat.lat]);
+        if (nodeId) callbacksRef.current.onMoveNode(nodeId, [event.lngLat.lng, event.lngLat.lat]);
+        else if (featureKeys) {
+          callbacksRef.current.onMoveFeatures(featureKeys, [
+            event.lngLat.lng - startedAt.coordinate[0],
+            event.lngLat.lat - startedAt.coordinate[1]
+          ]);
+        }
       }
       dragStart = null;
     };
     const onMouseOut = () => {
-      if (!draggingNodeId && drawModeRef.current === 'select') map.getCanvas().style.cursor = '';
+      if (!draggingNodeId && !draggingFeatureKeys && drawModeRef.current === 'select') map.getCanvas().style.cursor = '';
     };
     const onDoubleClick = (event: MapMouseEvent) => {
-      if (drawModeRef.current === 'select' || !canFinish()) return;
+      if (drawModeRef.current === 'select') {
+        event.preventDefault();
+        const hit = selectableFeatureAt(event.point);
+        const entityId = hit?.properties?.entityId ?? hit?.properties?.entity_id;
+        const entityType = hit?.properties?.entityType ?? hit?.properties?.entity_type;
+        if (!entityId || (entityType !== 'node' && entityType !== 'way' && entityType !== 'relation')) return;
+        const feature = featuresRef.current.find(item => item.properties.entityType === entityType && item.properties.entityId === String(entityId));
+        if (feature) callbacksRef.current.onSelect(feature, false, true);
+        else callbacksRef.current.onSelectEntity(entityType, String(entityId), false, true);
+        return;
+      }
+      if (!canFinish()) return;
       event.preventDefault();
       callbacksRef.current.onFinishDrawing();
     };
@@ -468,6 +542,10 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       map.addLayer({ id: 'editor-vertex-handles', type: 'circle', source: 'editor-vertex-handles', paint: { 'circle-color': '#ffffff', 'circle-radius': 5.5, 'circle-stroke-color': '#a51f38', 'circle-stroke-width': 2.5 } });
       map.addSource('editor-node-drag', { type: 'geojson', data: emptyCollection() });
       map.addLayer({ id: 'editor-node-drag', type: 'circle', source: 'editor-node-drag', paint: { 'circle-color': '#a51f38', 'circle-radius': 6, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
+      map.addSource('editor-feature-drag', { type: 'geojson', data: emptyCollection() });
+      map.addLayer({ id: 'editor-feature-drag-fill', type: 'fill', source: 'editor-feature-drag', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#a51f38', 'fill-opacity': 0.15 } });
+      map.addLayer({ id: 'editor-feature-drag-line', type: 'line', source: 'editor-feature-drag', filter: ['any', ['==', ['geometry-type'], 'LineString'], ['==', ['geometry-type'], 'Polygon']], paint: { 'line-color': '#a51f38', 'line-width': 3, 'line-opacity': 0.9, 'line-dasharray': [2, 1] } });
+      map.addLayer({ id: 'editor-feature-drag-point', type: 'circle', source: 'editor-feature-drag', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': '#a51f38', 'circle-radius': 6, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
       map.addSource('coordinate-pinpoint', { type: 'geojson', data: pinpointCollection(pinpointRef.current) });
       map.addLayer({ id: 'coordinate-pinpoint-halo', type: 'circle', source: 'coordinate-pinpoint', paint: { 'circle-radius': 15, 'circle-color': '#c6203d', 'circle-opacity': 0.18, 'circle-stroke-color': '#c6203d', 'circle-stroke-width': 1.5, 'circle-stroke-opacity': 0.7 } });
       map.addLayer({ id: 'coordinate-pinpoint', type: 'circle', source: 'coordinate-pinpoint', paint: { 'circle-radius': 7, 'circle-color': '#c6203d', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
@@ -498,6 +576,7 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
     map.on('mousemove', onMouseMove);
     map.on('mouseout', onMouseOut);
     map.on('mousedown', 'editor-vertex-handles', onVertexDown);
+    map.on('mousedown', onFeatureDown);
     map.on('mouseup', onMouseUp);
     map.on('click', onMapClick);
     map.on('dblclick', onDoubleClick);
@@ -515,6 +594,7 @@ export function MapCanvas({ dataset, initialBounds, features, pinpoint, drawMode
       map.off('mousemove', onMouseMove);
       map.off('mouseout', onMouseOut);
       map.off('mousedown', 'editor-vertex-handles', onVertexDown);
+      map.off('mousedown', onFeatureDown);
       map.off('mouseup', onMouseUp);
       map.off('click', onMapClick);
       map.off('dblclick', onDoubleClick);

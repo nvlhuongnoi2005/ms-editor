@@ -34,6 +34,7 @@ import { DatasetManagerDialog } from './features/editor/DatasetManagerDialog';
 import { EditorStoreProvider, entityKey, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
 import { insertNodeIntoFeature, makeNodeFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
 import { planDrawing, type WayExtension } from './features/editor/drawingTransactions';
+import { duplicateFeatures } from './features/editor/duplicateFeatures';
 import { TopologyTools } from './features/editor/TopologyTools';
 import { closeWay, disconnectVertex, isOpenWay, mergeFeatures, openWay, removeVertex, reverseFeature, splitFeature, wayVertices, type TopologyAction } from './features/editor/topologyOperations';
 import { findEditorIssues, type EditorIssue } from './features/editor/issues';
@@ -146,6 +147,38 @@ function relationAnchor(geometry: SelectedEntity['geometry']): Coordinate {
   if (!coordinates.length) return [0, 0];
   const [longitude, latitude] = coordinates.reduce<[number, number]>((total, coordinate) => [total[0] + coordinate[0], total[1] + coordinate[1]], [0, 0]);
   return [longitude / coordinates.length, latitude / coordinates.length];
+}
+
+function collectionRelationsFor(feature: { type: EntityType; id: string }, features: GraphFeature[]): GraphFeature[] {
+  return features.filter(candidate => candidate.properties.entityType === 'relation'
+    && candidate.properties.tags.type === 'collection'
+    && candidate.properties.members?.some(member => member.type === feature.type && member.ref === feature.id));
+}
+
+function collectionMemberFeatures(feature: GraphFeature, features: GraphFeature[]): GraphFeature[] {
+  const groups = collectionRelationsFor({ type: feature.properties.entityType, id: feature.properties.entityId }, features);
+  if (!groups.length) return [];
+  const byKey = new Map(features.map(candidate => [entityKey(candidate), candidate]));
+  byKey.set(entityKey(feature), feature);
+  const seen = new Set<string>();
+  return groups.flatMap(group => (group.properties.members ?? []).flatMap(member => {
+    const key = `${member.type}/${member.ref}`;
+    const candidate = byKey.get(key);
+    if (!candidate || seen.has(key)) return [];
+    seen.add(key);
+    return [candidate];
+  }));
+}
+
+function duplicateOffset(features: GraphFeature[]): Coordinate {
+  const coordinates = features.flatMap(feature => feature.geometry.type === 'Point'
+    ? [feature.geometry.coordinates]
+    : feature.geometry.type === 'LineString'
+      ? feature.geometry.coordinates
+      : feature.geometry.coordinates[0] ?? []);
+  const latitude = coordinates.length ? coordinates.reduce((total, coordinate) => total + coordinate[1], 0) / coordinates.length : 0;
+  const metres = 8;
+  return [metres / (111_320 * Math.max(Math.cos(latitude * Math.PI / 180), 0.2)), metres / 110_540];
 }
 
 interface RelationMemberValidation {
@@ -921,6 +954,15 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   const issues = useMemo(() => findEditorIssues(features, changedKeys), [changedKeys, features]);
   const blockingIssues = useMemo(() => issues.filter(issue => issue.severity === 'error'), [issues]);
 
+  const selectFeatureSet = useCallback((items: GraphFeature[], active: GraphFeature) => {
+    const unique = [...new Map(items.map(item => [entityKey(item), item])).values()];
+    selectFeature(null);
+    for (const item of unique) {
+      if (entityKey(item) !== entityKey(active)) selectFeature(item, 'toggle');
+    }
+    selectFeature(active, 'toggle');
+  }, [selectFeature]);
+
   const refreshPublishStatus = useCallback(async () => {
     try {
       setPublishStatus(await loadPublishStatus(dataset.name));
@@ -953,7 +995,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     void graphLoader.refresh(viewport);
   }, [graphLoader, setError]);
 
-  const handleSelectEntity = useCallback((type: SelectedEntity['type'], id: string, toggleSelection = false) => {
+  const handleSelectEntity = useCallback((type: SelectedEntity['type'], id: string, toggleSelection = false, selectOnly = false) => {
     const requestId = ++entityRequestRef.current;
     setError(null);
     // A tile click only needs this entity, not another full viewport query.
@@ -963,7 +1005,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         const feature = result.snapshots[0]?.feature;
         if (feature) {
           hydrateSupport([...result.support, feature]);
-          selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
+          const loaded = [...result.support, feature];
+          const groupMembers = !toggleSelection && !selectOnly ? collectionMemberFeatures(feature, loaded) : [];
+          if (groupMembers.length > 1) selectFeatureSet(groupMembers, feature);
+          else selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
           setPropertiesOpen(true);
         } else {
           setError('Đối tượng không còn nằm trong khu vực hiển thị.');
@@ -972,7 +1017,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       .catch(reason => {
         if (requestId === entityRequestRef.current) setError(reason instanceof Error ? reason.message : 'Không thể tải đối tượng.');
       });
-  }, [dataset.name, hydrateSupport, selectFeature, setError]);
+  }, [dataset.name, hydrateSupport, selectFeature, selectFeatureSet, setError]);
 
   const refreshAfterCommit = useCallback(() => {
     entityRequestRef.current += 1;
@@ -1139,13 +1184,15 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     }
   }, [changeCount, conflictSession, pendingCloseId, refreshAfterCommit, refreshPublishStatus, saving, selectFeature]);
 
-  const handleSelectFeature = useCallback((feature: GraphFeature | null, toggleSelection = false) => {
+  const handleSelectFeature = useCallback((feature: GraphFeature | null, toggleSelection = false, selectOnly = false) => {
     entityRequestRef.current += 1;
-    selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
+    const groupMembers = feature && !toggleSelection && !selectOnly ? collectionMemberFeatures(feature, features) : [];
+    if (feature && groupMembers.length > 1) selectFeatureSet(groupMembers, feature);
+    else selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
     setSelectedVertexId(null);
     setSelectionMenuPosition(null);
     if (feature) setPropertiesOpen(true);
-  }, [selectFeature]);
+  }, [features, selectFeature, selectFeatureSet]);
 
   const handleSelectionContextMenu = useCallback((position: { top: number; left: number }) => {
     if (drawMode === 'select' && selected) setSelectionMenuPosition(position);
@@ -1169,6 +1216,11 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     replaceFeature({ ...relation, properties: { ...relation.properties, members } }, selectedKey, label);
   }, [features, replaceFeature, selected, selectedKey]);
 
+  const collectionGroups = useMemo(() => {
+    if (!selected) return [];
+    return collectionRelationsFor(selected, features);
+  }, [features, selected]);
+
   const handleCreateRelation = useCallback(() => {
     if (!selected) {
       setSaveStatus('Chọn node, way hoặc relation sẽ làm thành viên đầu tiên trước khi tạo quan hệ.');
@@ -1189,12 +1241,113 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     setPropertiesOpen(true);
   }, [replaceFeature, selectFeature, selected]);
 
+  const handleGroupSelected = useCallback(() => {
+    const members = selectedFeatures.length ? selectedFeatures : selected ? [selected] : [];
+    if (!members.length) return;
+    const id = String(nextRelationIdRef.current--);
+    const feature: GraphFeature = {
+      type: 'Feature',
+      id: `relation-${id}`,
+      properties: {
+        entityType: 'relation', entityId: id, version: 0, tags: { type: 'collection' },
+        members: members.map((member, sequence) => ({ type: member.type, ref: member.id, role: '', sequence }))
+      },
+      geometry: { type: 'Point', coordinates: relationAnchor(members.at(-1)!.geometry) }
+    };
+    replaceFeature(feature, `relation/${id}`, 'Nhóm đối tượng');
+    selectFeature(feature);
+    setPropertiesOpen(true);
+    setSelectionMenuPosition(null);
+    setSaveStatus(`Đã tạo nhóm với ${members.length} đối tượng.`);
+  }, [replaceFeature, selectFeature, selected, selectedFeatures]);
+
+  const handleUngroupSelected = useCallback(() => {
+    if (!selected || !collectionGroups.length) return;
+    const mutations: FeatureMutation[] = collectionGroups.map(group => {
+      const members = (group.properties.members ?? [])
+        .filter(member => member.type !== selected.type || member.ref !== selected.id)
+        .map((member, sequence) => ({ ...member, sequence }));
+      return { key: entityKey(group), feature: members.length ? { ...group, properties: { ...group.properties, members } } : null };
+    });
+    replaceFeatures(mutations, 'Bỏ đối tượng khỏi nhóm');
+    setSelectionMenuPosition(null);
+    setSaveStatus(`Đã bỏ đối tượng khỏi ${collectionGroups.length} nhóm.`);
+  }, [collectionGroups, replaceFeatures, selected]);
+
   const handleDeleteSelected = useCallback(() => {
     if (selectedKey) {
       replaceFeature(null, selectedKey, 'Xóa đối tượng');
       selectFeature(null);
+      setSelectionMenuPosition(null);
     }
   }, [replaceFeature, selectFeature, selectedKey]);
+
+  const handleDuplicateSelected = useCallback(() => {
+    if (!selectedKey) return;
+    const source = features.find(feature => entityKey(feature) === selectedKey) ?? (
+      selected?.type === 'node' && selected.geometry.type === 'Point'
+        ? {
+            type: 'Feature' as const,
+            id: `node-${selected.id}`,
+            properties: { entityType: 'node' as const, entityId: selected.id, version: selected.version, tags: selected.tags, coordinates: selected.geometry.coordinates, topologyNode: true },
+            geometry: selected.geometry
+          }
+        : null
+    );
+    if (!source) {
+      setSaveStatus('Không tìm thấy đối tượng cần nhân bản trong vùng dữ liệu đã tải.');
+      return;
+    }
+    try {
+      const selectedGroup = source.properties.entityType === 'relation' && source.properties.tags.type === 'collection'
+        ? source
+        : collectionGroups.at(0);
+      const members = selectedGroup?.properties.members ?? [];
+      const byKey = new Map(features.map(feature => [entityKey(feature), feature]));
+      byKey.set(entityKey(source), source);
+      const groupSources = members.map(member => byKey.get(`${member.type}/${member.ref}`)).filter((feature): feature is GraphFeature => Boolean(feature));
+      if (selectedGroup && groupSources.length !== members.length) {
+        throw new Error('Nhóm có thành viên chưa tải đầy đủ; hãy tải lại khu vực trước khi nhân bản.');
+      }
+      const sources = selectedGroup ? groupSources : [source];
+      const result = duplicateFeatures(
+        sources,
+        features,
+        () => String(nextNodeIdRef.current--),
+        () => String(nextWayIdRef.current--),
+        duplicateOffset(sources)
+      );
+      const sourceCopy = result.copies.get(entityKey(source));
+      if (!sourceCopy) throw new Error('Không thể tạo bản sao của đối tượng đang chọn.');
+      const mutations = [...result.mutations];
+      if (selectedGroup) {
+        const relationId = String(nextRelationIdRef.current--);
+        const relation: GraphFeature = {
+          type: 'Feature',
+          id: `relation-${relationId}`,
+          properties: {
+            entityType: 'relation', entityId: relationId, version: 0, tags: { ...selectedGroup.properties.tags },
+            members: members.map((member, sequence) => {
+              const copy = result.copies.get(`${member.type}/${member.ref}`);
+              if (!copy) throw new Error('Không thể tạo đầy đủ thành viên của nhóm bản sao.');
+              return { ...member, ref: copy.properties.entityId, sequence };
+            })
+          },
+          geometry: { type: 'Point', coordinates: relationAnchor(sourceCopy.geometry) }
+        };
+        mutations.push({ key: `relation/${relationId}`, feature: relation });
+      }
+      replaceFeatures(mutations, selectedGroup ? 'Nhân bản nhóm' : 'Nhân bản đối tượng');
+      if (selectedGroup) selectFeatureSet(result.features, sourceCopy);
+      else handleSelectFeature(sourceCopy, false, true);
+      setSelectionMenuPosition(null);
+      setSaveStatus(selectedGroup
+        ? `Đã nhân bản nhóm ${result.features.length} đối tượng, lệch khoảng 8 m về đông bắc.`
+        : 'Đã nhân bản đối tượng, lệch khoảng 8 m về đông bắc.');
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể nhân bản đối tượng.');
+    }
+  }, [collectionGroups, features, handleSelectFeature, replaceFeatures, selectedKey, selectFeatureSet]);
 
   const handleMoveNode = useCallback((nodeId: string, coordinate: Coordinate) => {
     const existingNode = features.find(feature => feature.properties.entityType === 'node' && feature.properties.entityId === nodeId);
@@ -1218,6 +1371,65 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       }
     }
     replaceFeatures(mutations, 'Di chuyển điểm');
+  }, [features, replaceFeatures]);
+
+  const handleMoveFeatures = useCallback((keys: readonly string[], offset: Coordinate) => {
+    if (!Number.isFinite(offset[0]) || !Number.isFinite(offset[1]) || (offset[0] === 0 && offset[1] === 0)) return;
+    const selectedKeys = new Set(keys);
+    const selectedFeatures = features.filter(feature => (
+      feature.properties.entityType !== 'relation' && selectedKeys.has(entityKey(feature))
+    ));
+    if (!selectedFeatures.length) return;
+
+    // Resolve each node once. Moving the node and every referencing way in the
+    // same mutation keeps shared topology connected after a feature translation.
+    const movedNodes = new Map<string, Coordinate>();
+    const sourceNodes = new Map<string, { version?: number; tags?: Tags }>();
+    for (const feature of features) {
+      if (feature.properties.entityType === 'node') {
+        sourceNodes.set(feature.properties.entityId, { version: feature.properties.version, tags: feature.properties.tags });
+      }
+      if (feature.properties.entityType === 'way') {
+        for (const node of feature.properties.nodes ?? []) {
+          if (!sourceNodes.has(node.id)) sourceNodes.set(node.id, { version: node.version, tags: node.tags });
+        }
+      }
+    }
+    for (const feature of selectedFeatures) {
+      if (feature.properties.entityType === 'node' && feature.geometry.type === 'Point') {
+        movedNodes.set(feature.properties.entityId, [feature.geometry.coordinates[0] + offset[0], feature.geometry.coordinates[1] + offset[1]]);
+        continue;
+      }
+      if (feature.properties.entityType !== 'way') continue;
+      const coordinates = coordinatesOfWay(feature);
+      for (let index = 0; index < (feature.properties.nodeIds?.length ?? 0); index += 1) {
+        const nodeId = feature.properties.nodeIds?.[index];
+        const coordinate = coordinates?.[index];
+        if (nodeId && coordinate) movedNodes.set(nodeId, [coordinate[0] + offset[0], coordinate[1] + offset[1]]);
+      }
+    }
+    if (!movedNodes.size) return;
+
+    const mutations = new Map<string, FeatureMutation>();
+    for (const [nodeId, coordinate] of movedNodes) {
+      const existingNode = features.find(feature => feature.properties.entityType === 'node' && feature.properties.entityId === nodeId);
+      const sourceNode = sourceNodes.get(nodeId);
+      const node: GraphFeature = existingNode
+        ? { ...existingNode, properties: { ...existingNode.properties, coordinates: coordinate }, geometry: { type: 'Point', coordinates: coordinate } }
+        : {
+            type: 'Feature', id: `node-${nodeId}`,
+            properties: { entityType: 'node', entityId: nodeId, version: sourceNode?.version ?? 1, tags: sourceNode?.tags ?? {}, coordinates: coordinate, topologyNode: true },
+            geometry: { type: 'Point', coordinates: coordinate }
+          };
+      mutations.set(`node/${nodeId}`, { key: `node/${nodeId}`, feature: node });
+    }
+    for (const way of features) {
+      if (way.properties.entityType !== 'way' || !way.properties.nodeIds?.some(nodeId => movedNodes.has(nodeId))) continue;
+      let movedWay = way;
+      for (const [nodeId, coordinate] of movedNodes) movedWay = moveNodeInWay(movedWay, nodeId, coordinate);
+      mutations.set(entityKey(way), { key: entityKey(way), feature: movedWay });
+    }
+    replaceFeatures([...mutations.values()], selectedFeatures.length > 1 ? 'Di chuyển các đối tượng' : 'Di chuyển đối tượng');
   }, [features, replaceFeatures]);
 
   const handlePointerStatus = useCallback((status: MapPointerStatus) => setPointerStatus(status), []);
@@ -1425,6 +1637,11 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         event.preventDefault();
         redo();
       }
+      if (key === 'd' && drawMode === 'select' && selected?.type !== 'relation') {
+        event.preventDefault();
+        handleDuplicateSelected();
+        return;
+      }
       if (key === 's' && changeCount > 0 && !saving) {
         event.preventDefault();
         void handleSave();
@@ -1432,7 +1649,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, handleCancelDrawing, handleDeleteSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
+  }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, handleCancelDrawing, handleDeleteSelected, handleDuplicateSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
 
   return (
     <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '56px minmax(0, 1fr) 32px', overflow: 'hidden', bgcolor: '#edf0f3' }}>
@@ -1697,7 +1914,6 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   {selectedKeys.length > 1 ? `${selectedKeys.length} đối tượng đang chọn` : `${selected.type}/${selected.id}`}
                 </Typography>
               </Box>
-              <Chip label="UI" size="small" sx={{ height: 19, flexShrink: 0, bgcolor: '#fff1f2', color: '#9b192e', fontSize: 9, fontWeight: 800 }} />
             </Stack>
           </Box>
           <Divider />
@@ -1709,16 +1925,33 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             <Clipboard size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Dán</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+V</Typography>
           </MenuItem>
-          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+          <MenuItem
+            disabled={saving || (selected.type === 'relation' && selected.tags.type !== 'collection')}
+            onClick={handleDuplicateSelected}
+            sx={{ minHeight: 34, gap: 1, color: '#64748b', '&.Mui-disabled': { opacity: 0.55, color: '#64748b' } }}
+          >
             <Files size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Nhân bản</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+D</Typography>
+          </MenuItem>
+          <MenuItem
+            disabled={saving}
+            onClick={collectionGroups.length ? handleUngroupSelected : handleGroupSelected}
+            sx={{ minHeight: 34, gap: 1, color: '#64748b', '&:hover': { bgcolor: '#f8fafc' }, '&.Mui-disabled': { opacity: 0.55, color: '#64748b' } }}
+          >
+            <Network size={15} aria-hidden="true" />
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>{collectionGroups.length ? 'Bỏ nhóm' : 'Nhóm'}</Typography>
+            {collectionGroups.length > 1 && <Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>{collectionGroups.length} nhóm</Typography>}
           </MenuItem>
           <Divider sx={{ my: 0.25 }} />
           <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
             <Scissors size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Cắt</Typography>
           </MenuItem>
-          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#b4233c' } }}>
+          <MenuItem
+            disabled={saving}
+            onClick={handleDeleteSelected}
+            sx={{ minHeight: 34, gap: 1, color: '#b4233c', '&:hover': { bgcolor: '#fff1f2' }, '&.Mui-disabled': { opacity: 0.55, color: '#b4233c' } }}
+          >
             <Trash2 size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Xóa đối tượng</Typography>
           </MenuItem>
@@ -1989,11 +2222,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             <Paper
               elevation={4}
               sx={{
-                // The tool rail owns the upper-left corner and the drawing
-                // guide is centered. Keep validation feedback under the map
-                // controls so persistent overlays never cover each other.
-                position: 'absolute', zIndex: 10, top: { xs: 144, sm: 176 }, right: { xs: 10, sm: 16 }, width: { xs: 'calc(100% - 20px)', sm: 320 },
-                maxHeight: 'calc(100% - 192px)', overflowY: 'auto', borderRadius: 2,
+                // Keep validation close to the work area without competing
+                // with the tool rail, drawing guide, or map controls.
+                position: 'absolute', zIndex: 10, bottom: { xs: 10, sm: 16 }, left: { xs: 10, sm: 16 }, width: { xs: 'calc(100% - 20px)', sm: 320 },
+                maxHeight: 'calc(100% - 32px)', overflowY: 'auto', borderRadius: 2,
                 border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.14)'
               }}
             >
@@ -2089,6 +2321,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             onFinishDrawing={handleFinishDrawing}
             onCancelDrawing={handleCancelDrawing}
             onMoveNode={handleMoveNode}
+            onMoveFeatures={handleMoveFeatures}
             onPointerStatus={handlePointerStatus}
           />
         </Box>

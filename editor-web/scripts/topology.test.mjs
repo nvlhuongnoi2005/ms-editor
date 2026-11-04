@@ -5,6 +5,8 @@ const graph = await loadSource('../src/features/topology/graph.ts');
 const operationsURL = await loadSource('../src/features/editor/topologyOperations.ts', { '../topology/graph': graph });
 const operations = await import(operationsURL);
 const drawingURL = await loadSource('../src/features/editor/drawing.ts', { '../topology/graph': graph });
+const { duplicateFeature } = await import(await loadSource('../src/features/editor/duplicateFeature.ts', { './drawing': drawingURL }));
+const { duplicateFeatures } = await import(await loadSource('../src/features/editor/duplicateFeatures.ts', { './drawing': drawingURL }));
 const { planDrawing } = await import(await loadSource('../src/features/editor/drawingTransactions.ts', { '../topology/graph': graph, './drawing': drawingURL, './topologyOperations': operationsURL }));
 const { editorReducer, initialState } = await import(await loadSource('../src/features/editor/EditorStore.tsx', {
   react: import.meta.resolve('react'), 'react/jsx-runtime': import.meta.resolve('react/jsx-runtime'),
@@ -51,6 +53,58 @@ test('split keeps original ID/version and creates a new way, with consistent geo
   assert.equal(changed(result, 'way/-1').properties.version, 0);
   assert.equal(changed(result, 'way/10').properties.version, 1);
   assert.deepEqual(input, before);
+});
+
+test('duplicate creates an independent node with copied tags and geometry', () => {
+  const source = { type: 'Feature', id: 'node-10', properties: { entityType: 'node', entityId: '10', version: 7, tags: { amenity: 'bench', name: 'Ghế' } }, geometry: { type: 'Point', coordinates: [105.8, 21.0] } };
+  const result = duplicateFeature(source, [source], () => '-1', () => '-2');
+  assert.equal(result.feature.properties.entityId, '-1');
+  assert.equal(result.feature.properties.version, 0);
+  assert.deepEqual(result.feature.properties.tags, source.properties.tags);
+  assert.deepEqual(result.feature.geometry.coordinates, source.geometry.coordinates);
+  assert.notStrictEqual(result.feature.geometry.coordinates, source.geometry.coordinates);
+  assert.deepEqual(result.mutations.map(mutation => mutation.key), ['node/-1']);
+});
+
+test('duplicate way assigns fresh nodes and preserves tags without mutating source topology', () => {
+  const source = way(10, [1, 2, 3], { highway: 'service', name: 'Ngõ mới' });
+  source.properties.nodes[1].tags = { barrier: 'gate' };
+  const before = structuredClone(source);
+  let nextNode = -1;
+  const result = duplicateFeature(source, [source], () => String(nextNode--), () => '-10');
+  assert.equal(result.feature.properties.entityId, '-10');
+  assert.deepEqual(result.feature.properties.nodeIds, ['-1', '-2', '-3']);
+  assert.deepEqual(result.feature.properties.tags, source.properties.tags);
+  assert.deepEqual(result.feature.geometry, source.geometry);
+  assert.deepEqual(changed(result, 'node/-2').properties.tags, { barrier: 'gate' });
+  assert.deepEqual(result.mutations.map(mutation => mutation.key), ['node/-1', 'node/-2', 'node/-3', 'way/-10']);
+  assert.deepEqual(source, before);
+});
+
+test('duplicate polygon keeps one shared closing node and rejects relations', () => {
+  const source = way(10, [1, 2, 3, 1], { building: 'yes' });
+  source.geometry = { type: 'Polygon', coordinates: [source.geometry.coordinates] };
+  let nextNode = -1;
+  const result = duplicateFeature(source, [source], () => String(nextNode--), () => '-10');
+  assert.deepEqual(result.feature.properties.nodeIds, ['-1', '-2', '-3', '-1']);
+  assert.deepEqual(result.feature.geometry.coordinates[0][0], result.feature.geometry.coordinates[0].at(-1));
+  assert.equal(result.mutations.length, 4);
+  assert.throws(() => duplicateFeature(relation(20, 'route', [[10, '']]), [], () => '-1', () => '-2'), /quan hệ/);
+});
+
+test('duplicate group keeps shared node topology and applies one common offset', () => {
+  const first = way(10, [1, 2], { highway: 'service' });
+  const second = way(20, [2, 3], { highway: 'service' });
+  let nextNode = -1;
+  let nextWay = -10;
+  const result = duplicateFeatures([first, second], [first, second], () => String(nextNode--), () => String(nextWay--), [0.001, 0.002]);
+  const firstCopy = result.copies.get('way/10');
+  const secondCopy = result.copies.get('way/20');
+  assert.deepEqual(firstCopy.properties.nodeIds, ['-1', '-2']);
+  assert.deepEqual(secondCopy.properties.nodeIds, ['-2', '-3']);
+  assert.deepEqual(firstCopy.geometry.coordinates, [[1.001, 1.002], [2.001, 1.002]]);
+  assert.deepEqual(secondCopy.geometry.coordinates, [[2.001, 1.002], [3.001, 1.002]]);
+  assert.deepEqual(result.mutations.map(mutation => mutation.key), ['node/-1', 'node/-2', 'way/-10', 'node/-3', 'way/-11']);
 });
 test('split updates every occurrence in a multipolygon and resequences members', () => {
   const input = way(10, [1, 2, 3], {}, [{ id: '30', version: 1, tags: { type: 'multipolygon' } }]);
