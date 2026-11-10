@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +52,10 @@ func serveEditorAPI(handler http.Handler) error {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch {
+	case strings.HasPrefix(r.URL.Path, "/enc/assets/sprites/"):
+		err = a.serveENCSprite(w, r)
+	case strings.HasPrefix(r.URL.Path, "/enc/demo/style/") && r.Method == http.MethodGet:
+		err = a.serveENCDemoStyle(r.Context(), w, r)
 	case r.URL.Path == "/healthz" && r.Method == http.MethodGet:
 		writeJSON(w, 200, map[string]string{"status": "ok", "service": "editor-api", "runtime": "go"})
 		return
@@ -93,6 +100,76 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("%s %s: %v", r.Method, r.URL.Path, err)
 	writeJSON(w, 500, map[string]string{"error": "Internal server error."})
+}
+
+// serveENCSprite exposes only the checked-in presentation assets.  The same
+// high-density atlas is returned for a 1x request because its index explicitly
+// declares pixelRatio: 2; MapLibre scales it correctly while we keep one source
+// asset per theme.
+func (a *app) serveENCSprite(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return fail(404, "ENC sprite route was not found.")
+	}
+	name := strings.TrimPrefix(r.URL.Path, "/enc/assets/sprites/")
+	allowed := map[string]string{
+		"day_simplified.json":      "day_simplified@2x.json",
+		"day_simplified.png":       "day_simplified@2x.png",
+		"day_simplified@2x.json":   "day_simplified@2x.json",
+		"day_simplified@2x.png":    "day_simplified@2x.png",
+		"dusk_simplified.json":     "dusk_simplified@2x.json",
+		"dusk_simplified.png":      "dusk_simplified@2x.png",
+		"dusk_simplified@2x.json":  "dusk_simplified@2x.json",
+		"dusk_simplified@2x.png":   "dusk_simplified@2x.png",
+		"night_simplified.json":    "night_simplified@2x.json",
+		"night_simplified.png":     "night_simplified@2x.png",
+		"night_simplified@2x.json": "night_simplified@2x.json",
+		"night_simplified@2x.png":  "night_simplified@2x.png",
+	}
+	fileName, ok := allowed[name]
+	if !ok {
+		return fail(404, "ENC sprite was not found.")
+	}
+	path := filepath.Join(a.encAssetsRoot, "sprites", fileName)
+	if _, err := os.Stat(path); err != nil {
+		return fail(404, "ENC sprite assets are not installed.")
+	}
+	if strings.HasSuffix(fileName, ".json") {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	} else {
+		w.Header().Set("Content-Type", "image/png")
+	}
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	http.ServeFile(w, r, path)
+	return nil
+}
+
+// The preview deliberately uses OpenENC only as a visual fixture.  It proves
+// the MapLibre/S-52-like presentation contract before a local ENC has passed
+// the GDAL import pipeline.  Published local ENC styles will replace this route.
+func (a *app) serveENCDemoStyle(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	profile := strings.TrimPrefix(r.URL.Path, "/enc/demo/style/")
+	if profile != "day" && profile != "dusk" && profile != "night" {
+		return fail(404, "ENC preview profile was not found.")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://openenc.com/v1/style/meters/"+profile, nil)
+	if err != nil {
+		return err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return fail(502, "ENC preview style is temporarily unavailable.")
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fail(502, "ENC preview style is temporarily unavailable.")
+	}
+	var style map[string]any
+	if err := json.NewDecoder(io.LimitReader(response.Body, 5<<20)).Decode(&style); err != nil {
+		return fail(502, "ENC preview returned an invalid style.")
+	}
+	style["sprite"] = "/enc/assets/sprites/" + profile + "_simplified"
+	writeJSON(w, http.StatusOK, style)
+	return nil
 }
 
 func (a *app) serveGraph(ctx context.Context, w http.ResponseWriter, r *http.Request) error {

@@ -32,9 +32,10 @@ func fail(status int, format string, args ...any) error {
 }
 
 type app struct {
-	db         *pgxpool.Pool
-	renderDB   *pgxpool.Pool
-	staticRoot string
+	db            *pgxpool.Pool
+	renderDB      *pgxpool.Pool
+	staticRoot    string
+	encAssetsRoot string
 }
 type changesetInfo struct {
 	ID                string `json:"id"`
@@ -104,7 +105,7 @@ func main() {
 	if err := renderPool.Ping(ctx); err != nil {
 		log.Fatalf("ping Render DB: %v", err)
 	}
-	if err := serveEditorAPI(&app{db: pool, renderDB: renderPool, staticRoot: staticRoot()}); err != nil {
+	if err := serveEditorAPI(&app{db: pool, renderDB: renderPool, staticRoot: staticRoot(), encAssetsRoot: encAssetsRoot()}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -384,6 +385,21 @@ func staticRoot() string {
 		log.Fatal(err)
 	}
 	return absolute
+}
+
+func encAssetsRoot() string {
+	if root := getenv("EDITOR_ENC_ASSETS_ROOT", ""); root != "" {
+		return root
+	}
+	for _, root := range []string{filepath.Join("..", "ENC"), "ENC", filepath.Join("..", "..", "ENC")} {
+		if info, err := os.Stat(root); err == nil && info.IsDir() {
+			absolute, err := filepath.Abs(root)
+			if err == nil {
+				return absolute
+			}
+		}
+	}
+	return filepath.Join("..", "ENC")
 }
 func ensureSpatialIndexes(ctx context.Context, db *pgxpool.Pool) error {
 	for _, statement := range []string{

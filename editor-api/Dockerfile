@@ -16,8 +16,10 @@ FROM alpine:3.22
 WORKDIR /app
 COPY --from=build /out/editor-api /app/editor-api
 COPY --from=frontend /src/editor-web/dist/ /app/dist/
+COPY ENC/sprites/ /app/enc/sprites/
 ENV EDITOR_API_ADDR=0.0.0.0:4173
 ENV EDITOR_STATIC_ROOT=/app/dist
+ENV EDITOR_ENC_ASSETS_ROOT=/app/enc
 EXPOSE 4173
 ENTRYPOINT ["/app/editor-api"]
 
