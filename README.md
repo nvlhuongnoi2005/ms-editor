@@ -1,34 +1,82 @@
 # Map Service Editor
 
-Frontend lives in [`editor-web`](editor-web). It is a custom, dependency-free
-WebGIS/GeoData-style editor UI; no iD source is included. Its interaction model
-uses the requirements in [`docs/requirements.md`](docs/requirements.md):
-local preview graph, tags/topology inspection, undo/redo, changesets, revision,
-and an asynchronous render-queue status after save.
+Map Service Editor là ứng dụng WebGIS để xem và chỉnh sửa dữ liệu OSM. Frontend React nằm trong `editor-web`, API Go nằm trong `editor-api`; PostgreSQL/PostGIS chạy bằng Docker Compose trong `infra`.
 
-Build and run the React editor with the Go API server:
+## Chạy editor trên máy local
 
-```text
+### Yêu cầu
+
+- Windows với PowerShell (các lệnh bên dưới dùng PowerShell), Docker Desktop đang chạy.
+- Node.js/npm và Go đã cài. Phiên bản Go được khai báo trong `editor-api/go.mod`.
+- Cổng `5432` và `4173` chưa bị ứng dụng khác sử dụng.
+
+### 1. Cấu hình và khởi động PostgreSQL
+
+Từ thư mục gốc repo:
+
+```powershell
+if (-not (Test-Path infra/.env)) { Copy-Item infra/.env.example infra/.env }
+```
+
+Nếu vừa tạo file, mở `infra/.env` và đổi các giá trị mật khẩu mẫu thành mật khẩu dùng riêng cho máy local. Giữ lại file `.env` đã cấu hình nếu file này tồn tại. Sau đó chạy PostGIS:
+
+```powershell
+docker compose --file infra/compose.yaml up -d postgres
+```
+
+Compose sẽ tạo hai database `canonical` và `render` cùng các schema ban đầu trong lần đầu tạo volume. API native đọc mật khẩu từ `infra/.env`, rồi kết nối vào hai database ở `127.0.0.1:5432`.
+
+### 2. Cài dependencies và chạy ứng dụng
+
+```powershell
+Push-Location editor-web
+npm ci
+Pop-Location
 npm start
 ```
 
-Then open `http://127.0.0.1:4173`. The Go service exposes graph and changeset
-endpoints on the same origin; it reads `infra/.env` for Canonical PostGIS.
+Lệnh `npm start` ở thư mục gốc build frontend bằng TypeScript/Vite rồi chạy API Go. Mở <http://127.0.0.1:4173>. API cần truy cập được cả Canonical DB lẫn Render DB, nên PostgreSQL phải chạy trước.
 
-The viewport graph query uses the `editor.entity_current` GiST envelope index.
-For an existing database, apply `infra/init/03-editor-performance.sql` once to
-add the two visible-node/visible-way partial GiST indexes. Fresh Docker volumes
-receive it automatically. Set `EDITOR_ENSURE_INDEXES=1` only when the API is
-allowed to create missing indexes at startup.
+Để dừng, nhấn `Ctrl+C` ở terminal chạy `npm start`; PostgreSQL có thể tiếp tục chạy trong Docker.
 
-## Data infrastructure
+### Chạy frontend ở chế độ phát triển
 
-The local PostGIS, Render DB and Canonical PBF importer live in
-[`infra`](infra). Follow [its setup guide](infra/README.md) before connecting
-the editor to real data.
+Nếu cần hot reload cho frontend, mở hai terminal tại thư mục gốc repo. Terminal thứ nhất chạy API:
 
-## Upload PBF from the editor
+```powershell
+Push-Location editor-api
+go run ./cmd/editor-api
+```
 
-Use **Dữ liệu / Import PBF** to upload a snapshot, follow its background import,
-and open a ready dataset. Each import has its own render schema and never
-replaces existing data. See [setup, security and worker instructions](docs/pbf-import.md).
+Terminal thứ hai chạy Vite:
+
+```powershell
+Push-Location editor-web
+npm run dev
+```
+
+Mở <http://localhost:5173>. Vite proxy các request `/api` tới API tại `127.0.0.1:4173`. API vẫn cần hai database PostGIS như ở trên. Dừng mỗi tiến trình bằng `Ctrl+C`.
+
+## Nạp dữ liệu để chỉnh sửa
+
+Database mới chưa có dataset để mở trong editor. Để nạp dữ liệu mẫu Việt Nam vào Canonical DB và Render DB, xem hướng dẫn trong [`infra/README.md`](infra/README.md). Repo có PBF tại `data/vietnam-260901.osm.pbf`; quá trình import toàn quốc có thể mất thời gian và cần dung lượng đĩa đáng kể.
+
+Khi import xong, khởi động editor như các bước trên. Danh sách dataset khả dụng đến từ Canonical DB. Render DB là read model phục vụ lớp dữ liệu đã publish.
+
+## Worker và các dịch vụ tùy chọn
+
+- **Import PBF từ giao diện:** cần chạy `import-worker` bên cạnh API. Hướng dẫn upload, token, giới hạn file và khởi chạy worker nằm trong [`docs/pbf-import.md`](docs/pbf-import.md). API native lưu file ở `data/imports`, cùng thư mục được worker Docker mount.
+- **Publish thay đổi sau Save:** chạy `render-sync-worker` để xử lý hàng đợi từ Canonical sang Render. Có lệnh khởi động và cách kiểm tra revision trong [`infra/README.md`](infra/README.md).
+- **Tile server nền vệ tinh local:** tùy chọn, cấu hình và lệnh chạy cũng nằm trong [`infra/README.md`](infra/README.md). Frontend dev hoặc API không tự khởi động dịch vụ này.
+
+API native chiếm cổng `4173`; chế độ Vite chiếm cổng `5173`. Không chạy API native đồng thời với `editor-api` Docker trên cùng cổng. Nếu đổi cổng Postgres, đặt `POSTGRES_PORT` trong `infra/.env`; các biến DB riêng có thể được override bằng biến môi trường `CANONICAL_DB_*` và `RENDER_DB_*`.
+
+## Chỉ mục không gian
+
+Migration của database mới được Compose áp dụng khi tạo volume lần đầu. Với volume cũ, xem các migration trong `infra/init`. API sử dụng GiST index trên `editor.entity_current.bbox`; có thể yêu cầu API tạo index còn thiếu bằng cách đặt `EDITOR_ENSURE_INDEXES=1` nếu user DB được phép tạo index.
+
+## Tài liệu khác
+
+- [`infra/README.md`](infra/README.md): PostGIS, import dữ liệu, render worker và tile server.
+- [`docs/pbf-import.md`](docs/pbf-import.md): upload PBF, import worker và cấu hình bảo vệ.
+- [`docs/requirements.md`](docs/requirements.md): phạm vi và yêu cầu sản phẩm.
