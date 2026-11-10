@@ -52,6 +52,33 @@ func serveEditorAPI(handler http.Handler) error {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch {
+	case r.URL.Path == "/api/uploads" && r.Method == http.MethodPost:
+		err = a.serveUpload(w, r)
+	case strings.HasPrefix(r.URL.Path, "/enc/assets/fonts/"):
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			err = fail(405, "Method not allowed.")
+			break
+		}
+		name := strings.TrimPrefix(r.URL.Path, "/enc/assets/fonts/")
+		if name != "Roboto Bold/0-255.pbf" && name != "Roboto Bold/256-511.pbf" {
+			err = fail(404, "ENC glyph range is not installed.")
+			break
+		}
+		w.Header().Set("Content-Type", "application/x-protobuf")
+		http.ServeFile(w, r, filepath.Join(a.encAssetsRoot, "fonts", filepath.FromSlash(name)))
+		return
+	case strings.HasPrefix(r.URL.Path, "/api/enc/"):
+		if r.Method == http.MethodPost {
+			if err = authorizeImport(r); err != nil {
+				break
+			}
+		}
+		if a.encHandler == nil {
+			err = fail(503, "ENC API is not configured.")
+			break
+		}
+		a.encHandler.ServeHTTP(w, r)
+		return
 	case strings.HasPrefix(r.URL.Path, "/enc/assets/sprites/"):
 		err = a.serveENCSprite(w, r)
 	case strings.HasPrefix(r.URL.Path, "/enc/demo/style/") && r.Method == http.MethodGet:

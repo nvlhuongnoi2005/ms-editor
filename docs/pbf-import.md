@@ -134,7 +134,7 @@ go test ./...
 `imports_test.go` kiểm tra header PBF, giới hạn file, token/origin, schema MVT,
 fuzz input và prepare câu SQL claim publish (không nhận event thật).
 `datasets.test.mjs` kiểm tra parser, multipart/progress và nhất quán dataset
-trong các request. Fixture nhỏ nằm ở `canonical-importer/tests`; chỉ dùng với
+trong các request. Fixture nhỏ nằm ở `OSM/importer/tests`; chỉ dùng với
 database thử riêng. Browser smoke opt-in tại
 `editor-web/scripts/import-browser-smoke.mjs` cần API fixture ở cổng 4174 với
 hai dataset ready; kiểm tra chuyển dataset và giữ bản nháp, không bấm Save.

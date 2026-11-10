@@ -9,6 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
       CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD:?Set CANONICAL_DB_PASSWORD in .env}
       RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD:?Set RENDER_DB_PASSWORD in .env}
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:-${CANONICAL_DB_PASSWORD:?Set CANONICAL_DB_PASSWORD in .env}}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -22,7 +23,7 @@ services:
 
   canonical-importer:
     build:
-      context: ../canonical-importer
+      context: ../OSM/importer
     profiles: ["tools"]
     depends_on:
       postgres:
@@ -58,14 +59,21 @@ services:
       EDITOR_IMPORT_DIR: /var/lib/map-service/imports
       EDITOR_IMPORT_TOKEN: ${EDITOR_IMPORT_TOKEN:-}
       EDITOR_IMPORT_MAX_BYTES: ${EDITOR_IMPORT_MAX_BYTES:-10737418240}
+      ENC_DB_HOST: postgres
+      ENC_DB_PORT: 5432
+      ENC_DB_NAME: enc_canonical
+      ENC_DB_USER: enc_owner
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:-${CANONICAL_DB_PASSWORD}}
+      ENC_IMPORT_DIR: /var/lib/map-service/enc/uploads
     volumes:
       - ../data/imports:/var/lib/map-service/imports
+      - ../data/enc/uploads:/var/lib/map-service/enc/uploads
     ports:
       - "${EDITOR_API_PORT:-4173}:4173"
 
   import-worker:
     build:
-      context: ../canonical-importer
+      context: ../OSM/importer
       dockerfile: Worker.Dockerfile
     depends_on:
       postgres:
@@ -111,6 +119,54 @@ services:
       TILE_DIRTY_MAX_ZOOM: ${TILE_DIRTY_MAX_ZOOM:-18}
     volumes:
       - render-osc:/var/lib/map-service/osc
+    restart: unless-stopped
+
+  enc-migrate:
+    image: postgis/postgis:16-3.6
+    profiles: ["tools"]
+    environment:
+      PGHOST: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:-${CANONICAL_DB_PASSWORD}}
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - ./migrations:/migrations:ro
+    entrypoint: ["bash", "/migrations/enc-existing.sh"]
+
+  enc-importer:
+    build:
+      context: ../ENC/importer
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENC_DB_HOST: postgres
+      ENC_DB_PORT: 5432
+      ENC_DB_NAME: enc_canonical
+      ENC_DB_USER: enc_owner
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:-${CANONICAL_DB_PASSWORD:?Set CANONICAL_DB_PASSWORD in .env}}
+    volumes:
+      - ../data:/data:ro
+
+  enc-import-worker:
+    build:
+      context: ../ENC/importer
+    profiles: ["enc"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENC_DB_HOST: postgres
+      ENC_DB_PORT: 5432
+      ENC_DB_NAME: enc_canonical
+      ENC_DB_USER: enc_owner
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:-${CANONICAL_DB_PASSWORD}}
+      ENC_IMPORT_DIR: /data/enc/uploads
+    command: ["--watch"]
+    volumes:
+      - ../data/enc/uploads:/data/enc/uploads:ro
     restart: unless-stopped
 
   osm2pgsql:

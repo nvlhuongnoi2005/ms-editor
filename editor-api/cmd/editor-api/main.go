@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	encdomain "github.com/vht/map-service/editor-api/internal/enc"
 )
 
 const maxJSONBody = 2_000_000
@@ -36,6 +37,7 @@ type app struct {
 	renderDB      *pgxpool.Pool
 	staticRoot    string
 	encAssetsRoot string
+	encHandler    http.Handler
 }
 type changesetInfo struct {
 	ID                string `json:"id"`
@@ -105,7 +107,13 @@ func main() {
 	if err := renderPool.Ping(ctx); err != nil {
 		log.Fatalf("ping Render DB: %v", err)
 	}
-	if err := serveEditorAPI(&app{db: pool, renderDB: renderPool, staticRoot: staticRoot(), encAssetsRoot: encAssetsRoot()}); err != nil {
+	encPool, err := pgxpool.New(ctx, encDatabaseURL())
+	if err != nil {
+		log.Fatalf("configure ENC DB: %v", err)
+	}
+	defer encPool.Close()
+	encAPI := &encdomain.Handler{DB: encPool, UploadDir: getenv("ENC_IMPORT_DIR", "../data/enc/uploads")}
+	if err := serveEditorAPI(&app{db: pool, renderDB: renderPool, staticRoot: staticRoot(), encAssetsRoot: encAssetsRoot(), encHandler: encAPI}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -371,6 +379,11 @@ func renderDatabaseURL() string {
 	password := getenv("RENDER_DB_PASSWORD", env["RENDER_DB_PASSWORD"])
 	name := getenv("RENDER_DB_NAME", "render")
 	return (&url.URL{Scheme: "postgres", User: url.UserPassword(user, password), Host: host + ":" + port, Path: name, RawQuery: "sslmode=disable"}).String()
+}
+
+func encDatabaseURL() string {
+	port := getenv("ENC_DB_PORT", getenv("POSTGRES_PORT", "5432"))
+	return (&url.URL{Scheme: "postgres", User: url.UserPassword(getenv("ENC_DB_USER", "enc_owner"), getenv("ENC_DB_PASSWORD", getenv("CANONICAL_DB_PASSWORD", ""))), Host: getenv("ENC_DB_HOST", "127.0.0.1") + ":" + port, Path: getenv("ENC_DB_NAME", "enc_canonical"), RawQuery: "sslmode=disable"}).String()
 }
 func staticRoot() string {
 	root := getenv("EDITOR_STATIC_ROOT", "")

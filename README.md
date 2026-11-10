@@ -1,5 +1,12 @@
 # Map Service Editor
 
+## ENC viewer
+
+Mở `/?mode=enc` để upload ZIP S-57 và xem ENC local theo dataset/cell, với ba
+palette ngày, chạng vạng và đêm. Hướng dẫn migration ENC và khởi chạy worker:
+[`ENC/README.md`](ENC/README.md). Importer OSM nằm tại `OSM/importer`; gateway
+Go và shell React được dùng chung cho hai domain.
+
 Map Service Editor là ứng dụng WebGIS để xem và chỉnh sửa dữ liệu OSM. Frontend React nằm trong `editor-web`, API Go nằm trong `editor-api`; PostgreSQL/PostGIS chạy bằng Docker Compose trong `infra`.
 
 ## Chạy editor trên máy local

@@ -2,6 +2,7 @@
 data/*.osm.pbf
 data/*.pbf
 data/imports/
+data/enc/
 data/*.mbtiles
 infra/tile-server-data/**/*.mbtiles
 infra/tile-server-data/**/*-journal

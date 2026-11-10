@@ -1,8 +1,8 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import App from './App';
-import { EncPreview } from './domains/enc/EncPreview';
+const App = lazy(() => import('./App'));
+const EncPreview = lazy(() => import('./domains/enc/EncPreview').then(module => ({ default: module.EncPreview })));
 
 const theme = createTheme({
   palette: {
@@ -49,6 +49,6 @@ const mode = new URLSearchParams(window.location.search).get('mode');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>{mode === 'enc' ? <EncPreview /> : <App />}</ThemeProvider>
+    <ThemeProvider theme={theme}><Suspense fallback={<p role="status">Đang mở bản đồ…</p>}>{mode === 'enc' ? <EncPreview /> : <App />}</Suspense></ThemeProvider>
   </StrictMode>
 );

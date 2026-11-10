@@ -17,6 +17,7 @@ WORKDIR /app
 COPY --from=build /out/editor-api /app/editor-api
 COPY --from=frontend /src/editor-web/dist/ /app/dist/
 COPY ENC/sprites/ /app/enc/sprites/
+COPY ENC/fonts/ /app/enc/fonts/
 ENV EDITOR_API_ADDR=0.0.0.0:4173
 ENV EDITOR_STATIC_ROOT=/app/dist
 ENV EDITOR_ENC_ASSETS_ROOT=/app/enc
