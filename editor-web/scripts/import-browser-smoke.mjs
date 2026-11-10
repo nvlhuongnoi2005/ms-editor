@@ -46,7 +46,7 @@ try {
   };
   await call('Page.enable'); await call('Network.enable'); await call('Runtime.enable');
   await call('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await call('Page.navigate', { url: process.env.IMPORT_TEST_URL ?? 'http://127.0.0.1:4174/' });
+  await call('Page.navigate', { url: process.env.IMPORT_TEST_URL ?? 'http://127.0.0.1:4174/?mode=osm' });
   await waitFor('document.querySelector("canvas") && document.body.innerText.includes("Import PBF")'); await pause(1800);
   await evaluate('[...document.querySelectorAll("button")].find(b=>b.innerText.includes("Import PBF")).click()');
   await waitFor('document.querySelector("#datasets-title")');

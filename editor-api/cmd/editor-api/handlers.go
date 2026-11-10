@@ -9,6 +9,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -52,6 +54,24 @@ func serveEditorAPI(handler http.Handler) error {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch {
+	case strings.HasPrefix(r.URL.Path, "/enc/basemap/"):
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			err = fail(405, "Method not allowed.")
+			break
+		}
+		target, parseErr := url.Parse(getenv("ENC_BASEMAP_TILE_SERVER_URL", "http://127.0.0.1:8081"))
+		if parseErr != nil || target.Host == "" || (target.Scheme != "http" && target.Scheme != "https") {
+			err = fail(503, "ENC basemap tile server is not configured.")
+			break
+		}
+		r.URL.Path = "/datas/world-baselayer/" + strings.TrimPrefix(r.URL.Path, "/enc/basemap/")
+		r.URL.RawPath = ""
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, "ENC basemap tile server is unavailable.", http.StatusBadGateway)
+		}
+		proxy.ServeHTTP(w, r)
+		return
 	case r.URL.Path == "/api/uploads" && r.Method == http.MethodPost:
 		err = a.serveUpload(w, r)
 	case strings.HasPrefix(r.URL.Path, "/enc/assets/fonts/"):
@@ -68,7 +88,7 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(a.encAssetsRoot, "fonts", filepath.FromSlash(name)))
 		return
 	case strings.HasPrefix(r.URL.Path, "/api/enc/"):
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodPost || r.Method == http.MethodDelete {
 			if err = authorizeImport(r); err != nil {
 				break
 			}

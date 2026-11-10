@@ -15,14 +15,21 @@ export function localEncStyle(dataset: string, cell: string, theme: EncTheme): S
   const classIn = (...classes: string[]): ExpressionSpecification => ['in', ['get', 'object_class'], ['literal', classes]];
   const depth: ExpressionSpecification = ['to-number', ['get', 'DRVAL1'], -1];
   const depthFill: ExpressionSpecification = ['case', ['<', depth, 0], p.tidal, ['<', depth, 3], p.veryShallow, ['<', depth, 6], p.shallow, ['<', depth, 9], p.medium, p.deep];
-  const params = new URLSearchParams({ dataset, ...(cell ? { cell } : {}) });
-  return {
+  const params = new URLSearchParams({ dataset, portrayal: '3', ...(cell ? { cell } : {}) });
+  const style: StyleSpecification = {
     version: 8,
     glyphs: `${window.location.origin}/enc/assets/fonts/{fontstack}/{range}.pbf`,
     sprite: `${window.location.origin}/enc/assets/sprites/${theme}_simplified`,
-    sources: { enc: { type: 'vector', tiles: [`${window.location.origin}/api/enc/tiles/{z}/{x}/{y}.pbf?${params}`], minzoom: 0, maxzoom: 18, promoteId: 'feature_id', attribution: 'NOAA ENC · Njord palette / sprites · local S-57 import' } },
+    sources: { enc: { type: 'vector', tiles: [`${window.location.origin}/api/enc/tiles/{z}/{x}/{y}.pbf?${params}`], minzoom: 0, maxzoom: 22, promoteId: 'feature_id', attribution: 'NOAA ENC · Njord palette / sprites · local S-57 import' } },
     layers: [
-      { id: 'enc-background', type: 'background', paint: { 'background-color': p.background } },
+      { id: 'enc-background', type: 'background', paint: { 'background-color': theme === 'day' ? p.deep : p.background } },
+      { id: 'world-land', source: 'world', 'source-layer': 'HANHCHINH_THEGIOI', type: 'fill', paint: { 'fill-color': p.land } },
+      { id: 'world-boundaries', source: 'world', 'source-layer': 'HANHCHINH_THEGIOI', type: 'line', paint: { 'line-color': p.coast, 'line-width': 0.7 } },
+      { id: 'world-labels', source: 'world', 'source-layer': 'DIADANH_HANHCHINH_THEGIOI', type: 'symbol', minzoom: 9, maxzoom: 12, layout: { 'text-field': ['get', 'name'], 'text-font': ['Roboto Bold'], 'text-size': 11 }, paint: { 'text-color': p.ink, 'text-halo-color': p.land, 'text-halo-width': 1 } },
+      { id: 'enc-coverage-fill', source: 'enc', 'source-layer': 'coverage', type: 'fill', maxzoom: 9, paint: { 'fill-color': '#607681', 'fill-opacity': 0.35 } },
+      { id: 'enc-coverage-area-fill', source: 'enc', 'source-layer': 'coverage_areas', type: 'fill', maxzoom: 9, paint: { 'fill-color': '#805025', 'fill-opacity': 0.35 } },
+      { id: 'enc-coverage-area-outline', source: 'enc', 'source-layer': 'coverage_areas', type: 'line', maxzoom: 9, paint: { 'line-color': '#633918', 'line-width': 1 } },
+      { id: 'enc-coverage', source: 'enc', 'source-layer': 'coverage', type: 'line', maxzoom: 9, paint: { 'line-color': '#f28b30', 'line-width': 1.2 } },
       { ...source, id: 'enc-depth', type: 'fill', filter: classIn('DEPARE', 'DRGARE'), paint: { 'fill-color': depthFill } },
       { ...source, id: 'enc-land', type: 'fill', filter: classIn('LNDARE', 'SLCONS', 'BUAARE', 'PONTON'), paint: { 'fill-color': p.land } },
       { ...source, id: 'enc-coast', type: 'line', filter: classIn('COALNE', 'SLCONS', 'LNDARE'), paint: { 'line-color': p.coast, 'line-width': 1.25 } },
@@ -38,4 +45,15 @@ export function localEncStyle(dataset: string, cell: string, theme: EncTheme): S
       { ...source, id: 'enc-names', type: 'symbol', minzoom: 12, filter: ['all', ['has', 'OBJNAM'], classIn('LNDARE', 'LNDRGN', 'BOYLAT', 'BOYSPP', 'BCNLAT', 'LIGHTS', 'BUAARE')], layout: { 'text-field': ['get', 'OBJNAM'], 'text-font': ['Roboto Bold'], 'text-size': 12, 'text-anchor': 'top-left', 'text-offset': [0.7, 0.7], 'text-max-width': 10 }, paint: { 'text-color': p.ink, 'text-halo-color': p.deep, 'text-halo-width': 1.5 } }
     ]
   };
+  style.sources.world = { type: 'vector', tiles: [`${window.location.origin}/enc/basemap/{z}/{x}/{y}.pbf`], minzoom: 0, maxzoom: 7, attribution: 'World baselayer · Viettel HighTech' };
+  for (const layer of style.layers) {
+    if ('source-layer' in layer && layer['source-layer'] === 'enc') {
+      layer.minzoom = Math.max(layer.minzoom ?? 0, layer.id === 'enc-aids' ? 12 : 9);
+    }
+  }
+  if (!dataset) {
+    delete style.sources.enc;
+    style.layers = style.layers.filter(layer => !('source' in layer) || layer.source !== 'enc');
+  }
+  return style;
 }

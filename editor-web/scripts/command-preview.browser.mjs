@@ -20,7 +20,7 @@ async function setup(width = 1440) {
     if (path === '/api/graph') return route.fulfill({ json: { canonicalRevision: 1, features: url.searchParams.get('part') === 'relations' ? [relation] : geometry } });
     return route.fulfill({ json: { snapshots: [], support: [], features: [] } });
   });
-  await page.goto(process.env.EDITOR_URL || 'http://127.0.0.1:5178');
+  await page.goto(process.env.EDITOR_URL || 'http://127.0.0.1:5178/?mode=osm');
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Đi tới vị trí theo tọa độ', exact: true }).click();
   await page.getByPlaceholder('20.409586,106.1704618').fill('21.0003,105'); await page.getByRole('button', { name: 'Định vị', exact: true }).click();

@@ -37,21 +37,20 @@ export async function loadDatasets(signal?: AbortSignal): Promise<DatasetInfo[]>
   if (!record(body) || !Array.isArray(body.datasets)) throw new Error('Danh sách dataset không hợp lệ.');
   return body.datasets.map(parseDataset);
 }
-export async function loadImports(token: string, signal?: AbortSignal) {
+export async function loadImports(signal?: AbortSignal) {
   const timeout = AbortSignal.timeout(10_000);
-  return parseImportStatus(await jsonResponse(await fetch('/api/imports', { cache: 'no-store', signal: signal ? AbortSignal.any([signal, timeout]) : timeout, headers: { 'X-Import-Token': token } })));
+  return parseImportStatus(await jsonResponse(await fetch('/api/imports', { cache: 'no-store', signal: signal ? AbortSignal.any([signal, timeout]) : timeout })));
 }
-export async function retryImport(id: string, token: string) {
-  await jsonResponse(await fetch(`/api/imports/${encodeURIComponent(id)}/retry`, { method: 'POST', headers: { 'X-Editor-Import': '1', 'X-Import-Token': token } }));
+export async function retryImport(id: string) {
+  await jsonResponse(await fetch(`/api/imports/${encodeURIComponent(id)}/retry`, { method: 'POST', headers: { 'X-Editor-Import': '1' } }));
 }
-export function uploadPBF(file: File, dataset: string, token: string, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<void> {
+export function uploadPBF(file: File, dataset: string, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     const finish = () => signal?.removeEventListener('abort', abort);
     const abort = () => request.abort();
     request.open('POST', `/api/imports?${new URLSearchParams({ dataset })}`);
     request.setRequestHeader('X-Editor-Import', '1');
-    request.setRequestHeader('X-Import-Token', token);
     request.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.min(100, Math.round(event.loaded / event.total * 100))); };
     request.onload = () => {
       finish();

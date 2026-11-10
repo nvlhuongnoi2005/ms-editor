@@ -30,13 +30,8 @@ func TestPBFHeaderValidation(t *testing.T) {
 }
 
 func TestImportAuthorization(t *testing.T) {
-	t.Setenv("EDITOR_IMPORT_TOKEN", "test-import-token")
 	request := httptest.NewRequest("POST", "http://localhost:4173/api/imports", nil)
 	request.Header.Set("X-Editor-Import", "1")
-	if err := authorizeImport(request); err == nil {
-		t.Fatal("accepted missing token")
-	}
-	request.Header.Set("X-Import-Token", "test-import-token")
 	if err := authorizeImport(request); err != nil {
 		t.Fatal(err)
 	}
@@ -54,29 +49,17 @@ func TestImportAuthorization(t *testing.T) {
 	}
 }
 
-func TestImportLocalOnlyWithoutToken(t *testing.T) {
-	t.Setenv("EDITOR_IMPORT_TOKEN", "")
-	// Getenv can also use the local .env; an explicit isolated cwd avoids that.
-	t.Chdir(t.TempDir())
-	request := httptest.NewRequest("GET", "http://localhost/api/imports", nil)
-	request.RemoteAddr = "127.0.0.1:1234"
+func TestImportRemoteRequest(t *testing.T) {
+	request := httptest.NewRequest("POST", "http://editor.example/api/imports", nil)
+	request.RemoteAddr = "192.0.2.5:1234"
+	request.Header.Set("Origin", "http://editor.example")
+	request.Header.Set("X-Editor-Import", "1")
 	if err := authorizeImport(request); err != nil {
 		t.Fatal(err)
-	}
-	request.Host = "rebound.invalid"
-	if err := authorizeImport(request); err == nil {
-		t.Fatal("accepted a non-local Host in tokenless mode")
-	}
-	request.Host = "localhost"
-	request.RemoteAddr = "192.0.2.5:1234"
-	request.Header.Set("X-Forwarded-For", "127.0.0.1")
-	if err := authorizeImport(request); err == nil {
-		t.Fatal("trusted a forwarded client address")
 	}
 }
 
 func TestImportRejectsInvalidFilesBeforeDatabase(t *testing.T) {
-	t.Setenv("EDITOR_IMPORT_TOKEN", "test-token")
 	t.Setenv("EDITOR_IMPORT_DIR", t.TempDir())
 	t.Setenv("EDITOR_IMPORT_MAX_BYTES", "1024")
 	for _, test := range []struct {
@@ -102,7 +85,6 @@ func TestImportRejectsInvalidFilesBeforeDatabase(t *testing.T) {
 			request := httptest.NewRequest("POST", "http://localhost/api/imports?dataset="+test.name, &body)
 			request.Header.Set("Content-Type", writer.FormDataContentType())
 			request.Header.Set("X-Editor-Import", "1")
-			request.Header.Set("X-Import-Token", "test-token")
 			response := httptest.NewRecorder()
 			(&app{}).ServeHTTP(response, request)
 			if response.Code != test.expected {
@@ -150,10 +132,8 @@ func TestRenderClaimPrepareIntegration(t *testing.T) {
 
 func TestImportListsReadIntegration(t *testing.T) {
 	ctx, db := integrationDB(t)
-	t.Setenv("EDITOR_IMPORT_TOKEN", "test-token")
 	for _, path := range []string{"/api/datasets", "/api/imports"} {
 		request := httptest.NewRequest("GET", path, nil).WithContext(ctx)
-		request.Header.Set("X-Import-Token", "test-token")
 		response := httptest.NewRecorder()
 		(&app{db: db}).ServeHTTP(response, request)
 		if response.Code != 200 {

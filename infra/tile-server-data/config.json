@@ -26,7 +26,12 @@
         "format": "jpg",
         "minzoom": 0,
         "maxzoom": 18,
-        "bounds": [-180, -85.051129, 180, 85.051129]
+        "bounds": [
+          -180,
+          -85.051129,
+          180,
+          85.051129
+        ]
       }
     },
     "satellite2": {
@@ -35,6 +40,9 @@
         "forward": true,
         "store": false
       }
+    },
+    "world-baselayer": {
+      "mbtiles": "world-baselayer/world-baselayer.mbtiles"
     }
   },
   "sprites": {},

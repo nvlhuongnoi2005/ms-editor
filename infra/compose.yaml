@@ -57,7 +57,6 @@ services:
       RENDER_DB_USER: render_owner
       RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
       EDITOR_IMPORT_DIR: /var/lib/map-service/imports
-      EDITOR_IMPORT_TOKEN: ${EDITOR_IMPORT_TOKEN:-}
       EDITOR_IMPORT_MAX_BYTES: ${EDITOR_IMPORT_MAX_BYTES:-10737418240}
       ENC_DB_HOST: postgres
       ENC_DB_PORT: 5432
@@ -65,6 +64,7 @@ services:
       ENC_DB_USER: enc_owner
       ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:-${CANONICAL_DB_PASSWORD}}
       ENC_IMPORT_DIR: /var/lib/map-service/enc/uploads
+      ENC_BASEMAP_TILE_SERVER_URL: http://tile-server:8080
     volumes:
       - ../data/imports:/var/lib/map-service/imports
       - ../data/enc/uploads:/var/lib/map-service/enc/uploads

@@ -9,7 +9,6 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : '
 export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClose }: Props) {
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
   const [status, setStatus] = useState<ImportStatus | null>(null);
-  const [token, setToken] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -21,13 +20,13 @@ export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClo
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; controller.current?.abort(); }; }, []);
   const refresh = useCallback(async (signal?: AbortSignal) => {
-    const results = await Promise.allSettled([loadDatasets(signal), loadImports(token, signal)]);
+    const results = await Promise.allSettled([loadDatasets(signal), loadImports(signal)]);
     if (!mounted.current || signal?.aborted) return;
     if (results[0].status === 'fulfilled') { setDatasets(results[0].value); setError(null); }
     else setError(errorText(results[0].reason));
     if (results[1].status === 'fulfilled') { setStatus(results[1].value); setImportError(null); }
     else { setStatus(null); setImportError(errorText(results[1].reason)); }
-  }, [token]);
+  }, []);
   useEffect(() => {
     const abort = new AbortController(); let timer: ReturnType<typeof setTimeout>;
     const poll = async () => { await refresh(abort.signal); if (!abort.signal.aborted) timer = setTimeout(() => { void poll(); }, 2500); };
@@ -42,7 +41,7 @@ export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClo
     setBusy(true); setProgress(0); setError(null); setNotice(null);
     controller.current = new AbortController();
     try {
-      await uploadPBF(file, name, token, setProgress, controller.current.signal);
+      await uploadPBF(file, name, setProgress, controller.current.signal);
       if (!mounted.current) return;
       setNotice('Đã tiếp nhận file. Import chạy nền; bạn có thể đóng bảng này rồi mở lại để theo dõi.');
       setFile(null); setName(''); await refresh();
@@ -51,7 +50,7 @@ export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClo
   };
   const retry = async (job: ImportJob) => {
     setBusy(true); setError(null);
-    try { await retryImport(job.id, token); await refresh(); }
+    try { await retryImport(job.id); await refresh(); }
     catch (reason) { if (mounted.current) setError(errorText(reason)); }
     finally { if (mounted.current) setBusy(false); }
   };
@@ -71,7 +70,6 @@ export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClo
         </Stack>)}
         <Divider />
         <Typography variant="subtitle2">Upload snapshot .osm.pbf</Typography>
-        <TextField size="small" type="password" label="Token quản trị import" helperText="Không lưu token vào trình duyệt. Có thể để trống khi dùng API trực tiếp trên localhost chưa cấu hình token." value={token} disabled={busy} onChange={event => setToken(event.target.value)} autoComplete="off" />
         {importError && <Alert severity="warning">{importError}</Alert>}
         {status && !status.workerOnline && <Alert severity="warning">Chưa thấy worker hoạt động. Khởi động dịch vụ import-worker; file đã nhận sẽ chờ trong hàng đợi.</Alert>}
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>

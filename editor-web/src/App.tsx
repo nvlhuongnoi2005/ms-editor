@@ -1900,6 +1900,35 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               </Typography>
             )}
 
+            <Tooltip title="Quay về bảng chọn chế độ OSM / ENC">
+              <Button href={window.location.pathname} size="small" color="inherit" aria-label="Chọn chế độ" sx={{ minWidth: 32, px: 0.75 }}>
+                <Layers size={17} aria-hidden="true" />
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Mở chế độ xem hải đồ ENC">
+              <Button
+                href="?mode=enc"
+                size="small"
+                aria-label="Hải đồ ENC"
+                disabled={saving || Boolean(pendingCloseId)}
+                startIcon={<Waves size={17} aria-hidden="true" />}
+                sx={{
+                  color: '#ffffff',
+                  bgcolor: 'rgba(255, 255, 255, 0.12)',
+                  borderRadius: 1.5,
+                  px: 1.25,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.22)' },
+                  '&.Mui-disabled': { color: 'rgba(255,255,255,0.5)' }
+                }}
+              >
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Hải đồ ENC</Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>ENC</Box>
+              </Button>
+            </Tooltip>
+
             <Tooltip title="Đi tới vị trí theo tọa độ">
               <Button
                 size="small"

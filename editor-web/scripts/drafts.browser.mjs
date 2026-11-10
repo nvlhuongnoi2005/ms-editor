@@ -41,7 +41,7 @@ async function context(options = {}) {
   return { ctx, api };
 }
 async function open(ctx) {
-  const page = await ctx.newPage(); await page.goto(origin);
+  const page = await ctx.newPage(); await page.goto(`${origin}/?mode=osm`);
   await page.getByRole('button', { name: 'Quản lý bản nháp', exact: true }).waitFor();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   return page;
@@ -148,7 +148,7 @@ try {
     const { ctx } = await context();
     try {
       await ctx.addInitScript(() => { Object.defineProperty(window, 'indexedDB', { value: { open() { throw new Error('Storage denied'); } } }); });
-      const page = await ctx.newPage(); await page.goto(origin);
+      const page = await ctx.newPage(); await page.goto(`${origin}/?mode=osm`);
       await page.getByRole('button', { name: 'Tiếp tục, chưa có bảo vệ nháp', exact: true }).click();
       await locate(page); await duplicate(page); await saveButton(page).click();
       await page.getByRole('status').filter({ hasText: 'Đã lưu các thay đổi thành công' }).waitFor();

@@ -85,7 +85,7 @@ try {
   await call('Page.enable'); await call('Runtime.enable');
   await call('Fetch.enable', { patterns: [{ urlPattern: 'http://localhost:8081/*' }] });
   await call('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await call('Page.navigate', { url: base });
+  await call('Page.navigate', { url: `${base}/?mode=osm` });
   await waitFor('document.querySelector(".maplibregl-map")');
   // Inspect the component's existing ref; no production debug API is needed.
   await evaluate(`(() => {

@@ -57,14 +57,14 @@ Lệnh này xử lý cả các event publish đang chờ, không chỉ dataset m
 
 ## Chạy API bằng Docker
 
-Đặt `EDITOR_IMPORT_TOKEN` đủ mạnh trong `infra/.env`, sau đó chạy:
+Chạy API và worker:
 
 ```powershell
 docker compose --file infra/compose.yaml up -d --build editor-api import-worker render-sync-worker
 ```
 
-Không chạy API native và API Docker cùng cổng 4173. Nhập token trong dialog khi
-upload hoặc xem/retry job; token chỉ giữ trong bộ nhớ khi dialog mở.
+Không chạy API native và API Docker cùng cổng 4173. Upload, xem và retry job
+không yêu cầu token quản trị.
 
 API startup tạo migration idempotent từ
 `editor-api/cmd/editor-api/imports_schema.sql`. Nếu muốn migration trước khi chạy
@@ -84,17 +84,13 @@ Get-Content editor-api/cmd/editor-api/imports_schema.sql |
 | `POST /api/imports?dataset=<name>` | Multipart với một field `file`; trả 202 |
 | `POST /api/imports/<uuid>/retry` | Chỉ retry job failed, không retry dataset đã hoạt động |
 
-Các thao tác ghi import yêu cầu `X-Editor-Import: 1`; nếu có cấu hình token,
-yêu cầu thêm `X-Import-Token`. Origin khác bị từ chối. Không có token thì chỉ
-cho địa chỉ kết nối loopback, không tin `X-Forwarded-For`. Qua proxy/Docker cần
-cấu hình token rõ ràng. Đây không thay thế authentication/authorization đầy đủ
-cho các API biên tập hiện có; không expose API development công khai.
+Các thao tác ghi import yêu cầu `X-Editor-Import: 1`. Origin khác bị từ chối.
+API không yêu cầu token quản trị và không giới hạn kết nối ở loopback.
 
 | Biến | Mặc định |
 | --- | --- |
 | `EDITOR_IMPORT_DIR` | API native: `../data/imports`; Docker: `/var/lib/map-service/imports` |
 | `EDITOR_IMPORT_MAX_BYTES` | 10 GiB; giới hạn cả stream phía server |
-| `EDITOR_IMPORT_TOKEN` | Không đặt: chỉ localhost trực tiếp |
 | `IMPORT_RENDER_CACHE_MB` | 256 |
 | `IMPORT_RENDER_PROCESSES` | 1 |
 | `IMPORT_RENDER_TIMEOUT_SECONDS` | 21600 |
@@ -131,7 +127,7 @@ $env:EDITOR_TEST_DB = '1'
 go test ./...
 ```
 
-`imports_test.go` kiểm tra header PBF, giới hạn file, token/origin, schema MVT,
+`imports_test.go` kiểm tra header PBF, giới hạn file, origin, schema MVT,
 fuzz input và prepare câu SQL claim publish (không nhận event thật).
 `datasets.test.mjs` kiểm tra parser, multipart/progress và nhất quán dataset
 trong các request. Fixture nhỏ nằm ở `OSM/importer/tests`; chỉ dùng với

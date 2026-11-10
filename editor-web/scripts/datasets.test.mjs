@@ -40,18 +40,16 @@ test('graph, snapshots and changesets consistently target the selected dataset',
   } finally { globalThis.fetch = previous; }
 });
 
-test('admin requests send the token and explicit non-simple header for mutations', async () => {
+test('import requests send the explicit non-simple header for mutations', async () => {
   const previous = globalThis.fetch, calls = [];
   try {
     globalThis.fetch = async (url, options) => {
       calls.push([url, options]);
       return { ok:true, json:async()=>url==='/api/imports' ? {jobs:[],workerOnline:false,maxUploadBytes:1000} : {id:'1',state:'queued'} };
     };
-    await datasets.loadImports('secret');
-    await datasets.retryImport('abc', 'secret');
-    assert.equal(calls[0][1].headers['X-Import-Token'], 'secret');
+    await datasets.loadImports();
+    await datasets.retryImport('abc');
     assert.equal(calls[1][1].headers['X-Editor-Import'], '1');
-    assert.equal(calls[1][1].headers['X-Import-Token'], 'secret');
   } finally { globalThis.fetch = previous; }
 });
 
@@ -68,11 +66,10 @@ test('upload streams multipart with progress and does not mark an import ready',
   try {
     globalThis.XMLHttpRequest = XHR;
     const file = new File(['fixture'], 'sample.osm.pbf'), progress = [];
-    await datasets.uploadPBF(file, 'new-pbf', 'secret', value=>progress.push(value));
+    await datasets.uploadPBF(file, 'new-pbf', value=>progress.push(value));
     assert.equal(request.method,'POST');
     assert.equal(new URL(request.url,'http://localhost').searchParams.get('dataset'),'new-pbf');
     assert.equal(request.headers['X-Editor-Import'],'1');
-    assert.equal(request.headers['X-Import-Token'],'secret');
     assert.equal(request.body.get('file').name,file.name);
     assert.deepEqual(progress,[50]);
   } finally { globalThis.XMLHttpRequest=previous; }
@@ -83,6 +80,6 @@ test('upload rejection reports backend failure rather than claiming success', as
   class XHR { upload={}; status=409; responseText='{"error":"Dataset already exists"}'; open(){} setRequestHeader(){} send(){queueMicrotask(()=>this.onload());} }
   try {
     globalThis.XMLHttpRequest=XHR;
-    await assert.rejects(datasets.uploadPBF(new File(['test'],'sample.pbf'),'duplicate','',()=>{}), /already exists/);
+    await assert.rejects(datasets.uploadPBF(new File(['test'],'sample.pbf'),'duplicate',()=>{}), /already exists/);
   } finally { globalThis.XMLHttpRequest=previous; }
 });

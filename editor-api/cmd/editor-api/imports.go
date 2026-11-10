@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	_ "embed"
 	"encoding/binary"
 	"encoding/hex"
@@ -12,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,28 +40,8 @@ func importUploadLimit() int64 {
 
 func importUploadDir() string { return getenv("EDITOR_IMPORT_DIR", "../data/imports") }
 
-// No authentication is implied by the application's development identity.
-// Remote deployments must set a token. Never trust forwarded address headers.
+// Validate browser request boundaries without requiring an administration token.
 func authorizeImport(r *http.Request) error {
-	if token := getenv("EDITOR_IMPORT_TOKEN", ""); token != "" {
-		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Import-Token")), []byte(token)) != 1 {
-			return fail(403, "Import admin token is required.")
-		}
-	} else {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil || !net.ParseIP(host).IsLoopback() {
-			return fail(403, "Remote import requires EDITOR_IMPORT_TOKEN.")
-		}
-		// A loopback peer alone does not prevent DNS rebinding against a local API.
-		requestHost := r.Host
-		if parsed, _, err := net.SplitHostPort(requestHost); err == nil {
-			requestHost = parsed
-		}
-		requestHost = strings.Trim(requestHost, "[]")
-		if !strings.EqualFold(requestHost, "localhost") && !net.ParseIP(requestHost).IsLoopback() {
-			return fail(403, "Non-local hostnames require EDITOR_IMPORT_TOKEN.")
-		}
-	}
 	if origin := r.Header.Get("Origin"); origin != "" {
 		parsed, err := url.Parse(origin)
 		if err != nil || parsed.Host != r.Host || (parsed.Scheme != "http" && parsed.Scheme != "https") {

@@ -5,10 +5,42 @@ Nó không dùng model node/way/relation, importer hoặc renderer của OSM.
 
 ## Xem ENC local
 
+### World baselayer
+
+Nền ENC local dùng vector MBTiles tại
+`infra/tile-server-data/mbtiles/world-baselayer/world-baselayer.mbtiles`.
+Tile-server phục vụ nguồn `world-baselayer`; Editor API chuyển tiếp tile qua
+`/enc/basemap/{z}/{x}/{y}.pbf`. API native dùng tile-server tại
+`http://127.0.0.1:8081`; Docker dùng `http://tile-server:8080`.
+Có thể đổi địa chỉ upstream bằng `ENC_BASEMAP_TILE_SERVER_URL`.
+
+File nền do người dùng cung cấp có hai lớp `HANHCHINH_THEGIOI` (polygon)
+và `DIADANH_HANHCHINH_THEGIOI` (nhãn), zoom 0–7. MapLibre phóng tiếp dữ liệu
+zoom 7 khi xem gần; không có thêm chi tiết đường bờ ở zoom lớn.
+Màu nền theo theme ENC, các lớp hải đồ được vẽ phía trên. Nền vẫn hiện khi
+chưa chọn dataset. File MBTiles là dữ liệu local và được gitignore.
+
+Khởi động tile-server bằng `docker compose -f infra/compose.yaml --profile tiles up -d tile-server`.
+
+### Dataset ENC
+
 Mở `http://localhost:5173/?mode=enc` khi chạy frontend development, hoặc
-`http://localhost:4173/?mode=enc` khi chạy bản build. Chọn dataset và cell để xem
+`http://localhost:4173/?mode=enc` khi chạy bản build. Chọn dataset để xem toàn bộ
 tile MVT lấy trực tiếp từ PostGIS. Palette, sprite và glyph của chế độ local
 được phục vụ từ repo; chế độ “OpenENC demo” vẫn có thể chọn riêng để đối chiếu.
+
+Mặc định **Tất cả cell · tự động**: pan/zoom tải tile của các cell trong vùng nhìn.
+Bộ chọn cell vẫn dùng được để kiểm tra riêng. Ở mức zoom tổng quan (dưới 9),
+đường viền tím thể hiện phạm vi cell; đây không phải dữ liệu nền bổ sung.
+ZIP tuần chỉ có các cell được phân phối trong tuần, nên vùng không có dữ liệu
+vẫn trống; muốn phủ rộng cần nhập bộ ENC đầy đủ cho khu vực đó.
+
+Viewer chọn tỷ lệ biên tập từ `DSPM_CSCL`, dùng `SCAMIN` để lọc chi tiết theo zoom,
+và ghép vùng phủ `M_COVR` (`CATCOV=1` trừ `CATCOV=2`). Trong phần chồng lấn,
+cell chi tiết hơn được ưu tiên; tên cell phân định khi cùng tỷ lệ. Nếu thiếu
+vùng phủ, dùng bounds của cell làm phương án dự phòng. Chế độ kiểm tra một cell
+bỏ lọc tỷ lệ để xem dữ liệu nguồn. Đây là quy tắc viewer với tỷ lệ xấp xỉ theo zoom,
+chưa phải bộ quy tắc trình bày S-52 đầy đủ. Không cần import lại dataset cũ.
 
 Giao diện nhận ZIP S-57 (tối đa 100 MiB), tạo job và theo dõi trạng thái. Worker
 GDAL riêng kiểm tra archive, cell trùng, update thiếu và checksum trước khi
@@ -21,8 +53,7 @@ Chạy queue worker từ thư mục gốc:
 docker compose -f infra/compose.yaml --profile enc up -d --build --no-deps enc-import-worker
 ```
 
-Nhập `EDITOR_IMPORT_TOKEN` đã cấu hình trong `infra/.env` vào form upload.
-Token chỉ dùng cho thao tác import và không lưu trong localStorage.
+Upload và xóa dataset không yêu cầu token quản trị.
 
 ## Import ZIP thủ công
 
@@ -61,8 +92,8 @@ theme và cụm PostgreSQL là hạ tầng dùng chung. Model OSM cũ vẫn nằ
 
 API ENC: `GET /api/enc/datasets`, `GET /api/enc/cells?dataset=<uuid>`,
 `GET /api/enc/tiles/{z}/{x}/{y}.pbf?dataset=<uuid>&cell=<name>`,
-`POST /api/enc/imports?dataset=<name>`. POST dùng cùng cơ chế import token
-và same-origin của gateway hiện tại.
+`POST /api/enc/imports?dataset=<name>`. POST không yêu cầu token quản trị;
+gateway kiểm tra origin và header `X-Editor-Import: 1` cho các thao tác ghi.
 
 `POST /api/uploads?dataset=<name>` là điểm upload chung. Gateway đọc chữ ký
 file để chọn PBF/OSM hoặc ZIP/ENC, rồi chuyển nguyên stream đến handler của

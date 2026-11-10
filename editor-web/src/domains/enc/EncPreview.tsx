@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { Layers3, Map, RotateCcw, Sun, Sunset, Moon, Upload, X } from 'lucide-react';
+import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Layers3, Map, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
 import type { StyleSpecification } from 'maplibre-gl';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -9,8 +9,10 @@ import { localEncStyle, type EncTheme } from './style';
 
 type Bounds = [number, number, number, number];
 type Dataset = { id: string; name: string; state: string; jobState: string; featureCount: number; error: string | null; bounds: Bounds | null };
-type Cell = { name: string; edition: number | null; updateNumber: number; bounds: Bounds | null };
+type Cell = { name: string; edition: number | null; updateNumber: number; bounds: Bounds | null; focus?: [number, number] | null };
 const demoCamera = { center: [-124.65282810021182, 43.370472065363344] as [number, number], zoom: 12.195893377590188 };
+// Match the metric scale control (120 px): a 150 m span rounds to a 100 m bar.
+const initialScaleSpanMeters = 150;
 const themes = [{ value: 'day', label: 'Ngày', icon: Sun }, { value: 'dusk', label: 'Chạng vạng', icon: Sunset }, { value: 'night', label: 'Đêm', icon: Moon }] as const;
 maplibregl.setWorkerUrl(mapLibreWorkerUrl);
 
@@ -35,9 +37,12 @@ export function EncPreview() {
   const [reload, setReload] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
-  const [token, setToken] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Dataset | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteNotice, setDeleteNotice] = useState('');
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const input = useRef<HTMLInputElement | null>(null);
   const dataset = datasets.find(item => item.id === datasetId);
@@ -48,13 +53,24 @@ export function EncPreview() {
     const instance = new maplibregl.Map({ container: container.current, ...demoCamera, style: { version: 8, sources: {}, layers: [{ id: 'base', type: 'background', paint: { 'background-color': '#93AEBB' } }] } });
     instance.addControl(new maplibregl.NavigationControl(), 'top-right');
     instance.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right');
+    const canvas = instance.getCanvas();
+    const resetCursor = () => { canvas.style.cursor = ''; };
+    const featureAt = (point: maplibregl.Point) => instance.isStyleLoaded()
+      ? instance.queryRenderedFeatures(point).find(item => item.source === 'enc' && item.sourceLayer === 'enc')
+      : undefined;
+    instance.on('mousemove', event => {
+      canvas.style.cursor = !instance.isMoving() && featureAt(event.point) ? 'pointer' : '';
+    });
+    instance.on('movestart', resetCursor);
+    instance.on('style.load', resetCursor);
+    canvas.addEventListener('mouseleave', resetCursor);
     instance.on('click', event => {
       if (!instance.isStyleLoaded()) return;
-      const feature = instance.queryRenderedFeatures(event.point).find(item => item.source === 'enc');
+      const feature = featureAt(event.point);
       setSelected(feature?.properties ?? null);
     });
     map.current = instance;
-    return () => { instance.remove(); map.current = null; };
+    return () => { canvas.removeEventListener('mouseleave', resetCursor); instance.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {
@@ -80,7 +96,6 @@ export function EncPreview() {
     fetch(`/api/enc/cells?${new URLSearchParams({ dataset: datasetId })}`, { signal: controller.signal }).then(readJSON<{ cells: Cell[] }>).then(data => {
       if (controller.signal.aborted) return;
       setCells(data.cells);
-      setCellName((data.cells.find(item => item.name === 'US5ORFCC') ?? data.cells[0])?.name || '');
     }).catch(reason => { if (!controller.signal.aborted) setCatalogError(reason.message); });
     return () => controller.abort();
   }, [datasetId, dataset?.state]);
@@ -90,13 +105,14 @@ export function EncPreview() {
     if (!instance) return;
     const controller = new AbortController();
     setSelected(null); setError('');
+    instance.getCanvas().style.cursor = '';
     let failed = false;
     const idle = () => { if (!controller.signal.aborted && !failed) setState('ready'); };
     const failure = (event: maplibregl.ErrorEvent) => { if (!controller.signal.aborted) { failed = true; setState('error'); setError(event.error.message); } };
     instance.on('error', failure);
-    if (source === 'local' && (!dataset || dataset.state !== 'ready' || !cellName)) {
+    if (source === 'local' && (!dataset || dataset.state !== 'ready' || !cells.length)) {
       setState('empty');
-      instance.setStyle({ version: 8, sources: {}, layers: [{ id: 'base', type: 'background', paint: { 'background-color': '#93AEBB' } }] });
+      instance.setStyle(localEncStyle('', '', theme));
     } else {
       setState('loading');
       const load = async () => {
@@ -111,33 +127,83 @@ export function EncPreview() {
       void load();
     }
     return () => { controller.abort(); instance.off('idle', idle); instance.off('error', failure); };
-  }, [theme, source, datasetId, dataset?.state, cellName, reload]);
+  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload]);
 
   const fit = () => {
     const bounds = cell?.bounds ?? dataset?.bounds;
     if (source === 'local' && bounds) map.current?.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: { left: innerWidth > 700 ? 395 : 30, right: 60, top: innerWidth > 700 ? 40 : 260, bottom: 40 }, maxZoom: 15, duration: 0 });
     else map.current?.jumpTo(demoCamera);
   };
-  useEffect(fit, [cellName, datasetId, source]);
+  useEffect(() => {
+    if (source !== 'local') { map.current?.jumpTo(demoCamera); return; }
+    // Start in a compact cell rather than fitting a potentially worldwide ZIP.
+    // The source still includes every cell; this only chooses the initial camera.
+    const area = (bounds: Bounds) => (bounds[2] - bounds[0]) * (bounds[3] - bounds[1]);
+    const waterCells = cells.filter(item => item.bounds && item.focus);
+    const initialCell = cell ?? (waterCells.length ? waterCells : cells.filter(item => item.bounds)).reduce<Cell | undefined>(
+      (best, item) => !best || area(item.bounds!) < area(best.bounds!) ? item : best, undefined);
+    const bounds = initialCell?.bounds;
+    if (!bounds) return;
+    const focus = initialCell?.focus ?? [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+    const latitude = Math.max(-85, Math.min(85, focus[1]));
+    const zoom = Math.log2(40075016.6856 * Math.cos(latitude * Math.PI / 180) * 120 / (512 * initialScaleSpanMeters));
+    map.current?.jumpTo({
+      center: [focus[0], latitude],
+      zoom,
+      padding: { left: innerWidth > 700 ? 395 : 30, right: 60, top: innerWidth > 700 ? 40 : 260, bottom: 40 }
+    });
+  }, [cellName, datasetId, source, cells]);
 
   const upload = async () => {
     if (!file) return;
     setUploading(true); setUploadError('');
     try {
       const body = new FormData(); body.append('file', file);
-      const result = await fetch(`/api/uploads?${new URLSearchParams({ dataset: name })}`, { method: 'POST', body, headers: { 'X-Editor-Import': '1', ...(token ? { 'X-Import-Token': token } : {}) } }).then(readJSON<{ id: string }>);
+      const result = await fetch(`/api/uploads?${new URLSearchParams({ dataset: name })}`, { method: 'POST', body, headers: { 'X-Editor-Import': '1' } }).then(readJSON<{ id: string }>);
       setSource('local'); setDatasetId(result.id); setFile(null); setReload(value => value + 1);
     } catch (reason) { setUploadError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setUploading(false); }
   };
 
+  const deleteDataset = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true); setDeleteError(''); setDeleteNotice('');
+    try {
+      const result = await fetch(`/api/enc/datasets/${encodeURIComponent(deleteTarget.id)}`, {
+        method: 'DELETE',
+        headers: { 'X-Editor-Import': '1' }
+      }).then(readJSON<{ warning?: string }>);
+      setDatasets(current => current.filter(item => item.id !== deleteTarget.id));
+      if (datasetId === deleteTarget.id) {
+        setDatasetId(''); setCells([]); setCellName(''); setSelected(null);
+        const url = new URL(location.href); url.searchParams.delete('dataset');
+        history.replaceState(null, '', url);
+      }
+      setDeleteNotice(result.warning || 'Đã xóa dataset và dữ liệu ENC liên quan.');
+      setDeleteTarget(null); setReload(value => value + 1);
+    } catch (reason) { setDeleteError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { setDeleting(false); }
+  };
+
   return (
     <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '56px minmax(0,1fr)', bgcolor: '#edf0f3' }}>
       <CssBaseline />
+      <Dialog open={deleteTarget !== null} onClose={() => { if (!deleting) setDeleteTarget(null); }} aria-labelledby="enc-delete-title" aria-describedby="enc-delete-description" fullWidth maxWidth="xs">
+        <DialogTitle id="enc-delete-title">Xóa dataset ENC?</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="enc-delete-description">Dataset “{deleteTarget?.name}”, các cell, feature và job import sẽ bị xóa vĩnh viễn. File ZIP do ứng dụng lưu khi upload cũng sẽ được xóa.</DialogContentText>
+          {deleteError && <Alert severity="error">{deleteError}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={deleting} onClick={() => setDeleteTarget(null)}>Hủy</Button>
+          <Button color="error" variant="contained" disabled={deleting} onClick={() => void deleteDataset()} startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Trash2 size={16} />}>{deleting ? 'Đang xóa…' : 'Xóa vĩnh viễn'}</Button>
+        </DialogActions>
+      </Dialog>
       <Box component="header" sx={{ px: 2, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: '#7d172a', color: '#fff' }}>
         <Layers3 size={22} aria-hidden="true" /><Typography component="h1" sx={{ fontSize: 17, fontWeight: 800 }}>Hải đồ ENC</Typography>
         <Chip size="small" label="Chỉ xem" sx={{ color: '#fff', bgcolor: '#ffffff20' }} /><Box sx={{ flex: 1 }} />
-        <Button href={location.pathname} color="inherit" startIcon={<Map size={16} />}>OSM Editor</Button>
+        <Button href={location.pathname} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Chọn chế độ</Button>
+        <Button href="?mode=osm" color="inherit" startIcon={<Map size={16} />}>OSM Editor</Button>
       </Box>
       <Box sx={{ minHeight: 0, position: 'relative' }}>
         <Box ref={container} sx={{ position: 'absolute', inset: 0 }} />
@@ -152,9 +218,11 @@ export function EncPreview() {
                 <MenuItem value="">Chọn dataset ENC</MenuItem>
                 {datasets.map(item => <MenuItem key={item.id} value={item.id}>{item.name} · {item.state === 'ready' ? 'Sẵn sàng' : item.state === 'failed' ? 'Import lỗi' : 'Đang import'}</MenuItem>)}
               </TextField>
-              {dataset?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Worker đang xử lý ZIP. Dữ liệu sẽ xuất hiện khi import hoàn tất.</Alert>}
+              {dataset && <Button color="error" variant="outlined" startIcon={<Trash2 size={16} />} disabled={dataset.state === 'importing' || deleting} onClick={() => { setDeleteTarget(dataset); setDeleteError(''); setDeleteNotice(''); }}>Xóa dataset{dataset.state === 'failed' ? ' import lỗi' : ''}</Button>}
+              {deleteNotice && <Alert severity="info" onClose={() => setDeleteNotice('')}>{deleteNotice}</Alert>}
+              {dataset?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Worker đang xử lý ZIP. Dữ liệu sẽ xuất hiện khi import hoàn tất. Có thể xóa dataset sau khi xử lý xong.</Alert>}
               {dataset?.state === 'failed' && <Alert severity="error">{dataset.error || 'Import thất bại.'}</Alert>}
-              {cells.length > 0 && <TextField select label="Cell" size="small" value={cellName} onChange={event => setCellName(event.target.value)}>{cells.map(item => <MenuItem key={item.name} value={item.name}>{item.name} · E{item.edition ?? '?'} / U{item.updateNumber}</MenuItem>)}</TextField>}
+              {cells.length > 0 && <TextField select label="Phạm vi hiển thị" size="small" value={cellName} onChange={event => setCellName(event.target.value)}><MenuItem value="">Tất cả cell · tự động</MenuItem>{cells.map(item => <MenuItem key={item.name} value={item.name}>{item.name} · E{item.edition ?? '?'} / U{item.updateNumber}</MenuItem>)}</TextField>}
               {dataset?.state === 'ready' && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{cells.length} cell · {dataset.featureCount.toLocaleString('vi-VN')} feature</Typography>}
               {!datasets.length && !catalogError && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Chưa có ENC. Tải lên ZIP gồm cell .000 và các update đi kèm, hoặc chọn OpenENC demo.</Typography>}
             </>}
@@ -174,7 +242,6 @@ export function EncPreview() {
                 <Button variant="outlined" startIcon={<Upload size={16} />} onClick={() => input.current?.click()} disabled={uploading} sx={{ justifyContent: 'flex-start', overflowWrap: 'anywhere' }}>{file ? file.name : 'Chọn ZIP S-57 (tối đa 100 MiB)'}</Button>
                 {file && <>
                   <TextField label="Tên dataset" value={name} onChange={event => setName(event.target.value)} required slotProps={{ htmlInput: { pattern: '[A-Za-z0-9][A-Za-z0-9-]{0,79}', maxLength: 80 } }} helperText="Chữ ASCII, số và dấu gạch ngang; tên duy nhất." />
-                  <TextField label="Import token" type="password" value={token} onChange={event => setToken(event.target.value)} autoComplete="off" />
                   <Button type="submit" variant="contained" disabled={uploading || !name}>{uploading ? 'Đang tải lên…' : 'Import và mở hải đồ'}</Button>
                 </>}
                 {uploadError && <Alert severity="error">{uploadError}</Alert>}
