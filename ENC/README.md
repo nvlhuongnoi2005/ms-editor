@@ -5,6 +5,48 @@ Nó không dùng model node/way/relation, importer hoặc renderer của OSM.
 
 ## Xem ENC local
 
+### Import từ giao diện
+
+Nút **Dữ liệu / Import ENC** mở dialog quản lý giống luồng OSM: danh sách đã xử
+lý, chọn ZIP, tên lần nhập, tiến độ upload và tác vụ gần đây. File được kiểm tra
+trước upload: ZIP thường không mật khẩu, tối đa 100 MiB, tối đa 2 GiB giải nén,
+có `.000`, không trùng cell/đường dẫn và update phải liên tiếp, cùng thư mục base.
+Client kiểm tra thư mục ZIP; API kiểm tra lại cấu trúc và header ISO 8211; worker
+GDAL kiểm tra nội dung S-57 trước công bố. Kết quả kiểm tra ZIP không đồng nghĩa
+với việc hải đồ đã được công bố. Tên lần nhập kiểm tra trùng ở cả client và API.
+
+Upload có phần trăm và có thể hủy. Tác vụ worker hiển thị trạng thái riêng, không
+giả lập phần trăm import. Có thể xem lần nhập trên bản đồ hoặc xóa lần nhập lỗi.
+
+### Region và mức chi tiết
+
+`GET /api/enc/regions?dataset=<uuid tùy chọn>` trả vùng phủ và điểm đặt nhãn
+của chính các cell local đang được xem. Tên vùng lấy từ mô tả `CATALOG.031`,
+ví dụ `Lake Michigan - Manitowoc, WI`; thiếu mô tả thì dùng mã cell.
+Metadata gồm file ZIP nguồn, mã cell, producer, edition/update và tỷ lệ biên tập.
+Đường biên dùng `M_COVR` trừ vùng không có dữ liệu, dự phòng bằng bounds.
+Không dùng 9 vùng định sẵn của OpenENC. Migration `08-enc-regions.sql` gỡ các
+định nghĩa tham khảo đã cài trước đó; endpoint được suy ra từ kho ENC local.
+
+Zoom dưới 9 hiển thị vùng phủ; nhãn tên vùng và mã cell hiện tới zoom 12,
+có tránh chồng nhãn. Bấm vùng hoặc nhãn để xem metadata và phạm vi hải đồ.
+Khung cell vẫn hiển thị khi zoom gần.
+Từ zoom 9, ký hiệu phao/đèn, nhãn và SOUNDG được phép hiển thị. Viewer xem trước
+đối tượng điểm sớm hơn SCAMIN; với các lớp khác, SCAMIN được nới hệ số 4 và điều
+kiện tỷ lệ cell dùng hệ số 32. Đây là quy tắc xem trước, không thay đổi dữ liệu nguồn.
+Đến trước zoom 16, SOUNDG lấy một giá trị nông nhất mỗi ô lưới màn hình (64 px
+ở zoom 9–11, 40 px ở zoom 12–13, 24 px ở zoom 14–15). Từ zoom 16 không lọc lưới;
+MapLibre vẫn tránh chồng nhãn. Có nhãn đường đồng sâu và điểm nhỏ đại diện phao/đèn
+ngay cả khi icon bị tránh chồng. Khung cell mờ dần tới zoom 14.
+Thanh điều khiển có thể thu gọn, mặc định thu gọn trên màn hình nhỏ.
+Tỷ lệ màn hình dùng thế giới 512 pixel ở zoom 0 và vĩ độ tâm tile trong phép
+chiếu Web Mercator. Đây là profile viewer, chưa tương đương toàn bộ symbology Njord.
+
+ENC mặc định mở **Tất cả hải đồ đã công bố**, ghép cell từ nhiều lần upload.
+Chọn lần nhập chỉ là bộ lọc kiểm tra và quản lý; upload mới bổ sung vào danh mục
+chung khi worker hoàn tất. Xem mô hình phiên bản, quy tắc trùng/xung đột và hướng
+dẫn nâng cấp trong [CATALOG.md](CATALOG.md).
+
 ### World baselayer
 
 Nền ENC local dùng vector MBTiles tại
@@ -107,7 +149,8 @@ gốc kể cả Z; `enc.spatial_record` giữ primitive và linkage nguồn. Ch�
 contract biên tập topology hay đảm bảo xuất ngược ENC từ các bảng này.
 
 Style local là profile giới hạn theo màu Njord: vùng nước theo ngưỡng 3/6/9 m,
-đất, đường bờ, đường đẳng sâu, vùng hạn chế, sounding, một số phao/đèn và nhãn.
+đất, đường bờ, đường đẳng sâu, vùng hạn chế, sounding, phao/đèn và nhãn.
+Registry sprite và phạm vi mapping được mô tả trong [SPRITES.md](SPRITES.md).
 Đây chưa phải toàn bộ conditional symbology S-52. Các ngưỡng hiện cố định cho
 viewer; settings theo người dùng và safety contour sẽ được thêm riêng.
 

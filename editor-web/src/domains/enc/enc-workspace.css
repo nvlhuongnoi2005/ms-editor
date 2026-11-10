@@ -1,0 +1,46 @@
+@font-face{font-family:EncPlex;src:url('./assets/plex-sans.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:EncPlex;src:url('./assets/plex-sans-semibold.woff2') format('woff2');font-weight:600 900;font-display:swap}
+.enc-workspace{--enc-paper:#f5f2e9;--enc-surface:#fcfbf7;--enc-ink:#252c2b;--enc-muted:#626a63;--enc-rule:#d4d3c8;--enc-red:#8b2235;color:var(--enc-ink);font-family:EncPlex,sans-serif!important}
+.enc-workspace ::selection{background:#ead3d6;color:#501625}
+.enc-workspace :focus-visible{outline:2px solid var(--enc-red);outline-offset:3px}
+.enc-workspace .MuiTypography-root,.enc-workspace .MuiButton-root,.enc-workspace .MuiInputBase-root,.enc-workspace .MuiFormLabel-root{font-family:inherit}
+.enc-workspace .MuiButton-root{border-radius:3px;font-weight:600}
+.enc-workspace .MuiOutlinedInput-root{background:var(--enc-surface);border-radius:3px;caret-color:var(--enc-red);font-size:13px}
+.enc-workspace .MuiOutlinedInput-notchedOutline{border-color:var(--enc-rule)}
+.enc-workspace .MuiInputLabel-root{color:var(--enc-muted);font-size:13px}
+.enc-workspace .MuiToggleButton-root{border-color:var(--enc-rule);border-radius:3px;color:var(--enc-muted);font-family:inherit}
+.enc-workspace .MuiToggleButton-root.Mui-selected{background:#e8dfd8;color:var(--enc-red)}
+.enc-workspace .MuiToggleButton-root.Mui-selected:hover{background:#e2d5cf}
+.enc-masthead{background:var(--enc-paper)!important;color:var(--enc-ink)!important;border-bottom:1px solid var(--enc-rule);gap:14px!important}
+.enc-mark{display:flex;align-items:center;justify-content:center;width:42px;height:34px;background:var(--enc-red);color:#fff;font-size:13px;font-weight:600;letter-spacing:.06em;flex-shrink:0}
+.enc-masthead .MuiButton-root{color:var(--enc-red)}
+.enc-sidebar{top:0!important;left:0!important;bottom:0!important;width:320px!important;max-height:100%!important;padding:20px!important;background:var(--enc-paper)!important;border-radius:0!important;border-right:1px solid var(--enc-rule);box-shadow:none!important;scrollbar-width:thin;scrollbar-color:#a6aaa0 var(--enc-paper)}
+.enc-chart-title{font-size:24px!important;line-height:1.18!important;font-weight:600!important;letter-spacing:-.025em;overflow-wrap:anywhere}
+.enc-chart-id{font-size:11px!important;color:var(--enc-muted);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.enc-tabs{display:flex;border-bottom:1px solid var(--enc-rule);margin-bottom:8px}
+.enc-tabs .MuiButton-root{flex:1;min-height:40px;color:var(--enc-muted);border-radius:0;border-bottom:2px solid transparent}
+.enc-tabs .MuiButton-root[aria-selected=true],.enc-tabs .MuiButton-root[aria-current=page]{color:var(--enc-red);border-bottom-color:var(--enc-red);background:#eee4dd}
+.enc-collapsed{border-radius:3px!important;background:var(--enc-paper)!important;border-color:var(--enc-rule)!important}
+.enc-properties{position:absolute;z-index:2;top:16px;right:56px;width:min(348px,calc(100% - 400px));max-height:calc(100% - 32px);display:flex;flex-direction:column;background:var(--enc-paper)!important;color:var(--enc-ink)!important;border:1px solid var(--enc-rule);border-radius:3px!important;overflow:hidden}
+.enc-properties-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 12px 16px 20px;border-bottom:1px solid var(--enc-rule);flex-shrink:0}
+.enc-properties-header h2{font-size:14px;font-weight:600;color:var(--enc-muted)}
+.enc-properties-header .enc-properties-name{font-size:23px;font-weight:600;line-height:1.25;margin-top:6px;overflow-wrap:anywhere}
+.enc-properties-header .enc-properties-cell{font-size:12px;margin-top:6px;color:var(--enc-muted)}
+.enc-properties-header .MuiIconButton-root{width:44px;height:44px;color:var(--enc-ink);flex-shrink:0}
+.enc-properties-body{padding:4px 20px 20px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#a6aaa0 var(--enc-paper)}
+.enc-properties-list{margin:0 0 12px;font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums}
+.enc-properties-row{display:grid;grid-template-columns:minmax(0,104px) minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px solid var(--enc-rule)}
+.enc-properties-row dt{color:var(--enc-muted);overflow-wrap:anywhere}
+.enc-properties-row dd{margin:0;overflow-wrap:anywhere;user-select:text}
+.enc-properties-body .enc-properties-note{font-size:12px;line-height:1.5;color:var(--enc-muted);margin-bottom:16px}
+@media(min-width:701px) and (max-width:1050px){.enc-properties{width:300px;right:56px}.enc-properties-header{padding-left:16px}.enc-properties-body{padding-left:16px;padding-right:16px}}
+@media(max-width:700px){.enc-properties{top:auto;right:0;bottom:0;width:100%;max-height:46%;border-radius:0!important;border-width:1px 0 0}.enc-properties-header{padding:12px 12px 12px 16px}.enc-properties-header .enc-properties-name{font-size:20px;margin-top:2px}.enc-properties-body{padding:0 16px max(16px,env(safe-area-inset-bottom))}.enc-properties-row{grid-template-columns:minmax(0,110px) minmax(0,1fr)}}
+.enc-footline{display:flex;align-items:center;gap:22px;padding:0 18px;background:var(--enc-paper);border-top:1px solid var(--enc-rule);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.enc-footline .enc-position{font-weight:600;letter-spacing:.025em}
+.enc-footline .enc-foot-status{margin-left:auto;color:var(--enc-muted)}
+.enc-workspace .maplibregl-ctrl-group{border:1px solid var(--enc-rule);border-radius:3px;background:var(--enc-surface);box-shadow:none}
+.enc-workspace .maplibregl-ctrl-group button{width:34px;height:34px}
+.enc-workspace .maplibregl-ctrl-scale{background:var(--enc-paper);border-color:var(--enc-muted);font-family:EncPlex,sans-serif}
+.enc-workspace .maplibregl-ctrl-attrib{background:var(--enc-surface);font-size:10px;border-radius:0}
+@media(max-width:700px){.enc-sidebar{width:min(340px,calc(100% - 56px))!important;padding:16px!important}.enc-masthead{gap:10px!important;padding-left:12px!important;padding-right:8px!important}.enc-masthead .MuiButton-root{font-size:11px}.enc-footline{padding:0 10px;gap:12px;font-size:10px}.enc-footline .enc-foot-extra{display:none}.enc-chart-title{font-size:22px!important}.enc-tabs .MuiButton-root{min-height:44px}.enc-workspace .maplibregl-ctrl-group button{width:40px;height:40px}}
+@media(prefers-reduced-motion:reduce){.enc-workspace *{transition:none!important;animation:none!important}}

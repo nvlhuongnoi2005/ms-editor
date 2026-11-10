@@ -52,6 +52,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = h.deleteDataset(ctx, w, r)
 	case r.URL.Path == "/api/enc/cells" && r.Method == http.MethodGet:
 		err = h.cells(ctx, w, r)
+	case r.URL.Path == "/api/enc/regions" && r.Method == http.MethodGet:
+		err = h.regions(ctx, w, r)
 	case r.URL.Path == "/api/enc/imports" && r.Method == http.MethodPost:
 		err = h.upload(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/enc/tiles/") && r.Method == http.MethodGet:
@@ -69,26 +71,31 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 const boundsSQL = `CASE WHEN bounds IS NULL THEN NULL ELSE jsonb_build_array(ST_XMin(bounds),ST_YMin(bounds),ST_XMax(bounds),ST_YMax(bounds)) END`
 
 func (h *Handler) datasets(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	rows, err := h.DB.Query(ctx, `SELECT d.id::text,d.name,d.state,d.feature_count,`+strings.ReplaceAll(boundsSQL, "bounds", "d.bounds")+`,COALESCE(j.state,d.state),j.error FROM enc.dataset d LEFT JOIN enc.import_job j ON j.id=d.id ORDER BY d.created_at DESC LIMIT 100`)
+	rows, err := h.DB.Query(ctx, `SELECT d.id::text,d.name,d.state,d.feature_count,`+strings.ReplaceAll(boundsSQL, "bounds", "d.bounds")+`,COALESCE(j.state,d.state),j.error,COALESCE((SELECT jsonb_object_agg(s.outcome,s.n) FROM (SELECT i.outcome,count(*) AS n FROM enc.import_item i WHERE i.batch_id=d.id GROUP BY i.outcome) s),'{}'::jsonb),d.source_filename,d.created_at FROM enc.dataset d LEFT JOIN enc.import_job j ON j.id=d.id WHERE d.deleted_at IS NULL ORDER BY d.created_at DESC LIMIT 100`)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	items := []any{}
 	for rows.Next() {
-		var id, name, state, jobState string
+		var id, name, state, jobState, filename string
+		var createdAt time.Time
 		var count int64
-		var bounds json.RawMessage
+		var bounds, outcomes json.RawMessage
 		var message *string
-		if err := rows.Scan(&id, &name, &state, &count, &bounds, &jobState, &message); err != nil {
+		if err := rows.Scan(&id, &name, &state, &count, &bounds, &jobState, &message, &outcomes, &filename, &createdAt); err != nil {
 			return err
 		}
-		items = append(items, map[string]any{"id": id, "name": name, "state": state, "featureCount": count, "bounds": bounds, "jobState": jobState, "error": message})
+		items = append(items, map[string]any{"id": id, "name": name, "state": state, "featureCount": count, "bounds": bounds, "jobState": jobState, "error": message, "outcomes": outcomes, "sourceFilename": filename, "createdAt": createdAt})
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	respond(w, 200, map[string]any{"datasets": items})
+	var revision int64
+	if err := h.DB.QueryRow(ctx, `SELECT revision FROM enc.catalog_state`).Scan(&revision); err != nil {
+		return err
+	}
+	respond(w, 200, map[string]any{"datasets": items, "catalogRevision": revision})
 	return nil
 }
 
@@ -107,8 +114,11 @@ func (h *Handler) deleteDataset(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(713480192)`); err != nil {
+		return err
+	}
 	var state string
-	err = tx.QueryRow(ctx, `SELECT state FROM enc.dataset WHERE id=$1 FOR UPDATE`, id).Scan(&state)
+	err = tx.QueryRow(ctx, `SELECT state FROM enc.dataset WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id).Scan(&state)
 	if errors.Is(err, pgx.ErrNoRows) {
 		respond(w, 404, map[string]string{"error": "ENC dataset was not found."})
 		return nil
@@ -120,8 +130,23 @@ func (h *Handler) deleteDataset(ctx context.Context, w http.ResponseWriter, r *h
 		respond(w, 409, map[string]string{"error": "Dataset is being imported. Wait for the worker to finish before deleting it."})
 		return nil
 	}
-	// Foreign keys cascade to cells, features, spatial records and the import job.
-	if _, err = tx.Exec(ctx, `DELETE FROM enc.dataset WHERE id=$1`, id); err != nil {
+	// Remove this batch's provenance. Shared revisions remain available through other batches.
+	if _, err = tx.Exec(ctx, `UPDATE enc.dataset SET deleted_at=now() WHERE id=$1`, id); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM enc.import_item WHERE batch_id=$1`, id); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `SELECT enc.refresh_active_catalog()`); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM enc.cell_revision r WHERE NOT EXISTS(SELECT 1 FROM enc.import_item i WHERE i.revision_id=r.id)`); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM enc.cell c USING enc.dataset d WHERE c.dataset_id=d.id AND d.deleted_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM enc.cell_revision r WHERE r.storage_dataset_id=c.dataset_id AND r.cell_name=c.name)`); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM enc.dataset d WHERE d.deleted_at IS NOT NULL AND NOT EXISTS(SELECT 1 FROM enc.cell_revision r WHERE r.storage_dataset_id=d.id)`); err != nil {
 		return err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -140,13 +165,13 @@ func (h *Handler) deleteDataset(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func (h *Handler) cells(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	if !identifier.MatchString(r.URL.Query().Get("dataset")) {
+	if value := r.URL.Query().Get("dataset"); value != "" && !datasetUUID.MatchString(value) {
 		respond(w, 400, map[string]string{"error": "A valid ENC dataset is required."})
 		return nil
 	}
-	rows, err := h.DB.Query(ctx, `SELECT c.name,c.edition,c.update_number,`+strings.ReplaceAll(boundsSQL, "bounds", "c.bounds")+`,
+	rows, err := h.DB.Query(ctx, `SELECT c.name,r.edition,r.update_number,r.description,r.id::text,r.producer,`+strings.ReplaceAll(boundsSQL, "bounds", "c.bounds")+`,
  CASE WHEN water.point IS NULL THEN NULL ELSE jsonb_build_array(ST_X(water.point),ST_Y(water.point)) END
- FROM enc.cell c JOIN enc.dataset d ON d.id=c.dataset_id
+ FROM enc.cell_revision r JOIN enc.cell c ON c.dataset_id=r.storage_dataset_id AND c.name=r.cell_name
  LEFT JOIN LATERAL (
   SELECT ST_PointOnSurface(ST_MakeValid(f.geometry)) AS point FROM enc.feature f
   WHERE f.dataset_id=c.dataset_id AND f.cell_name=c.name
@@ -154,22 +179,23 @@ func (h *Handler) cells(ctx context.Context, w http.ResponseWriter, r *http.Requ
   AND ST_Dimension(f.geometry)=2
   ORDER BY ST_Area(f.geometry) DESC,f.object_class,f.source_id LIMIT 1
  ) water ON true
- WHERE d.id::text=$1 AND d.state='ready' ORDER BY c.name`, r.URL.Query().Get("dataset"))
+ WHERE (($1='' AND EXISTS(SELECT 1 FROM enc.active_cell a WHERE a.revision_id=r.id))
+ OR ($1<>'' AND EXISTS(SELECT 1 FROM enc.import_item i JOIN enc.dataset d ON d.id=i.batch_id WHERE i.revision_id=r.id AND d.id::text=$1 AND d.state='ready' AND d.deleted_at IS NULL))) ORDER BY c.name,r.producer`, r.URL.Query().Get("dataset"))
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	items := []any{}
 	for rows.Next() {
-		var name string
+		var name, description, revisionID, producer string
 		var edition *int
 		var update int
 		var bounds json.RawMessage
 		var focus json.RawMessage
-		if err := rows.Scan(&name, &edition, &update, &bounds, &focus); err != nil {
+		if err := rows.Scan(&name, &edition, &update, &description, &revisionID, &producer, &bounds, &focus); err != nil {
 			return err
 		}
-		items = append(items, map[string]any{"name": name, "edition": edition, "updateNumber": update, "bounds": bounds, "focus": focus})
+		items = append(items, map[string]any{"name": name, "edition": edition, "updateNumber": update, "bounds": bounds, "focus": focus, "description": description, "revisionId": revisionID, "producer": producer})
 	}
 	if err := rows.Err(); err != nil {
 		return err
@@ -181,11 +207,28 @@ func (h *Handler) cells(ctx context.Context, w http.ResponseWriter, r *http.Requ
 //go:embed tile.sql
 var tileSQL string
 
+//go:embed regions.sql
+var regionsSQL string
+
+func (h *Handler) regions(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	dataset := r.URL.Query().Get("dataset")
+	if dataset != "" && !datasetUUID.MatchString(dataset) {
+		respond(w, 400, map[string]string{"error": "Invalid ENC import filter."})
+		return nil
+	}
+	var collection json.RawMessage
+	if err := h.DB.QueryRow(ctx, regionsSQL, dataset).Scan(&collection); err != nil {
+		return err
+	}
+	respond(w, 200, collection)
+	return nil
+}
+
 func (h *Handler) tile(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	dataset := r.URL.Query().Get("dataset")
 	cell := r.URL.Query().Get("cell")
 	parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/enc/tiles/"), ".pbf"), "/")
-	if len(parts) != 3 || !identifier.MatchString(dataset) || cell != "" && !identifier.MatchString(cell) {
+	if len(parts) != 3 || (dataset != "" && !datasetUUID.MatchString(dataset)) || cell != "" && !identifier.MatchString(cell) {
 		respond(w, 400, map[string]string{"error": "Invalid ENC tile path or dataset."})
 		return nil
 	}
@@ -196,9 +239,11 @@ func (h *Handler) tile(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		respond(w, 400, map[string]string{"error": "ENC tile coordinates are outside the zoom range."})
 		return nil
 	}
-	var ready bool
-	if err := h.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM enc.dataset WHERE id::text=$1 AND state='ready')`, dataset).Scan(&ready); err != nil {
-		return err
+	ready := dataset == ""
+	if dataset != "" {
+		if err := h.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM enc.dataset WHERE id::text=$1 AND state='ready' AND deleted_at IS NULL)`, dataset).Scan(&ready); err != nil {
+			return err
+		}
 	}
 	if !ready {
 		respond(w, 404, map[string]string{"error": "ENC dataset is not ready."})
@@ -210,7 +255,7 @@ func (h *Handler) tile(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return err
 	}
 	w.Header().Set("Content-Type", "application/vnd.mapbox-vector-tile")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", "no-store")
 	_, err = w.Write(body)
 	return err
 }
@@ -264,6 +309,10 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) error {
 	archive, err := zip.NewReader(file, n)
 	if err != nil || len(archive.File) > 100000 {
 		respond(w, 400, map[string]string{"error": "Invalid ENC ZIP archive."})
+		return nil
+	}
+	if err := validateArchiveDirectory(archive.File); err != nil {
+		respond(w, 400, map[string]string{"error": err.Error()})
 		return nil
 	}
 	baseCount := 0

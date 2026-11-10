@@ -1,54 +1,123 @@
--- Compilation scales and SCAMIN use a zoom-based display denominator.
+-- Cell selection uses a fixed zoom denominator so neighboring tiles select
+-- the same cells at their shared boundary. SCAMIN retains local ground scale.
 -- This is a viewer selection profile, not a complete S-52 portrayal engine.
 WITH tile AS (
- SELECT ST_TileEnvelope($1,$2,$3) AS box, 559082264.028 / power(2.0,$1) AS scale
+ SELECT ST_TileEnvelope($1,$2,$3) AS box,
+ 279541132.014 / power(2.0,$1) AS selection_scale,
+ 279541132.014 * cos(atan(sinh(pi() * (1 - 2 * (($3 + 0.5) / power(2.0,$1)))))) / power(2.0,$1) AS scale
 ), viewport AS (
  SELECT *, ST_Transform(ST_Expand(box,(ST_XMax(box)-ST_XMin(box))*128/4096),4326) AS area FROM tile
 ), candidates AS MATERIALIZED (
- SELECT c.*, CASE WHEN c.metadata->>'DSPM_CSCL' ~ '^[0-9]+$'
-   THEN NULLIF((c.metadata->>'DSPM_CSCL')::double precision,0) END AS compilation_scale
- FROM enc.cell c JOIN enc.dataset d ON d.id=c.dataset_id CROSS JOIN viewport v
- WHERE d.id::text=$4 AND d.state='ready' AND ($5='' OR c.name=$5) AND c.bounds && v.area
+ SELECT c.*, r.id AS revision_id, r.producer, CASE WHEN c.metadata->>'DSPM_CSCL' ~ '^[0-9]+$'
+   THEN NULLIF((c.metadata->>'DSPM_CSCL')::double precision,0) END AS compilation_scale,
+ CASE WHEN c.metadata->>'DSID_INTU' ~ '^[1-6]$'
+   THEN (c.metadata->>'DSID_INTU')::integer END AS intended_usage,
+ r.edition AS revision_edition,r.update_number AS revision_update
+ FROM enc.cell_revision r JOIN enc.cell c ON c.dataset_id=r.storage_dataset_id AND c.name=r.cell_name CROSS JOIN viewport v
+ WHERE (($4='' AND EXISTS(SELECT 1 FROM enc.active_cell a WHERE a.revision_id=r.id))
+ OR ($4<>'' AND EXISTS(SELECT 1 FROM enc.import_item i JOIN enc.dataset d ON d.id=i.batch_id WHERE i.revision_id=r.id AND d.id::text=$4 AND d.state='ready' AND d.deleted_at IS NULL)))
+ AND ($5='' OR c.name=$5) AND c.bounds && v.area
 ), coverage AS MATERIALIZED (
- SELECT c.dataset_id,c.name,c.compilation_scale,
- ST_Intersection(v.area,COALESCE(
-   ST_Difference(m.covered,COALESCE(m.excluded,ST_GeomFromText('POLYGON EMPTY',4326))),c.bounds)) AS area
+ SELECT c.dataset_id,c.name,c.revision_id,c.producer,c.compilation_scale,c.intended_usage,
+ c.revision_edition,c.revision_update,
+ -- Allow a twofold reduction of compilation scale before preferring a coarser
+ -- chart. Keep other cells as fallback for uncovered areas; never drop them.
+ CASE WHEN $5<>'' OR c.compilation_scale >= v.selection_scale/2 THEN 0
+      WHEN c.compilation_scale IS NOT NULL THEN 1 ELSE 2 END AS selection_priority,
+ ST_CollectionExtract(ST_Intersection(v.area,
+   ST_Difference(COALESCE(m.covered,c.bounds),
+     COALESCE(m.excluded,ST_GeomFromText('POLYGON EMPTY',4326)))),3) AS area
  FROM candidates c CROSS JOIN viewport v
  LEFT JOIN LATERAL (
   SELECT ST_UnaryUnion(ST_Collect(ST_CollectionExtract(ST_MakeValid(f.geometry),3)) FILTER (WHERE f.attributes->>'CATCOV'='1')) AS covered,
          ST_UnaryUnion(ST_Collect(ST_CollectionExtract(ST_MakeValid(f.geometry),3)) FILTER (WHERE f.attributes->>'CATCOV'='2')) AS excluded
   FROM enc.feature f WHERE f.dataset_id=c.dataset_id AND f.cell_name=c.name AND f.object_class='M_COVR'
  ) m ON true
- WHERE $1<9 OR $5<>'' OR c.compilation_scale IS NULL OR c.compilation_scale >= v.scale/8
 ), ranked AS (
- SELECT *, ST_Union(area) OVER (ORDER BY compilation_scale ASC NULLS LAST,name
+ -- Suitable cells: finest first. If all cells are too detailed, use the
+ -- coarsest available first, and let finer cells fill remaining holes only.
+ -- INTU breaks equal-scale ties; edition/update resolves batch revision ties.
+ SELECT *, ST_Union(area) OVER (ORDER BY selection_priority,
+  CASE WHEN selection_priority=0 THEN compilation_scale END ASC NULLS LAST,
+  CASE WHEN selection_priority=1 THEN compilation_scale END DESC NULLS LAST,
+  intended_usage DESC NULLS LAST,producer,name,revision_edition DESC,revision_update DESC,revision_id
   ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS previous FROM coverage
 ), masks AS MATERIALIZED (
  SELECT *, CASE WHEN previous IS NULL THEN area ELSE ST_Difference(area,previous) END AS visible FROM ranked
-), features AS (
- SELECT f.cell_name||':'||f.object_class||':'||f.source_id AS feature_id,
- f.cell_name,f.object_class,f.attributes,
+), display_profile AS (
+ SELECT *, CASE WHEN $1<11 THEN 64 WHEN $1<14 THEN 32 ELSE 16 END AS sounding_spacing
+ FROM viewport
+), raw_features AS (
+ SELECT m.revision_id::text||':'||f.cell_name||':'||f.object_class||':'||f.source_id AS feature_id,
+ f.cell_name,f.object_class,
+ f.attributes || COALESCE(normalized.properties,'{}'::jsonb) ||
+ CASE WHEN f.object_class='TOPMAR' THEN jsonb_build_object('topmark_floating',EXISTS(
+   SELECT 1 FROM enc.feature platform WHERE platform.dataset_id=f.dataset_id AND platform.cell_name=f.cell_name
+   AND platform.object_class IN ('BOYLAT','BOYCAR','BOYISD','BOYSAW','BOYSPP','BOYINB','LITFLT','LITVES')
+   AND platform.geometry && f.geometry AND ST_Equals(platform.geometry,f.geometry)
+ )) ELSE '{}'::jsonb END AS attributes,
+ m.revision_id::text AS revision_id,m.producer,
+ m.compilation_scale,m.intended_usage,
+ CASE m.selection_priority WHEN 0 THEN 'scale_match' WHEN 1 THEN 'coverage_fallback' ELSE 'unknown_scale' END AS cell_selection,
+ -- Power-of-two spacing aligns the world grid with tile boundaries.
+ CASE WHEN f.object_class='SOUNDG' AND $1<17 THEN floor(ST_X(ST_Transform(f.geometry,3857))/((ST_XMax(v.box)-ST_XMin(v.box))/512 * v.sounding_spacing)) END AS density_x,
+ CASE WHEN f.object_class='SOUNDG' AND $1<17 THEN floor(ST_Y(ST_Transform(f.geometry,3857))/((ST_XMax(v.box)-ST_XMin(v.box))/512 * v.sounding_spacing)) END AS density_y,
  COALESCE(f.attributes->'COLOUR'->>0,f.attributes->>'COLOUR','') AS colour_code,
+ -- Anchor from the original feature, never a per-tile clipped fragment.
+ -- Coverage ownership then decides which cell may emit the anchor.
+ CASE WHEN ST_Dimension(f.geometry)>0 AND ST_CoveredBy(ST_PointOnSurface(f.geometry),m.visible)
+ THEN ST_AsMVTGeom(ST_Transform(ST_PointOnSurface(f.geometry),3857),v.box,4096,128,true) END AS symbol_geom,
  ST_AsMVTGeom(ST_Transform(ST_CollectionExtract(
    CASE WHEN ST_CoveredBy(f.geometry,m.visible) THEN f.geometry
         ELSE ST_Intersection(ST_MakeValid(f.geometry),m.visible) END,
    ST_Dimension(f.geometry)+1),3857),v.box,4096,128,true) AS geom
- FROM masks m JOIN enc.feature f ON f.dataset_id=m.dataset_id AND f.cell_name=m.name CROSS JOIN viewport v
+ FROM masks m JOIN enc.feature f ON f.dataset_id=m.dataset_id AND f.cell_name=m.name CROSS JOIN display_profile v
+ LEFT JOIN LATERAL (
+   SELECT jsonb_object_agg('sym_'||key,CASE WHEN jsonb_typeof(value)='array' THEN value->0 ELSE value END)
+     || jsonb_object_agg('list_'||key,'|'||CASE WHEN jsonb_typeof(value)='array'
+       THEN (SELECT string_agg(item,'|' ORDER BY ordinal) FROM jsonb_array_elements_text(value) WITH ORDINALITY AS a(item,ordinal))
+       ELSE trim(both '"' from value::text) END||'|') AS properties
+   FROM jsonb_each(f.attributes)
+   WHERE key IN ('COLOUR','CATCAM','CATLAM','CATSPM','BOYSHP','BCNSHP','CONVIS','CATLMK','FUNCTN',
+     'TOPSHP','CATWRK','WATLEV','CATOBS','CATSIL','CATMOR','CATFIF','CATGAT','CATROS','CATTRK',
+     'TRAFIC','RESTRN','CATVEG','QUASOU','QUAPOS','NATSUR','CATREA','CATPRA','CATLND','CONRAD')
+ ) normalized ON true
  WHERE $1>=9 AND NOT ST_IsEmpty(m.visible) AND f.geometry && m.visible
  AND f.object_class NOT IN ('IsolatedNode','ConnectedNode','Edge','Face')
  AND f.object_class NOT LIKE 'M\_%' ESCAPE '\'
- AND ($5<>'' OR CASE WHEN f.attributes->>'SCAMIN' ~ '^[0-9]+$'
-       THEN (f.attributes->>'SCAMIN')::double precision IN (0) OR (f.attributes->>'SCAMIN')::double precision >= v.scale
+ -- Missing or malformed depths are not zero-depth soundings. Keep them in the
+ -- canonical store, but omit them from the portrayal and density competition.
+ AND (f.object_class<>'SOUNDG' OR jsonb_typeof(f.attributes->'DEPTH')='number')
+ -- The viewer previews point objects early; screen-space thinning and symbol collision
+ -- keep this readable without changing any source feature or its attributes.
+ -- Keep chart context and important point classes at z9+. Other features
+ -- retain the existing relaxed SCAMIN profile (fourfold preview reduction).
+ AND ($5<>'' OR f.object_class IN ('DEPARE','DRGARE','LNDARE','COALNE','DEPCNT','SOUNDG','LIGHTS','BOYLAT','BOYCAR','BOYISD','BOYSAW','BOYSPP','BOYINB','BCNLAT','BCNCAR','BCNISD','BCNSAW','BCNSPP','LITFLT','LITVES','TOPMAR','DAYMAR','OBSTRN','WRECKS','UWTROC') OR CASE WHEN f.attributes->>'SCAMIN' ~ '^[0-9]+$'
+       THEN (f.attributes->>'SCAMIN')::double precision IN (0) OR (f.attributes->>'SCAMIN')::double precision >= v.scale/4
        ELSE true END)
+), thinned AS (
+ SELECT *,CASE WHEN object_class='SOUNDG' AND density_x IS NOT NULL THEN
+ row_number() OVER (PARTITION BY object_class,density_x,density_y ORDER BY
+ CASE WHEN jsonb_typeof(attributes->'DEPTH')='number' THEN (attributes->>'DEPTH')::double precision ELSE 999999 END,feature_id)
+ ELSE 1 END AS density_rank FROM raw_features WHERE geom IS NOT NULL
+), features AS (
+ SELECT feature_id,cell_name,object_class,attributes,revision_id,producer,
+ compilation_scale,intended_usage,cell_selection,colour_code,geom
+ FROM thinned WHERE density_rank=1
+), symbol_features AS (
+ SELECT feature_id,cell_name,object_class,attributes,revision_id,producer,
+ compilation_scale,intended_usage,cell_selection,colour_code,symbol_geom AS geom
+ FROM thinned WHERE density_rank=1 AND symbol_geom IS NOT NULL
 ), overview AS (
  SELECT c.name AS cell_name,
  ST_AsMVTGeom(ST_Transform(c.bounds,3857),v.box,4096,128,true) AS geom
- FROM candidates c CROSS JOIN viewport v WHERE $1<9
+ FROM candidates c CROSS JOIN viewport v
 ), overview_areas AS (
  SELECT c.name AS cell_name,
  ST_AsMVTGeom(ST_Transform(c.area,3857),v.box,4096,128,true) AS geom
  FROM coverage c CROSS JOIN viewport v WHERE $1<9
 )
 SELECT (SELECT COALESCE(ST_AsMVT(features,'enc',4096,'geom'),''::bytea) FROM features)
+ || (SELECT COALESCE(ST_AsMVT(symbol_features,'enc_symbols',4096,'geom'),''::bytea) FROM symbol_features)
  || (SELECT COALESCE(ST_AsMVT(overview,'coverage',4096,'geom'),''::bytea) FROM overview)
  || (SELECT COALESCE(ST_AsMVT(overview_areas,'coverage_areas',4096,'geom'),''::bytea) FROM overview_areas)

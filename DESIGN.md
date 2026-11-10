@@ -14,6 +14,11 @@ colors:
   status-danger: "#b4233c"
   status-success: "#15803d"
 typography:
+  enc-workspace:
+    fontFamily: "EncPlex, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.5
   title:
     fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
     fontSize: "18px"
@@ -68,6 +73,13 @@ components:
 ---
 
 # Design System: GEODATA WEBGIS
+
+## ENC: Lề atlas
+
+ENC dùng hệ thống riêng được mô tả tại [ENC/DESIGN.md](ENC/DESIGN.md):
+IBM Plex Sans self-hosted (`EncPlex`), lề giấy ngà `#f5f2e9`, nét mảnh và đỏ
+`#8b2235`. Header, danh mục và thanh tọa độ tạo nhận diện; bản đồ là nội dung
+chính. Phạm vi này không thay theme Inter và bố cục OSM hiện có.
 
 ## Overview
 

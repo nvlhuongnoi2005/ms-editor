@@ -24,6 +24,7 @@ import zipfile
 
 import psycopg
 from osgeo import gdal
+from catalog import catalog_descriptions
 
 gdal.UseExceptions()
 LOG = logging.getLogger("enc-importer")
@@ -103,7 +104,16 @@ def extract_archive(source: Path, destination: Path) -> list[Path]:
     return bases
 
 
-def insert_cell(conn, dataset_id: uuid.UUID, base: Path) -> int:
+def cell_checksum(base: Path) -> str:
+    checksum = hashlib.sha256()
+    for path in sorted(base.parent.iterdir()):
+        if path.stem.upper() == base.stem.upper() and re.fullmatch(r"\.\d{3}", path.suffix):
+            checksum.update(path.suffix.encode('ascii'))
+            checksum.update(bytes.fromhex(digest(path)))
+    return checksum.hexdigest()
+
+
+def insert_cell(conn, dataset_id: uuid.UUID, base: Path, description: str = '') -> int:
     options = ["UPDATES=APPLY", "SPLIT_MULTIPOINT=ON", "ADD_SOUNDG_DEPTH=ON",
                "RETURN_PRIMITIVES=ON", "RETURN_LINKAGES=ON", "LNAM_REFS=ON"]
     dataset = gdal.OpenEx(str(base), gdal.OF_VECTOR, open_options=options)
@@ -116,13 +126,30 @@ def insert_cell(conn, dataset_id: uuid.UUID, base: Path) -> int:
         identification = dsid.GetNextFeature()
         if identification is not None:
             metadata.update(field_values(identification))
-    edition = metadata.get("DSID_EDTN")
+    # Applied updates can overwrite EDTN with 0; keep the edition from the base.
+    original = gdal.OpenEx(str(base), gdal.OF_VECTOR, open_options=["UPDATES=IGNORE"])
+    base_dsid = original.GetLayerByName("DSID") if original else None
+    base_feature = base_dsid.GetNextFeature() if base_dsid else None
+    base_metadata = field_values(base_feature) if base_feature else {}
+    edition = int(base_metadata.get("DSID_EDTN") or metadata.get("DSID_EDTN") or 0)
+    original = None
+    producer = str(base_metadata.get('DSID_AGEN') or metadata.get('DSID_AGEN') or 'unknown')
+    checksum = cell_checksum(base)
+    metadata.update(description=description, baseEdition=edition, contentSha256=checksum)
     applied = int(metadata.get("DSID_UPDN") or 0)
     if applied != metadata["appliedUpdate"]:
         raise ValueError(f"GDAL applied update {applied} for {cell_name}; archive requires {metadata['appliedUpdate']}")
+    existing = conn.execute("SELECT id,storage_dataset_id,publication_state FROM enc.cell_revision WHERE producer=%s AND cell_name=%s AND content_sha256=%s ORDER BY created_at,id LIMIT 1", (producer,cell_name,checksum)).fetchone()
+    if existing:
+        conn.execute("INSERT INTO enc.import_item(batch_id,cell_name,revision_id,outcome) VALUES(%s,%s,%s,%s)", (dataset_id,cell_name,existing[0],'conflict' if existing[2]=='conflict' else 'duplicate'))
+        if description:
+            conn.execute("UPDATE enc.cell_revision SET description=%s WHERE id=%s AND description=''", (description,existing[0]))
+        count = conn.execute("SELECT count(*) FROM enc.feature WHERE dataset_id=%s AND cell_name=%s", (existing[1],cell_name)).fetchone()[0]
+        LOG.info('Cell %s: duplicate; reused revision %s',cell_name,existing[0])
+        return count
     conn.execute(
         "INSERT INTO enc.cell(dataset_id,name,edition,update_number,metadata) VALUES(%s,%s,%s,%s,%s)",
-        (dataset_id, cell_name, int(edition) if edition else None, metadata["appliedUpdate"], json.dumps(metadata)),
+        (dataset_id, cell_name, edition, metadata["appliedUpdate"], json.dumps(metadata)),
     )
     inserted = 0
     for layer_index in range(dataset.GetLayerCount()):
@@ -155,6 +182,11 @@ def insert_cell(conn, dataset_id: uuid.UUID, base: Path) -> int:
         (dataset_id, cell_name, dataset_id, cell_name),
     )
     LOG.info("Cell %s: %d records, update %s", cell_name, inserted, metadata["appliedUpdate"])
+    conn.execute("INSERT INTO enc.cell_identity(producer,name) VALUES(%s,%s) ON CONFLICT DO NOTHING", (producer,cell_name))
+    conflict = conn.execute("SELECT EXISTS(SELECT 1 FROM enc.cell_revision WHERE producer=%s AND cell_name=%s AND edition=%s AND update_number=%s AND content_sha256 IS NOT NULL AND content_sha256<>%s)", (producer,cell_name,edition,applied,checksum)).fetchone()[0]
+    newer = conn.execute("SELECT EXISTS(SELECT 1 FROM enc.cell_revision WHERE producer=%s AND cell_name=%s AND publication_state='accepted' AND (edition,update_number)>(%s,%s))", (producer,cell_name,edition,applied)).fetchone()[0]
+    revision = conn.execute("INSERT INTO enc.cell_revision(producer,cell_name,storage_dataset_id,edition,update_number,content_sha256,description,publication_state) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id", (producer,cell_name,dataset_id,edition,applied,checksum,description,'conflict' if conflict else 'accepted')).fetchone()[0]
+    conn.execute("INSERT INTO enc.import_item(batch_id,cell_name,revision_id,outcome) VALUES(%s,%s,%s,%s)", (dataset_id,cell_name,revision,'conflict' if conflict else 'older' if newer else 'imported'))
     return inserted
 
 
@@ -192,18 +224,71 @@ def import_zip(source: Path, dataset_name: str, queued_id=None):
                 with conn.transaction():
                     conn.execute("UPDATE enc.import_job SET state='reading' WHERE id=%s", (dataset_id,))
                 with conn.transaction():
-                    total = sum(insert_cell(conn, dataset_id, base) for base in bases)
+                    conn.execute("SELECT pg_advisory_xact_lock(713480192)")
+                    descriptions = {}
+                    for catalog in Path(temporary).rglob('*'):
+                        if catalog.name.upper() == 'CATALOG.031':
+                            descriptions.update(catalog_descriptions(catalog.read_bytes()))
+                    total = sum(insert_cell(conn, dataset_id, base, descriptions.get(base.stem.upper(),'')) for base in bases)
                     conn.execute(
-                        "UPDATE enc.dataset SET feature_count=%s,bounds=(SELECT ST_SetSRID(ST_Extent(geometry)::geometry,4326) FROM enc.feature WHERE dataset_id=%s),state='ready',ready_at=now() WHERE id=%s",
+                        "UPDATE enc.dataset SET feature_count=%s,bounds=(SELECT ST_SetSRID(ST_Extent(c.bounds)::geometry,4326) FROM enc.import_item i JOIN enc.cell_revision r ON r.id=i.revision_id JOIN enc.cell c ON c.dataset_id=r.storage_dataset_id AND c.name=r.cell_name WHERE i.batch_id=%s),state='ready',ready_at=now() WHERE id=%s",
                         (total, dataset_id, dataset_id),
                     )
                     conn.execute("UPDATE enc.import_job SET state='ready',finished_at=now() WHERE id=%s", (dataset_id,))
+                    conn.execute("SELECT enc.refresh_active_catalog()")
         except Exception as error:
             with conn.transaction():
                 conn.execute("UPDATE enc.dataset SET state='failed' WHERE id=%s", (dataset_id,))
                 conn.execute("UPDATE enc.import_job SET state='failed',error=%s,finished_at=now() WHERE id=%s", (str(error)[-2000:], dataset_id))
             raise
     print(json.dumps({"id": str(dataset_id), "dataset": dataset_name, "source": source.name, "sha256": checksum}))
+
+
+def backfill_catalog():
+    """Enrich legacy imports from retained ZIPs without re-reading geometry through GDAL."""
+    with db_connection() as conn:
+        with conn.transaction():
+            conn.execute('SELECT pg_advisory_xact_lock(713480192)')
+            batches = conn.execute("SELECT d.id,j.source_path,d.source_sha256 FROM enc.dataset d JOIN enc.import_job j ON j.id=d.id WHERE d.state='ready' AND d.deleted_at IS NULL ORDER BY d.created_at").fetchall()
+            for batch_id, source_path, expected in batches:
+                source = Path(source_path)
+                if not source.is_absolute():
+                    source = Path(os.environ.get('ENC_IMPORT_DIR','/data/enc/uploads')) / source
+                if not source.is_file():
+                    LOG.warning('Backfill skipped %s: source ZIP unavailable',batch_id)
+                    continue
+                if digest(source) != expected:
+                    raise ValueError(f'Backfill source checksum mismatch: {batch_id}')
+                with zipfile.ZipFile(source) as archive:
+                    descriptions = {}
+                    members = {}
+                    for entry in archive.infolist():
+                        name = PurePosixPath(entry.filename.replace('\\','/'))
+                        if name.name.upper() == 'CATALOG.031':
+                            descriptions.update(catalog_descriptions(archive.read(entry)))
+                        if re.fullmatch(r'\.\d{3}',name.suffix) and name.stem.upper() != 'CATALOG':
+                            members.setdefault(name.stem.upper(),[]).append((name.suffix,entry))
+                    for cell_name, files in members.items():
+                        checksum = hashlib.sha256()
+                        for suffix, entry in sorted(files,key=lambda item:item[0]):
+                            cell_hash = hashlib.sha256()
+                            with archive.open(entry) as stream:
+                                for chunk in iter(lambda:stream.read(1024*1024),b''):
+                                    cell_hash.update(chunk)
+                            checksum.update(suffix.encode('ascii'))
+                            checksum.update(cell_hash.digest())
+                        description = descriptions.get(cell_name,'')
+                        conn.execute("UPDATE enc.cell_revision SET content_sha256=%s,description=CASE WHEN %s<>'' THEN %s ELSE description END WHERE storage_dataset_id=%s AND cell_name=%s",(checksum.hexdigest(),description,description,batch_id,cell_name))
+                        conn.execute("UPDATE enc.cell SET metadata=metadata || jsonb_build_object('description',%s::text,'contentSha256',%s::text) WHERE dataset_id=%s AND name=%s",(description,checksum.hexdigest(),batch_id,cell_name))
+                LOG.info('Enriched legacy batch %s from catalog',batch_id)
+            conn.execute("""WITH canonical AS (
+              SELECT id,first_value(id) OVER (PARTITION BY producer,cell_name,edition,update_number,content_sha256 ORDER BY created_at,id) AS keep_id
+              FROM enc.cell_revision WHERE content_sha256 IS NOT NULL AND publication_state='accepted'
+            ) UPDATE enc.import_item i SET revision_id=c.keep_id,
+              outcome=CASE WHEN c.id<>c.keep_id THEN 'duplicate' ELSE i.outcome END
+              FROM canonical c WHERE i.revision_id=c.id""")
+            conn.execute('SELECT enc.refresh_active_catalog()')
+            conn.execute('DELETE FROM enc.cell_revision r WHERE NOT EXISTS(SELECT 1 FROM enc.import_item i WHERE i.revision_id=r.id)')
 
 
 def watch():
@@ -249,8 +334,12 @@ def main():
     parser.add_argument("--zip", type=Path, dest="source")
     parser.add_argument("--dataset")
     parser.add_argument("--watch", action="store_true")
+    parser.add_argument("--backfill-catalog", action="store_true")
     parser.add_argument("--queued-id", type=uuid.UUID, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.backfill_catalog:
+        backfill_catalog()
+        return
     if args.watch:
         watch()
         return
