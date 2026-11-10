@@ -16,6 +16,26 @@ function translate(coordinate: Coordinate, offset: Coordinate): Coordinate {
   return [coordinate[0] + offset[0], coordinate[1] + offset[1]];
 }
 
+/** Translate the bounding-box centre of a selection to a map coordinate. */
+export function placementOffset(sources: GraphFeature[], target: Coordinate): Coordinate {
+  let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+  for (const source of sources) {
+    const geometry = source.geometry;
+    const coordinates = geometry.type === 'Point' ? [geometry.coordinates]
+      : geometry.type === 'LineString' ? geometry.coordinates : geometry.coordinates.flat();
+    for (const [longitude, latitude] of coordinates) {
+      west = Math.min(west, longitude); east = Math.max(east, longitude);
+      south = Math.min(south, latitude); north = Math.max(north, latitude);
+    }
+  }
+  if (![west, east, south, north, ...target].every(Number.isFinite)) throw new Error('Không thể xác định vị trí đặt đối tượng.');
+  const offset: Coordinate = [target[0] - (west + east) / 2, target[1] - (south + north) / 2];
+  if (west + offset[0] < -180 || east + offset[0] > 180 || south + offset[1] < -90 || north + offset[1] > 90) {
+    throw new Error('Vị trí dán vượt giới hạn tọa độ bản đồ.');
+  }
+  return offset;
+}
+
 function copiedNode(id: string, coordinate: Coordinate, tags: Tags): GraphFeature {
   const node = makeNodeFeature(id, coordinate);
   node.properties = { ...node.properties, name: tags.name || '', tags: { ...tags }, topologyNode: true };
@@ -66,7 +86,9 @@ export function duplicateFeatures(
     if (copies.has(sourceKey)) continue;
     if (source.properties.entityType === 'node') {
       if (source.geometry.type !== 'Point') throw new Error('Node phải có geometry điểm.');
-      copies.set(sourceKey, copyNode(source.properties.entityId, source.geometry.coordinates, source.properties.tags));
+      const node = copyNode(source.properties.entityId, source.geometry.coordinates, source.properties.tags);
+      node.properties.topologyNode = source.properties.topologyNode === true;
+      copies.set(sourceKey, node);
       continue;
     }
     if (source.properties.entityType !== 'way') throw new Error('Chỉ hỗ trợ nhân bản node hoặc way trong nhóm.');

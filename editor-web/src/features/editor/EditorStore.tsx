@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { GraphFeature, SelectedEntity, Tags } from '../../types/osm';
 import { sameEntityContent, type ResolutionPlan } from './conflictResolution';
+import { geometryLayer, lockViolation, protectedGeometry, type EditorLayer } from './geometryLocks';
 
 // Entity keys are created exclusively by entityKey() and use "type/id" as their wire format.
 export type EntityKey = string;
@@ -26,7 +27,29 @@ export interface FeatureMutation {
   feature: GraphFeature | null;
 }
 
-interface EditorState {
+export type CommandResult =
+  | { status: 'applied'; changedKeys: string[] }
+  | { status: 'noop' }
+  | { status: 'blocked'; message: string };
+
+/** Compare persisted content, not derived name/style/parent metadata or object-key order. */
+export function samePersistedContent(a: GraphFeature | null, b: GraphFeature | null): boolean {
+  if (!a || !b) return a === b;
+  if (entityKey(a) !== entityKey(b)) return false;
+  const tags = (feature: GraphFeature) => Object.entries(feature.properties.tags).sort(([a], [b]) => a.localeCompare(b));
+  if (JSON.stringify(tags(a)) !== JSON.stringify(tags(b))) return false;
+  if (a.properties.entityType === 'node') {
+    if (a.geometry.type !== 'Point' || b.geometry.type !== 'Point') return false;
+    return a.geometry.coordinates.every((value, index) => Math.round(value * 1e7) === Math.round(b.geometry.type === 'Point' ? b.geometry.coordinates[index] * 1e7 : NaN));
+  }
+  if (a.properties.entityType === 'way') return JSON.stringify(a.properties.nodeIds ?? []) === JSON.stringify(b.properties.nodeIds ?? []);
+  const members = (feature: GraphFeature) => (feature.properties.members ?? []).map((member, index) => [member.type, member.ref, member.role ?? '', member.sequence ?? index]);
+  return JSON.stringify(members(a)) === JSON.stringify(members(b));
+}
+
+export interface EditorState {
+  lockedKeys: string[];
+  lockedLayers: EditorLayer[];
   baseFeatures: Record<EntityKey, GraphFeature>;
   viewportKeys: EntityKey[];
   overrides: Record<EntityKey, GraphFeature | null>;
@@ -40,10 +63,14 @@ interface EditorState {
 }
 
 type EditorAction =
+  | { type: 'lock'; keys?: string[]; layers?: EditorLayer[] }
+  | { type: 'unlock-all' }
+  | { type: 'remap-locks'; mapping: Record<string, string> }
   | { type: 'hydrate'; features: GraphFeature[] }
   | { type: 'hydrate-support'; features: GraphFeature[] }
   | { type: 'resolve-conflicts'; plan: ResolutionPlan }
   | { type: 'select'; key: EntityKey | null; mode: 'replace' | 'toggle' }
+  | { type: 'select-set'; keys: EntityKey[]; active: EntityKey }
   | { type: 'loading'; value: boolean }
   | { type: 'error'; value: string | null }
   | { type: 'commit'; key: EntityKey; feature: GraphFeature | null; label: string }
@@ -53,6 +80,7 @@ type EditorAction =
   | { type: 'discard' };
 
 export const initialState: EditorState = {
+  lockedKeys: [], lockedLayers: [],
   baseFeatures: {},
   viewportKeys: [],
   overrides: {},
@@ -67,6 +95,14 @@ export const initialState: EditorState = {
 
 export function entityKey(feature: Pick<GraphFeature, 'properties'>): EntityKey {
   return `${feature.properties.entityType}/${feature.properties.entityId}`;
+}
+
+/** Capture text still focused in the inspector without changing live undo granularity. */
+export function capturePendingTags(state: EditorState, pending?: { key: string; tags: Tags } | null): EditorState {
+  if (!pending) return state;
+  const feature = readFeature(state, pending.key);
+  if (!feature) return state;
+  return executeTransaction(state, [{ key: pending.key, feature: { ...feature, properties: { ...feature.properties, tags: { ...pending.tags }, name: pending.tags.name ?? '' } } }], 'Khôi phục thuộc tính đang nhập').state;
 }
 
 function cloneFeature(feature: GraphFeature): GraphFeature {
@@ -86,12 +122,6 @@ function cloneFeature(feature: GraphFeature): GraphFeature {
 
 function cloneOverride(override: FeatureOverride): FeatureOverride {
   return override && cloneFeature(override);
-}
-
-function equalOverride(left: FeatureOverride, right: FeatureOverride): boolean {
-  if (left === right) return true;
-  if (!left || !right) return false;
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function readOverride(state: EditorState, key: EntityKey): FeatureOverride {
@@ -116,7 +146,7 @@ function readFeature(state: EditorState, key: EntityKey, projectNodes = true): G
 
 function normalizedOverride(state: EditorState, key: EntityKey, feature: GraphFeature | null): FeatureOverride {
   const base = state.baseFeatures[key];
-  if (base && feature && equalOverride(base, feature)) return undefined;
+  if (base && feature && samePersistedContent(base, feature)) return undefined;
   if (!base && feature === null) return undefined;
   return feature;
 }
@@ -126,12 +156,6 @@ function writeOverride(overrides: EditorState['overrides'], key: EntityKey, over
   else overrides[key] = override ? cloneFeature(override) : null;
 }
 
-function withOverride(state: EditorState, key: EntityKey, override: FeatureOverride): EditorState['overrides'] {
-  const overrides = { ...state.overrides };
-  writeOverride(overrides, key, override);
-  return overrides;
-}
-
 function applyHistoryEntry(state: EditorState, entry: EditorTransaction, direction: 'undo' | 'redo'): EditorState {
   const overrides = { ...state.overrides };
   const changes = direction === 'undo' ? [...entry.changes].reverse() : entry.changes;
@@ -139,8 +163,60 @@ function applyHistoryEntry(state: EditorState, entry: EditorTransaction, directi
   return { ...state, overrides };
 }
 
+export function executeTransaction(state: EditorState, mutations: FeatureMutation[], label: string): { state: EditorState; result: CommandResult } {
+  const blocked = (message: string): { state: EditorState; result: CommandResult } => ({ state: { ...state, error: message }, result: { status: 'blocked', message } });
+  if (mutations.some(item => item.feature && entityKey(item.feature) !== item.key)) return blocked('ID đối tượng không khớp transaction.');
+  // Last write wins within a transaction. Only the final net change enters history.
+  const final = [...new Map(mutations.map(item => [item.key, item])).values()];
+  const effective = final.filter(item => !samePersistedContent(readFeature(state, item.key, false), item.feature));
+  if (!effective.length) return { state: state.error ? { ...state, error: null } : state, result: { status: 'noop' } };
+  const all = Object.keys({ ...state.baseFeatures, ...state.overrides }).flatMap(key => { const feature = readFeature(state, key); return feature ? [feature] : []; });
+  if (lockViolation(all, state.lockedKeys, state.lockedLayers, effective)) return blocked('Thao tác tác động đối tượng/layer hoặc node dùng chung đang khóa. Hãy mở khóa trước.');
+  const removed = new Set(effective.filter(item => !item.feature).map(item => item.key));
+  const finalByKey = new Map(final.map(item => [item.key, item.feature]));
+  // Validate final references, not intermediate writes. Never silently cascade deletion.
+  const finalFeatures = new Map(all.map(feature => [entityKey(feature), feature]));
+  for (const item of final) if (item.feature) finalFeatures.set(item.key, item.feature); else finalFeatures.delete(item.key);
+  for (const current of finalFeatures.values()) {
+    const feature = finalByKey.has(entityKey(current)) ? finalByKey.get(entityKey(current)) : current;
+    if (!feature) continue;
+    if (feature.properties.nodeIds?.some(id => removed.has(`node/${id}`)) || feature.properties.members?.some(member => removed.has(`${member.type}/${member.ref}`))) return blocked('Đối tượng còn được đường/quan hệ ngoài tập xóa sử dụng. Hãy bỏ liên kết hoặc chọn đủ đối tượng.');
+  }
+  for (const { key } of effective.filter(item => !item.feature)) {
+    const feature = readFeature(state, key);
+    for (const parent of feature?.properties.parents ?? []) {
+      if (state.overrides[`relation/${parent.id}`] !== null && !removed.has(`relation/${parent.id}`) && !finalByKey.has(`relation/${parent.id}`) && !all.some(item => entityKey(item) === `relation/${parent.id}`)) return blocked(`Chưa tải quan hệ cha ${parent.id}. Không thể xác nhận xóa an toàn.`);
+    }
+  }
+  const overrides = { ...state.overrides }, changes: EditorChange[] = [];
+  for (const item of effective) {
+    const before = readOverride(state, item.key);
+    const after = normalizedOverride(state, item.key, item.feature);
+    changes.push({ id: state.nextChangeId, key: item.key, label, before: cloneOverride(before), after: cloneOverride(after) });
+    writeOverride(overrides, item.key, after);
+  }
+  const updated = { ...state, error: null, overrides };
+  const selectedKeys = state.selectedKeys.filter(key => readFeature(updated, key));
+  return { state: { ...updated, selectedKeys, selectedKey: state.selectedKey && selectedKeys.includes(state.selectedKey) ? state.selectedKey : selectedKeys.at(-1) ?? null,
+    undoStack: [...state.undoStack, { id: state.nextChangeId, label, changes }], redoStack: [], nextChangeId: state.nextChangeId + 1 }, result: { status: 'applied', changedKeys: changes.map(change => change.key) } };
+}
+
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  const locked = state.lockedKeys.length > 0 || state.lockedLayers.length > 0;
+  if (locked && ['undo', 'redo', 'select'].includes(action.type)) {
+    const all = Object.keys({ ...state.baseFeatures, ...state.overrides }).flatMap(key => { const feature = readFeature(state, key); return feature ? [feature] : []; });
+    if (action.type === 'select' && action.key) {
+      const feature = readFeature(state, action.key);
+      if (protectedGeometry(all, state.lockedKeys, state.lockedLayers).has(action.key) || (feature && state.lockedLayers.includes(geometryLayer(feature)))) return { ...state, error: 'Đối tượng đang khóa. Mở khóa từ menu chuột phải trước khi chọn.' };
+    }
+    const mutations = action.type === 'undo' || action.type === 'redo' ? (action.type === 'undo' ? state.undoStack : state.redoStack).at(-1)?.changes.map(change => ({ key: change.key, feature: readFeature(state, change.key) ?? change.after ?? change.before ?? null })) ?? [] : [];
+    if (lockViolation(all, state.lockedKeys, state.lockedLayers, mutations)) return { ...state, error: 'Thao tác tác động đối tượng/layer hoặc node dùng chung đang khóa. Hãy mở khóa trước.' };
+  }
   switch (action.type) {
+    case 'lock':
+      return { ...state, lockedKeys: [...new Set([...state.lockedKeys, ...(action.keys ?? [])])], lockedLayers: [...new Set([...state.lockedLayers, ...(action.layers ?? [])])], selectedKey: null, selectedKeys: [], error: null };
+    case 'unlock-all': return { ...state, lockedKeys: [], lockedLayers: [], error: null };
+    case 'remap-locks': return { ...state, lockedKeys: state.lockedKeys.map(key => action.mapping[key] ?? key) };
     case 'resolve-conflicts': {
       if (action.plan.blockers.length) return state;
       const baseFeatures = { ...state.baseFeatures };
@@ -182,12 +258,18 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...Object.keys(state.overrides),
         ...[...state.undoStack, ...state.redoStack].flatMap(entry => entry.changes.map(change => change.key))
       ]);
+      let keepLocked = new Set<string>();
+      if (state.lockedKeys.length || state.lockedLayers.length) {
+        const all = Object.keys({ ...state.baseFeatures, ...state.overrides }).flatMap(key => { const feature = readFeature(state, key); return feature ? [feature] : []; });
+        keepLocked = protectedGeometry(all, state.lockedKeys, state.lockedLayers);
+      }
       const baseFeatures: Record<EntityKey, GraphFeature> = Object.fromEntries(
         // Keep selection even when the next bounded viewport omits it. Unlike
         // dirty baselines, a clean selection may still refresh from the server.
-        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key) || state.selectedKeys.includes(key))
+        Object.entries(state.baseFeatures).filter(([key]) => retained.has(key) || state.selectedKeys.includes(key) || keepLocked.has(key))
       );
       const viewportKeys: EntityKey[] = [];
+      const incomingKeys = new Set(action.features.map(entityKey));
       for (const feature of action.features) {
         const key = entityKey(feature);
         if (!retained.has(key)) baseFeatures[key] = cloneFeature(feature);
@@ -195,7 +277,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         if (feature.properties.entityType !== 'way') continue;
         for (const node of feature.properties.nodes ?? []) {
           const nodeKey: EntityKey = `node/${node.id}`;
-          if (baseFeatures[nodeKey]) continue;
+          if (baseFeatures[nodeKey] && (retained.has(nodeKey) || incomingKeys.has(nodeKey))) continue;
           baseFeatures[nodeKey] = {
             type: 'Feature',
             id: `node-${node.id}`,
@@ -219,47 +301,33 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const selectedKeys = state.selectedKeys.filter(key => key !== action.key);
       return { ...state, selectedKeys, selectedKey: state.selectedKey === action.key ? selectedKeys.at(-1) ?? null : state.selectedKey };
     }
+    case 'select-set': {
+      const keys = [...new Set(action.keys)];
+      if (!keys.length || !keys.includes(action.active) || keys.some(key => !readFeature(state, key))) return { ...state, error: 'Chưa tải đủ đối tượng để chọn cả nhóm.' };
+      const all = Object.keys({ ...state.baseFeatures, ...state.overrides }).flatMap(key => { const feature = readFeature(state, key); return feature ? [feature] : []; });
+      const protectedKeys = protectedGeometry(all, state.lockedKeys, state.lockedLayers);
+      if (keys.some(key => protectedKeys.has(key))) return { ...state, error: 'Nhóm có đối tượng đang khóa. Không chọn một phần nhóm.' };
+      return { ...state, error: null, selectedKeys: keys, selectedKey: action.active };
+    }
     case 'loading':
       return { ...state, loading: action.value };
     case 'error':
       return { ...state, error: action.value };
-    case 'commit': {
-      const before = readOverride(state, action.key);
-      const after = normalizedOverride(state, action.key, action.feature);
-      if (equalOverride(before, after)) return state;
-      const change: EditorChange = { id: state.nextChangeId, key: action.key, label: action.label, before: cloneOverride(before), after: cloneOverride(after) };
-      return {
-        ...state,
-        overrides: withOverride(state, action.key, after),
-        undoStack: [...state.undoStack, { id: state.nextChangeId, label: action.label, changes: [change] }],
-        redoStack: [],
-        nextChangeId: state.nextChangeId + 1
-      };
-    }
-    case 'commit-many': {
-      const changes: EditorChange[] = [];
-      const overrides = { ...state.overrides };
-      for (const mutation of action.mutations) {
-        const before = overrides[mutation.key];
-        const after = normalizedOverride(state, mutation.key, mutation.feature);
-        if (equalOverride(before, after)) continue;
-        changes.push({ id: state.nextChangeId, key: mutation.key, label: action.label, before: cloneOverride(before), after: cloneOverride(after) });
-        writeOverride(overrides, mutation.key, after);
-      }
-      if (!changes.length) return state;
-      return { ...state, overrides, undoStack: [...state.undoStack, { id: state.nextChangeId, label: action.label, changes }], redoStack: [], nextChangeId: state.nextChangeId + 1 };
-    }
+    case 'commit': return executeTransaction(state, [{ key: action.key, feature: action.feature }], action.label).state;
+    case 'commit-many': return executeTransaction(state, action.mutations, action.label).state;
     case 'undo': {
       const entry = state.undoStack.at(-1);
       if (!entry) return state;
       const restored = applyHistoryEntry(state, entry, 'undo');
-      return { ...restored, undoStack: state.undoStack.slice(0, -1), redoStack: [...state.redoStack, entry] };
+      const selectedKeys = state.selectedKeys.filter(key => readFeature(restored, key));
+      return { ...restored, error: null, selectedKeys, selectedKey: state.selectedKey && selectedKeys.includes(state.selectedKey) ? state.selectedKey : selectedKeys.at(-1) ?? null, undoStack: state.undoStack.slice(0, -1), redoStack: [...state.redoStack, entry] };
     }
     case 'redo': {
       const entry = state.redoStack.at(-1);
       if (!entry) return state;
       const restored = applyHistoryEntry(state, entry, 'redo');
-      return { ...restored, undoStack: [...state.undoStack, entry], redoStack: state.redoStack.slice(0, -1) };
+      const selectedKeys = state.selectedKeys.filter(key => readFeature(restored, key));
+      return { ...restored, error: null, selectedKeys, selectedKey: state.selectedKey && selectedKeys.includes(state.selectedKey) ? state.selectedKey : selectedKeys.at(-1) ?? null, undoStack: [...state.undoStack, entry], redoStack: state.redoStack.slice(0, -1) };
     }
     case 'discard':
       return { ...state, overrides: {}, undoStack: [], redoStack: [] };
@@ -293,7 +361,7 @@ export function visibleFeatures(state: EditorState): GraphFeature[] {
   return features;
 }
 
-function pendingChanges(state: EditorState): EditorChange[] {
+export function pendingChanges(state: EditorState): EditorChange[] {
   const labels = new Map<EntityKey, string>();
   for (let index = state.undoStack.length - 1; index >= 0; index--) {
     const transaction = state.undoStack[index];
@@ -313,6 +381,12 @@ function pendingChanges(state: EditorState): EditorChange[] {
 }
 
 interface EditorStoreValue {
+  protectedKeys: ReadonlySet<string>;
+  lockedKeys: string[];
+  lockedLayers: EditorLayer[];
+  lockGeometry: (keys: string[], layers: EditorLayer[]) => void;
+  unlockGeometry: () => void;
+  remapGeometryLocks: (mapping: Record<string, string>) => void;
   features: GraphFeature[];
   selected: SelectedEntity | null;
   selectedKey: EntityKey | null;
@@ -330,18 +404,44 @@ interface EditorStoreValue {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   selectFeature: (feature: GraphFeature | null, mode?: 'replace' | 'toggle') => void;
-  updateTags: (key: EntityKey, tags: Tags, label?: string) => void;
-  replaceFeature: (feature: GraphFeature | null, key: EntityKey, label: string) => void;
-  replaceFeatures: (mutations: FeatureMutation[], label: string) => void;
-  undo: () => void;
-  redo: () => void;
+  selectFeatureSet: (features: GraphFeature[], active: GraphFeature) => CommandResult;
+  updateTags: (key: EntityKey, tags: Tags, label?: string) => CommandResult;
+  replaceFeature: (feature: GraphFeature | null, key: EntityKey, label: string) => CommandResult;
+  replaceFeatures: (mutations: FeatureMutation[], label: string) => CommandResult;
+  undo: () => CommandResult;
+  redo: () => CommandResult;
+  getFeatures: () => GraphFeature[];
+  draftToken: object;
+  getDraftState: () => EditorState;
+  restoreDraftState: (snapshot: EditorState) => void;
   discardChanges: () => void;
 }
 
 const EditorStoreContext = createContext<EditorStoreValue | null>(null);
 
 export function EditorStoreProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(editorReducer, initialState);
+  const [state, setState] = useState(initialState);
+  const stateRef = useRef(initialState);
+  // Publish synchronously so commands and their follow-up selections see the same
+  // authoritative state even inside one React-batched event.
+  const publish = useCallback((next: EditorState) => { stateRef.current = next; setState(next); }, []);
+  const dispatch = useCallback((action: EditorAction) => {
+    const next = editorReducer(stateRef.current, action); publish(next); return next;
+  }, [publish]);
+  const getFeatures = useCallback(() => Object.keys({ ...stateRef.current.baseFeatures, ...stateRef.current.overrides }).flatMap(key => {
+    const feature = readFeature(stateRef.current, key);
+    if (!feature) return [];
+    const parents = feature.properties.parents?.filter(parent => {
+      const key = `relation/${parent.id}`;
+      if (stateRef.current.overrides[key] === null) return false;
+      const relation = readFeature(stateRef.current, key, false);
+      return !relation?.properties.members || relation.properties.members.some(member => `${member.type}/${member.ref}` === entityKey(feature));
+    });
+    return [{ ...feature, properties: { ...feature.properties, ...(parents ? { parents } : {}) } }];
+  }), []);
+  const lockGeometry = useCallback((keys: string[], layers: EditorLayer[]) => dispatch({ type: 'lock', keys, layers }), []);
+  const unlockGeometry = useCallback(() => dispatch({ type: 'unlock-all' }), []);
+  const remapGeometryLocks = useCallback((mapping: Record<string, string>) => dispatch({ type: 'remap-locks', mapping }), []);
 
   const hydrateGraph = useCallback((features: GraphFeature[]) => dispatch({ type: 'hydrate', features }), []);
   const hydrateSupport = useCallback((features: GraphFeature[]) => dispatch({ type: 'hydrate-support', features }), []);
@@ -349,23 +449,48 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
   const setLoading = useCallback((value: boolean) => dispatch({ type: 'loading', value }), []);
   const setError = useCallback((value: string | null) => dispatch({ type: 'error', value }), []);
   const selectFeature = useCallback((feature: GraphFeature | null, mode: 'replace' | 'toggle' = 'replace') => dispatch({ type: 'select', key: feature ? entityKey(feature) : null, mode }), []);
-  const replaceFeature = useCallback((feature: GraphFeature | null, key: EntityKey, label: string) => dispatch({ type: 'commit', key, feature, label }), []);
-  const replaceFeatures = useCallback((mutations: FeatureMutation[], label: string) => dispatch({ type: 'commit-many', mutations, label }), []);
+  const selectFeatureSet = useCallback((features: GraphFeature[], active: GraphFeature): CommandResult => {
+    const next = dispatch({ type: 'select-set', keys: features.map(entityKey), active: entityKey(active) });
+    return next.error ? { status: 'blocked', message: next.error } : { status: 'applied', changedKeys: next.selectedKeys };
+  }, [dispatch]);
+  const replaceFeatures = useCallback((mutations: FeatureMutation[], label: string) => {
+    const command = executeTransaction(stateRef.current, mutations, label); publish(command.state); return command.result;
+  }, [publish]);
+  const replaceFeature = useCallback((feature: GraphFeature | null, key: EntityKey, label: string) => replaceFeatures([{ key, feature }], label), [replaceFeatures]);
   const updateTags = useCallback((key: EntityKey, tags: Tags, label = 'Cập nhật thuộc tính') => {
-    const feature = readFeature(state, key);
-    if (!feature) return;
+    const feature = readFeature(stateRef.current, key);
+    if (!feature) return { status: 'blocked', message: 'Đối tượng không còn trong dữ liệu đã tải.' } as CommandResult;
     const next = cloneFeature(feature);
     next.properties.tags = { ...tags };
     next.properties.name = next.properties.tags.name || '';
-    dispatch({ type: 'commit', key, feature: next, label });
-  }, [state]);
-  const undo = useCallback(() => dispatch({ type: 'undo' }), []);
-  const redo = useCallback(() => dispatch({ type: 'redo' }), []);
+    return replaceFeature(next, key, label);
+  }, [replaceFeature]);
+  const historyCommand = useCallback((type: 'undo' | 'redo'): CommandResult => {
+    const before = stateRef.current, stack = type === 'undo' ? before.undoStack : before.redoStack;
+    if (!stack.length) return { status: 'noop' };
+    const next = dispatch({ type });
+    if ((type === 'undo' ? next.undoStack : next.redoStack).length === stack.length) return { status: 'blocked', message: next.error ?? 'Không thể hoàn tác/làm lại.' };
+    return { status: 'applied', changedKeys: stack.at(-1)!.changes.map(change => change.key) };
+  }, [dispatch]);
+  const undo = useCallback(() => historyCommand('undo'), [historyCommand]);
+  const redo = useCallback(() => historyCommand('redo'), [historyCommand]);
   const discardChanges = useCallback(() => dispatch({ type: 'discard' }), []);
+  // Snapshot builders clone only retained dependencies; do not clone an entire
+  // viewport graph first. Consumers must treat this synchronous read as immutable.
+  const getDraftState = useCallback(() => stateRef.current, []);
+  const restoreDraftState = useCallback((snapshot: EditorState) => {
+    publish({ ...structuredClone(snapshot), loading: false, error: null });
+  }, [publish]);
+  const draftToken = useMemo(() => ({}), [state.overrides, state.undoStack, state.redoStack, state.lockedKeys, state.lockedLayers]);
 
   // Loading/selection changes must not rebuild the full render graph, topology,
   // pending upload payload and issue list on every pointer interaction.
   const features = useMemo(() => visibleFeatures(state), [state.baseFeatures, state.viewportKeys, state.overrides]);
+  const protectedKeys = useMemo(() => {
+    if (!state.lockedKeys.length && !state.lockedLayers.length) return new Set<string>();
+    const all = Object.keys({ ...state.baseFeatures, ...state.overrides }).flatMap(key => { const feature = readFeature(state, key); return feature ? [feature] : []; });
+    return protectedGeometry(all, state.lockedKeys, state.lockedLayers);
+  }, [state.baseFeatures, state.overrides, state.lockedKeys, state.lockedLayers]);
   const changes = useMemo(() => pendingChanges(state), [state.baseFeatures, state.overrides, state.undoStack]);
   const selected = useMemo(() => toSelectedEntity(state.selectedKey ? readFeature(state, state.selectedKey) : null), [state.baseFeatures, state.overrides, state.selectedKey]);
   const selectedFeatures = useMemo(() => state.selectedKeys.flatMap(key => {
@@ -376,7 +501,10 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<EditorStoreValue>(() => {
     return {
+      protectedKeys, lockedKeys: state.lockedKeys, lockedLayers: state.lockedLayers, lockGeometry, unlockGeometry, remapGeometryLocks,
       features,
+      getFeatures,
+      draftToken, getDraftState, restoreDraftState,
       selected,
       selectedKey: state.selectedKey,
       selectedKeys: state.selectedKeys,
@@ -393,6 +521,7 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
       setLoading,
       setError,
       selectFeature,
+      selectFeatureSet,
       updateTags,
       replaceFeature,
       replaceFeatures,

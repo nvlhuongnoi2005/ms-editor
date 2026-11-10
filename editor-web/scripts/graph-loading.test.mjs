@@ -7,12 +7,35 @@ const { ViewportGraphLoader } = await import(await loadSource('../src/features/m
 const rules = await readFile(new URL('../src/features/map/style-rules.json', import.meta.url), 'utf8');
 const rulesURL = `data:text/javascript;base64,${Buffer.from(`export default ${rules}`).toString('base64')}`;
 const styleURL = await loadSource('../src/features/map/styleRules.ts', { './style-rules.json': rulesURL });
-const { GRAPH_MIN_ZOOM, GraphTileHandoff, renderCollection, selectedFeatureCollection } = await import(await loadSource('../src/features/map/graphRendering.ts', { './styleRules': styleURL }));
+const graphURL = await loadSource('../src/features/topology/graph.ts');
+const topologyURL = await loadSource('../src/features/editor/topologyOperations.ts', { '../topology/graph': graphURL });
+const geometryURL = await loadSource('../src/features/editor/geometryOperations.ts', { './topologyOperations': topologyURL, 'polygon-clipping': import.meta.resolve('polygon-clipping') });
+const { booleanGeometry } = await import(geometryURL);
+const { GRAPH_MIN_ZOOM, GraphTileHandoff, renderCollection, selectedFeatureCollection } = await import(await loadSource('../src/features/map/graphRendering.ts', { './styleRules': styleURL, '../editor/geometryOperations': geometryURL }));
 const { loadGraph } = await import(await loadSource('../src/api/graph.ts'));
 const bbox = [106.175, 20.388, 106.185, 20.397];
 const elsewhere = [107, 21, 107.01, 21.01];
 const feature = (id, type = 'node') => ({ type: 'Feature', properties: { entityType: type, entityId: String(id), version: 1, name: 'Test', tags: { name: 'Test' } }, geometry: { type: 'Point', coordinates: [106.18, 20.39] } });
 const response = (features = [], canonicalRevision = 1) => ({ features, canonicalRevision });
+
+test('multipolygon preview and selection retain holes without filling untagged inner members', () => {
+  const square = (id, x, y, size) => {
+    const coordinates = [[x, y], [x + size, y], [x + size, y + size], [x, y + size], [x, y]];
+    const nodes = coordinates.map((point, index) => ({ id: `${id}-${index === 4 ? 0 : index}`, coordinates: point, version: 1 }));
+    return { type: 'Feature', properties: { entityType: 'way', entityId: String(id), version: 1, tags: {}, nodeIds: nodes.map(node => node.id), nodes }, geometry: { type: 'Polygon', coordinates: [coordinates] } };
+  };
+  const sources = [square(1, 105, 21, 0.01), square(2, 105.002, 21.002, 0.002)];
+  let id = -1;
+  const result = booleanGeometry(sources, sources, { operation: 'hole', primary: 'way/1' }, () => String(id--), () => String(id--), () => String(id--));
+  const available = result.mutations.map(item => item.feature);
+  const rendered = renderCollection(available);
+  const relation = rendered.features.find(feature => feature.properties.entityType === 'relation');
+  assert.equal(relation.geometry.type, 'MultiPolygon');
+  assert.equal(relation.geometry.coordinates[0].length, 2);
+  assert.ok(rendered.features.filter(feature => feature.properties.entityType === 'way').every(feature => feature.geometry.type === 'LineString'));
+  const selected = selectedFeatureCollection({ type: 'relation', id: result.selected.properties.entityId, version: 0, tags: result.selected.properties.tags, members: result.selected.properties.members, geometry: result.selected.geometry }, available);
+  assert.deepEqual(selected.features[0].geometry, relation.geometry);
+});
 const deferred = () => {
   let resolve, reject;
   const promise = new Promise((a, b) => { resolve = a; reject = b; });

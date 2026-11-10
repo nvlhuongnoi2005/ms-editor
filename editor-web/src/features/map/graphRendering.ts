@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection } from 'geojson';
 import type { FilterSpecification } from 'maplibre-gl';
 import type { GraphFeature, SelectedEntity } from '../../types/osm';
 import { resolveFeatureStyle, resolvePointIcon } from './styleRules';
+import { areaGeometry } from '../editor/geometryOperations';
 
 export const GRAPH_MIN_ZOOM = 14;
 
@@ -20,22 +21,38 @@ export function renderFeature(feature: GraphFeature): Feature {
   };
 }
 
-export function renderCollection(features: GraphFeature[]): FeatureCollection {
-  return { type: 'FeatureCollection', features: features.map(renderFeature) };
+export function renderCollection(features: GraphFeature[], support = features): FeatureCollection {
+  const areas = new Map<string, Feature['geometry']>();
+  const memberWays = new Set<string>();
+  for (const feature of features) if (feature.properties.entityType === 'relation' && feature.properties.tags.type === 'multipolygon') {
+    try {
+      areas.set(feature.properties.entityId, { type: 'MultiPolygon', coordinates: areaGeometry(feature, support, false) });
+      for (const member of feature.properties.members ?? []) if (member.type === 'way') memberWays.add(member.ref);
+    } catch { /* Incomplete relations retain their anchor until support is loaded. */ }
+  }
+  return { type: 'FeatureCollection', features: features.map(feature => {
+    const rendered = renderFeature(feature);
+    const area = feature.properties.entityType === 'relation' ? areas.get(feature.properties.entityId) : undefined;
+    if (area) rendered.geometry = area;
+    // Untagged ring ways are topology, not filled standalone areas. In particular
+    // an inner member must never paint over the hole of its owning relation.
+    if (feature.properties.entityType === 'way' && memberWays.has(feature.properties.entityId) && !Object.keys(feature.properties.tags).length && feature.geometry.type === 'Polygon') rendered.geometry = { type: 'LineString', coordinates: feature.geometry.coordinates[0] };
+    return rendered;
+  }) };
 }
 
 // Selection is independent of viewport coverage and the graph's zoom threshold.
 // EditorStore owns the latest geometry, including unsaved edits.
-export function selectedFeatureCollection(selected: SelectedEntity | readonly SelectedEntity[] | null): FeatureCollection {
+export function selectedFeatureCollection(selected: SelectedEntity | readonly SelectedEntity[] | null, support: GraphFeature[] = []): FeatureCollection {
   const selections = Array.isArray(selected) ? selected : selected ? [selected] : [];
   return renderCollection(selections.map(feature => ({
     type: 'Feature',
     properties: {
       entityType: feature.type, entityId: feature.id, version: feature.version,
-      tags: feature.tags, name: feature.tags.name
+      tags: feature.tags, name: feature.tags.name, members: feature.members
     },
     geometry: feature.geometry
-  })));
+  })), support);
 }
 
 interface TileMap {

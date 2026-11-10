@@ -31,11 +31,23 @@ import { DATASET_NAME, loadGraph } from './api/graph';
 import { loadPublishStatus, type PublishStatus } from './api/publish';
 import { loadDatasets, type DatasetInfo } from './api/datasets';
 import { DatasetManagerDialog } from './features/editor/DatasetManagerDialog';
-import { EditorStoreProvider, entityKey, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
+import { EditorStoreProvider, entityKey, pendingChanges, type CommandResult, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
 import { insertNodeIntoFeature, makeNodeFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
 import { planDrawing, type WayExtension } from './features/editor/drawingTransactions';
-import { duplicateFeatures } from './features/editor/duplicateFeatures';
+import { placementOffset } from './features/editor/duplicateFeatures';
+import { captureGeometry, cutGeometry, pasteGeometry, type GeometryClipboard } from './features/editor/geometryClipboard';
 import { TopologyTools } from './features/editor/TopologyTools';
+import { GeometryToolsDialog, geometryToolGroups, type GeometryToolGroup, type GeometryToolRequest } from './features/editor/GeometryToolsDialog';
+import type { GeometryOptions } from './features/editor/geometryOperations';
+import { planGeometryCommand, reservePlannedIds, inspectMutations, type GeometryCommandPlan } from './features/editor/geometryCommandPlan';
+import { CommandImpactDialog, type PendingMutation } from './features/editor/CommandImpactDialog';
+import { geometryLayer } from './features/editor/geometryLocks';
+import { summarizeGeometryImpact } from './features/editor/geometryToolPresentation';
+import { GeometryLocksDialog } from './features/editor/GeometryLocksDialog';
+import { groupSelectionFeatures, planDeleteSelection } from './features/editor/selectionCommands';
+import { useDraftProtection } from './features/editor/useDraftProtection';
+import { nextTemporaryIds } from './features/editor/drafts';
+import { Layers, LockKeyhole } from 'lucide-react';
 import { closeWay, disconnectVertex, isOpenWay, mergeFeatures, openWay, removeVertex, reverseFeature, splitFeature, wayVertices, type TopologyAction } from './features/editor/topologyOperations';
 import { findEditorIssues, type EditorIssue } from './features/editor/issues';
 import { ConflictDialog, type ConflictSession } from './features/editor/ConflictDialog';
@@ -149,25 +161,8 @@ function relationAnchor(geometry: SelectedEntity['geometry']): Coordinate {
   return [longitude / coordinates.length, latitude / coordinates.length];
 }
 
-function collectionRelationsFor(feature: { type: EntityType; id: string }, features: GraphFeature[]): GraphFeature[] {
-  return features.filter(candidate => candidate.properties.entityType === 'relation'
-    && candidate.properties.tags.type === 'collection'
-    && candidate.properties.members?.some(member => member.type === feature.type && member.ref === feature.id));
-}
-
 function collectionMemberFeatures(feature: GraphFeature, features: GraphFeature[]): GraphFeature[] {
-  const groups = collectionRelationsFor({ type: feature.properties.entityType, id: feature.properties.entityId }, features);
-  if (!groups.length) return [];
-  const byKey = new Map(features.map(candidate => [entityKey(candidate), candidate]));
-  byKey.set(entityKey(feature), feature);
-  const seen = new Set<string>();
-  return groups.flatMap(group => (group.properties.members ?? []).flatMap(member => {
-    const key = `${member.type}/${member.ref}`;
-    const candidate = byKey.get(key);
-    if (!candidate || seen.has(key)) return [];
-    seen.add(key);
-    return [candidate];
-  }));
+  return groupSelectionFeatures(feature, features);
 }
 
 function duplicateOffset(features: GraphFeature[]): Coordinate {
@@ -354,11 +349,13 @@ function PropertiesEditor({
   selected,
   onUpdate,
   onDelete,
+  onDraftTags,
   onUpdateMembers
 }: {
   selected: SelectedEntity;
   onUpdate: (tags: Tags, label: string) => void;
   onDelete: () => void;
+  onDraftTags: (key: string, tags: Tags) => void;
   onUpdateMembers: (members: RelationMember[], label: string) => void;
 }) {
   const [draftTags, setDraftTags] = useState<Tags>(selected.tags);
@@ -380,7 +377,9 @@ function PropertiesEditor({
     }
   }, [draftTags, onUpdate, selected.tags]);
 
-  const updateValue = (key: string, value: string) => setDraftTags(tags => ({ ...tags, [key]: value }));
+  const updateValue = (key: string, value: string) => {
+    const next = { ...draftTags, [key]: value }; setDraftTags(next); onDraftTags(selectedIdentity, next);
+  };
 
   const removeTag = (key: string) => {
     setDraftTags(tags => {
@@ -912,11 +911,26 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   const [coordinateInput, setCoordinateInput] = useState('');
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
   const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [geometryToolGroup, setGeometryToolGroup] = useState<GeometryToolGroup | null>(null);
+  const [geometryPreview, setGeometryPreview] = useState<GeometryCommandPlan | null>(null);
+  const [undoOfferId, setUndoOfferId] = useState<number | null>(null);
+  const [pendingMutation, setPendingMutation] = useState<PendingMutation | null>(null);
+  const closeGeometryTool = useCallback(() => { setGeometryToolGroup(null); setGeometryPreview(null); }, []);
+  const [locksOpen, setLocksOpen] = useState(false);
+  const [geometryClipboard, setGeometryClipboard] = useState<GeometryClipboard | null>(null);
+  const pasteCountRef = useRef(0);
+  const mapPointerRef = useRef<Coordinate | null>(null);
+  const handlePointerCoordinate = useCallback((coordinate: Coordinate | null) => { mapPointerRef.current = coordinate; }, []);
   const [pinpoint, setPinpoint] = useState<Coordinate | null>(null);
   const [pointerStatus, setPointerStatus] = useState<MapPointerStatus>({ longitude: 104.50728, latitude: 21.59988, zoom: 16 });
   const [drawMode, setDrawMode] = useState<DrawMode>('select');
   const [drawVertices, setDrawVertices] = useState<SnappedVertex[]>([]);
   const [drawingExtension, setDrawingExtension] = useState<WayExtension | null>(null);
+  const [draftCamera, setDraftCamera] = useState<MapViewport['camera']>();
+  const [restoredCamera, setRestoredCamera] = useState<MapViewport['camera']>();
+  const [pendingTags, setPendingTags] = useState<{ key: string; tags: Tags } | null>(null);
+  const onDraftTags = useCallback((key: string, tags: Tags) => setPendingTags({ key, tags }), []);
+  const workspaceToken = useMemo(() => ({}), [drawMode, drawVertices, drawingExtension, draftCamera, pendingTags]);
   const [selectedVertexId, setSelectedVertexId] = useState<string | null>(null);
   const entityRequestRef = useRef(0);
   const viewportRef = useRef<MapViewport | null>(null);
@@ -949,19 +963,73 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     redo,
     discardChanges
   } = useEditorStore();
+  const { protectedKeys, lockedKeys, lockedLayers, lockGeometry, unlockGeometry, remapGeometryLocks, getFeatures, getDraftState, selectFeatureSet: storeSelectFeatureSet } = useEditorStore();
+  const inspectGeometryTool = useCallback((request: GeometryOptions) => planGeometryCommand(getDraftState(), getFeatures(), selectedKeys, request,
+    { node: nextNodeIdRef.current, way: nextWayIdRef.current, relation: nextRelationIdRef.current }), [getDraftState, getFeatures, selectedKeys, features, lockedKeys, lockedLayers]);
+  useEffect(() => {
+    // The inspector also resets its text buffer whenever the selected baseline
+    // changes. Do not resurrect an old buffer after Undo/Redo or a preset change.
+    setPendingTags(null);
+  }, [selectedKey, selected?.tags]);
+  const draft = useDraftProtection({
+    dataset: `${dataset.id}:${dataset.name}`, busy: saving || Boolean(pendingCloseId), unfinished: drawVertices.length > 0 || Boolean(pendingTags), pendingTags,
+    workspaceToken,
+    workspace: () => ({ mode: drawMode, vertices: drawVertices, extension: drawingExtension, camera: draftCamera, nextIds: { node: nextNodeIdRef.current, way: nextWayIdRef.current, relation: nextRelationIdRef.current } }),
+    onRestore: (state, workspace) => {
+      setPendingTags(null);
+      const ids = nextTemporaryIds(state);
+      nextNodeIdRef.current = Math.min(ids.node, workspace?.nextIds.node ?? -1); nextWayIdRef.current = Math.min(ids.way, workspace?.nextIds.way ?? -1); nextRelationIdRef.current = Math.min(ids.relation, workspace?.nextIds.relation ?? -1);
+      if (workspace) {
+        setDrawMode(workspace.mode); setDrawVertices(workspace.vertices); setDrawingExtension(workspace.extension);
+        if (workspace.camera) { setRestoredCamera(workspace.camera); setDraftCamera(workspace.camera); }
+      }
+      const feature = Object.values(state.overrides).find(item => item && item.geometry.type === 'Point') ?? Object.values(state.baseFeatures).find(item => item.geometry.type === 'Point');
+      if (!workspace?.camera && feature?.geometry.type === 'Point') setPinpoint(feature.geometry.coordinates);
+      const restoredChanges = pendingChanges(state);
+      const keys = snapshotKeys(restoredChanges);
+      if (keys.length) return loadEntitySnapshots(keys, dataset.name).then(batch => {
+        const mismatch = batch.snapshots.some(snapshot => {
+          const base = state.baseFeatures[snapshot.key];
+          return !snapshot.visible || snapshot.version !== base?.properties.version;
+        });
+        if (mismatch) { setConflictSession({ changes: restoredChanges, batch }); setSaveStatus('Bản server đã thay đổi. Hãy đối chiếu bản nháp trước khi lưu.'); }
+      }).catch(() => setSaveStatus('Đã khôi phục nháp. Chưa kiểm tra được phiên bản server; hệ thống sẽ kiểm tra lại khi lưu.'));
+    }
+  });
+  const acceptCommand = useCallback((result: CommandResult) => {
+    if (result.status === 'applied') return true;
+    setSaveStatus(result.status === 'blocked' ? result.message : 'Không có thay đổi nội dung; không tạo bước Undo hoặc dữ liệu chờ lưu.');
+    return false;
+  }, []);
+  const commitInspectedMutation = useCallback((command: PendingMutation) => {
+    const fresh = inspectMutations(getDraftState(), getFeatures(), command.keys, command.plan.mutations);
+    if (fresh.status !== 'ready') throw new Error(fresh.reason ?? 'Không có thay đổi để áp dụng.');
+    if (fresh.fingerprint !== command.plan.fingerprint) throw new Error('Dữ liệu hoặc khóa đã thay đổi. Hủy và thực hiện lại để kiểm tra phạm vi mới.');
+    const result = replaceFeatures(fresh.mutations, command.label);
+    if (result.status === 'blocked') throw new Error(result.message);
+    if (!acceptCommand(result)) return;
+    setPendingMutation(null); setSelectedVertexId(null); setSelectionMenuPosition(null);
+    setUndoOfferId(getDraftState().undoStack.at(-1)?.id ?? null);
+    setSaveStatus(fresh.impact.deleted ? `Đã xóa ${fresh.impact.deleted} entity trong bản nháp, 1 bước Undo.` : `Đã di chuyển ${fresh.impact.selected} lựa chọn, ${fresh.impact.changedNodes} node; ảnh hưởng ${fresh.impact.externalWays.length} đường/vùng và ${fresh.impact.externalRelations.length} relation ngoài lựa chọn.`);
+  }, [acceptCommand, getDraftState, getFeatures, replaceFeatures]);
+  const geometryImpact = useMemo(() => geometryToolGroup === 'transform' || geometryToolGroup === 'align'
+    ? summarizeGeometryImpact(selectedKeys, features) : undefined, [features, geometryToolGroup, selectedKeys]);
+  const isGeometryLocked = useCallback((type: EntityType, id: string, geometryType?: string) => {
+    if (protectedKeys.has(`${type}/${id}`)) return true;
+    const feature = features.find(item => entityKey(item) === `${type}/${id}`);
+    if (feature) return lockedLayers.includes(geometryLayer(feature));
+    return lockedLayers.includes(type === 'node' ? 'points' : type === 'relation' ? 'relations' : geometryType === 'Polygon' || geometryType === 'MultiPolygon' ? 'areas' : 'lines');
+  }, [features, lockedLayers, protectedKeys]);
 
   const changedKeys = useMemo(() => new Set(changes.map(change => change.key)), [changes]);
   const issues = useMemo(() => findEditorIssues(features, changedKeys), [changedKeys, features]);
   const blockingIssues = useMemo(() => issues.filter(issue => issue.severity === 'error'), [issues]);
 
   const selectFeatureSet = useCallback((items: GraphFeature[], active: GraphFeature) => {
-    const unique = [...new Map(items.map(item => [entityKey(item), item])).values()];
-    selectFeature(null);
-    for (const item of unique) {
-      if (entityKey(item) !== entityKey(active)) selectFeature(item, 'toggle');
-    }
-    selectFeature(active, 'toggle');
-  }, [selectFeature]);
+    const result = storeSelectFeatureSet(items, active);
+    if (result.status === 'blocked') { setSaveStatus(result.message); return false; }
+    return true;
+  }, [storeSelectFeatureSet]);
 
   const refreshPublishStatus = useCallback(async () => {
     try {
@@ -983,8 +1051,9 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
   useEffect(() => () => { graphLoader.cancel(); entityRequestRef.current += 1; }, [graphLoader]);
 
-  const refreshGraph = useCallback(({ bbox: viewport, zoom }: MapViewport) => {
+  const refreshGraph = useCallback(({ bbox: viewport, zoom, camera }: MapViewport) => {
     viewportRef.current = { bbox: viewport, zoom };
+    if (camera) setDraftCamera(previous => JSON.stringify(previous) === JSON.stringify(camera) ? previous : camera);
     const shouldShowGraph = zoom >= GRAPH_MIN_ZOOM;
     setGraphVisible(shouldShowGraph);
     if (!shouldShowGraph) {
@@ -1005,9 +1074,11 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         const feature = result.snapshots[0]?.feature;
         if (feature) {
           hydrateSupport([...result.support, feature]);
-          const loaded = [...result.support, feature];
+          const loaded = getFeatures();
           const groupMembers = !toggleSelection && !selectOnly ? collectionMemberFeatures(feature, loaded) : [];
-          if (groupMembers.length > 1) selectFeatureSet(groupMembers, feature);
+          if (groupMembers.length) {
+            if (!selectFeatureSet(groupMembers, groupMembers.find(item => entityKey(item) === entityKey(feature)) ?? groupMembers.at(-1)!)) return;
+          }
           else selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
           setPropertiesOpen(true);
         } else {
@@ -1017,7 +1088,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       .catch(reason => {
         if (requestId === entityRequestRef.current) setError(reason instanceof Error ? reason.message : 'Không thể tải đối tượng.');
       });
-  }, [dataset.name, hydrateSupport, selectFeature, selectFeatureSet, setError]);
+  }, [dataset.name, getFeatures, hydrateSupport, selectFeature, selectFeatureSet, setError]);
 
   const refreshAfterCommit = useCallback(() => {
     entityRequestRef.current += 1;
@@ -1049,7 +1120,8 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (saving || writeBusyRef.current || conflictSession || historyOpen || datasetManagerOpen) return;
+    if (pendingMutation || geometryToolGroup || draft.blocked || saving || writeBusyRef.current || conflictSession || historyOpen || datasetManagerOpen) return;
+    if (drawVertices.length) { setSaveStatus('Hãy hoàn tất hoặc hủy bản vẽ dở trước khi lưu vào hệ thống. Bản vẽ vẫn được lưu nháp trên máy.'); return; }
     if (pendingCloseId) {
       await retryCloseChangeset(pendingCloseId);
       return;
@@ -1080,11 +1152,16 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     setSaving(true);
     setSaveStatus('Đang lưu dữ liệu...');
     let createdId: string | null = null;
+    let uploadStarted = false;
     try {
       const created = await createChangeset(dataset.name, CHANGESET_COMMENT);
       createdId = created.id;
+      await draft.prepareUpload(created.id);
       setSaveStatus(`Đang áp dụng ${uploadPayload.length} thay đổi…`);
-      await uploadChangeset(created.id, uploadPayload);
+      uploadStarted = true;
+      const uploaded = await uploadChangeset(created.id, uploadPayload);
+      remapGeometryLocks(Object.fromEntries((uploaded.diffResult ?? []).map(item => [`${item.type}/${item.oldId}`, `${item.type}/${item.newId}`])));
+      draft.confirmedUpload();
       discardChanges();
       refreshAfterCommit();
       void refreshPublishStatus();
@@ -1096,12 +1173,16 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         setSaveStatus('Dữ liệu đã được lưu thành công.');
       }
     } catch (reason) {
+      const definiteRejection = reason instanceof ChangesetApiError && reason.phase === 'upload' && reason.status >= 400 && reason.status < 500;
+      if (uploadStarted && !definiteRejection) draft.suspendForRecovery();
+      else draft.rejectedUpload();
+      if (createdId && !uploadStarted) void closeChangeset(createdId).catch(() => undefined);
       const message = reason instanceof Error ? reason.message : 'Lỗi không xác định.';
       const prefix = reason instanceof ChangesetApiError
         ? reason.phase === 'create' ? 'Không thể khởi tạo phiên lưu' : 'Không thể tải lên thay đổi'
         : 'Không thể lưu thay đổi';
       setSaveStatus(`${prefix}: ${message}`);
-      if (reason instanceof ChangesetApiError && reason.phase === 'upload') {
+      if (definiteRejection) {
         // An HTTP rejection rolled back the upload transaction. Close the empty
         // session; network failures are ambiguous and are not treated this way.
         if (createdId) void closeChangeset(createdId).catch(() => undefined);
@@ -1119,7 +1200,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       writeBusyRef.current = false;
       setSaving(false);
     }
-  }, [blockingIssues.length, changes, conflictSession, dataset.name, datasetManagerOpen, discardChanges, historyOpen, pendingCloseId, refreshAfterCommit, refreshPublishStatus, retryCloseChangeset, saving]);
+  }, [pendingMutation, geometryToolGroup, drawVertices.length, draft.blocked, draft.prepareUpload, draft.rejectedUpload, draft.confirmedUpload, draft.suspendForRecovery, blockingIssues.length, changes, conflictSession, dataset.name, datasetManagerOpen, discardChanges, historyOpen, pendingCloseId, refreshAfterCommit, refreshPublishStatus, remapGeometryLocks, retryCloseChangeset, saving]);
 
   const handleApplyConflictResolution = useCallback((plan: ResolutionPlan) => {
     if (plan.blockers.length) return;
@@ -1186,17 +1267,21 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
   const handleSelectFeature = useCallback((feature: GraphFeature | null, toggleSelection = false, selectOnly = false) => {
     entityRequestRef.current += 1;
-    const groupMembers = feature && !toggleSelection && !selectOnly ? collectionMemberFeatures(feature, features) : [];
-    if (feature && groupMembers.length > 1) selectFeatureSet(groupMembers, feature);
-    else selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
+    try {
+      const groupMembers = feature && !toggleSelection && !selectOnly ? collectionMemberFeatures(feature, getFeatures()) : [];
+      if (feature && groupMembers.length) {
+        if (!selectFeatureSet(groupMembers, groupMembers.find(item => entityKey(item) === entityKey(feature)) ?? groupMembers.at(-1)!)) return;
+      }
+      else selectFeature(feature, toggleSelection ? 'toggle' : 'replace');
+    } catch (reason) { setSaveStatus(reason instanceof Error ? reason.message : 'Chưa thể chọn đủ nhóm.'); return; }
     setSelectedVertexId(null);
     setSelectionMenuPosition(null);
     if (feature) setPropertiesOpen(true);
-  }, [features, selectFeature, selectFeatureSet]);
+  }, [getFeatures, selectFeature, selectFeatureSet]);
 
   const handleSelectionContextMenu = useCallback((position: { top: number; left: number }) => {
-    if (drawMode === 'select' && selected) setSelectionMenuPosition(position);
-  }, [drawMode, selected]);
+    if (drawMode === 'select') setSelectionMenuPosition(position);
+  }, [drawMode]);
 
   const handleSelectIssue = useCallback((issue: EditorIssue) => {
     const feature = features.find(item => entityKey(item) === issue.entityKey);
@@ -1206,20 +1291,21 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   }, [features, handleSelectFeature]);
 
   const handleUpdateTags = useCallback((tags: Tags, label: string) => {
-    if (selectedKey) updateTags(selectedKey, tags, label);
-  }, [selectedKey, updateTags]);
+    if (selectedKey) acceptCommand(updateTags(selectedKey, tags, label));
+  }, [acceptCommand, selectedKey, updateTags]);
 
   const handleUpdateRelationMembers = useCallback((members: RelationMember[], label: string) => {
     if (!selectedKey || selected?.type !== 'relation') return;
     const relation = features.find(feature => entityKey(feature) === selectedKey);
     if (!relation) return;
-    replaceFeature({ ...relation, properties: { ...relation.properties, members } }, selectedKey, label);
-  }, [features, replaceFeature, selected, selectedKey]);
+    acceptCommand(replaceFeature({ ...relation, properties: { ...relation.properties, members } }, selectedKey, label));
+  }, [acceptCommand, features, replaceFeature, selected, selectedKey]);
 
   const collectionGroups = useMemo(() => {
-    if (!selected) return [];
-    return collectionRelationsFor(selected, features);
-  }, [features, selected]);
+    const keys = new Set(selectedKeys);
+    return getFeatures().filter(feature => feature.properties.entityType === 'relation' && feature.properties.tags.type === 'collection'
+      && (keys.has(entityKey(feature)) || feature.properties.members?.some(member => keys.has(`${member.type}/${member.ref}`))));
+  }, [features, getFeatures, selectedKeys]);
 
   const handleCreateRelation = useCallback(() => {
     if (!selected) {
@@ -1236,10 +1322,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       },
       geometry: { type: 'Point', coordinates: relationAnchor(selected.geometry) }
     };
-    replaceFeature(feature, `relation/${id}`, 'Tạo quan hệ mới');
+    if (!acceptCommand(replaceFeature(feature, `relation/${id}`, 'Tạo quan hệ mới'))) return;
     selectFeature(feature);
     setPropertiesOpen(true);
-  }, [replaceFeature, selectFeature, selected]);
+  }, [acceptCommand, replaceFeature, selectFeature, selected]);
 
   const handleGroupSelected = useCallback(() => {
     const members = selectedFeatures.length ? selectedFeatures : selected ? [selected] : [];
@@ -1254,102 +1340,102 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       },
       geometry: { type: 'Point', coordinates: relationAnchor(members.at(-1)!.geometry) }
     };
-    replaceFeature(feature, `relation/${id}`, 'Nhóm đối tượng');
+    if (!acceptCommand(replaceFeature(feature, `relation/${id}`, 'Nhóm đối tượng'))) return;
     selectFeature(feature);
     setPropertiesOpen(true);
     setSelectionMenuPosition(null);
     setSaveStatus(`Đã tạo nhóm với ${members.length} đối tượng.`);
-  }, [replaceFeature, selectFeature, selected, selectedFeatures]);
+  }, [acceptCommand, replaceFeature, selectFeature, selected, selectedFeatures]);
 
   const handleUngroupSelected = useCallback(() => {
-    if (!selected || !collectionGroups.length) return;
+    if (!selectedKeys.length || !collectionGroups.length) return;
+    const keys = new Set(selectedKeys);
     const mutations: FeatureMutation[] = collectionGroups.map(group => {
+      if (keys.has(entityKey(group))) return { key: entityKey(group), feature: null };
       const members = (group.properties.members ?? [])
-        .filter(member => member.type !== selected.type || member.ref !== selected.id)
+        .filter(member => !keys.has(`${member.type}/${member.ref}`))
         .map((member, sequence) => ({ ...member, sequence }));
       return { key: entityKey(group), feature: members.length ? { ...group, properties: { ...group.properties, members } } : null };
     });
-    replaceFeatures(mutations, 'Bỏ đối tượng khỏi nhóm');
+    if (!acceptCommand(replaceFeatures(mutations, 'Bỏ đối tượng khỏi nhóm'))) return;
     setSelectionMenuPosition(null);
-    setSaveStatus(`Đã bỏ đối tượng khỏi ${collectionGroups.length} nhóm.`);
-  }, [collectionGroups, replaceFeatures, selected]);
+    setSaveStatus(`Đã bỏ nhóm cho lựa chọn; cập nhật ${collectionGroups.length} nhóm, giữ nguyên các đối tượng.`);
+  }, [acceptCommand, collectionGroups, replaceFeatures, selectedKeys]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedKey) {
-      replaceFeature(null, selectedKey, 'Xóa đối tượng');
-      selectFeature(null);
-      setSelectionMenuPosition(null);
-    }
-  }, [replaceFeature, selectFeature, selectedKey]);
-
-  const handleDuplicateSelected = useCallback(() => {
-    if (!selectedKey) return;
-    const source = features.find(feature => entityKey(feature) === selectedKey) ?? (
-      selected?.type === 'node' && selected.geometry.type === 'Point'
-        ? {
-            type: 'Feature' as const,
-            id: `node-${selected.id}`,
-            properties: { entityType: 'node' as const, entityId: selected.id, version: selected.version, tags: selected.tags, coordinates: selected.geometry.coordinates, topologyNode: true },
-            geometry: selected.geometry
-          }
-        : null
-    );
-    if (!source) {
-      setSaveStatus('Không tìm thấy đối tượng cần nhân bản trong vùng dữ liệu đã tải.');
-      return;
-    }
+    if (saving || drawMode !== 'select' || !selectedKeys.length) return;
     try {
-      const selectedGroup = source.properties.entityType === 'relation' && source.properties.tags.type === 'collection'
-        ? source
-        : collectionGroups.at(0);
-      const members = selectedGroup?.properties.members ?? [];
-      const byKey = new Map(features.map(feature => [entityKey(feature), feature]));
-      byKey.set(entityKey(source), source);
-      const groupSources = members.map(member => byKey.get(`${member.type}/${member.ref}`)).filter((feature): feature is GraphFeature => Boolean(feature));
-      if (selectedGroup && groupSources.length !== members.length) {
-        throw new Error('Nhóm có thành viên chưa tải đầy đủ; hãy tải lại khu vực trước khi nhân bản.');
-      }
-      const sources = selectedGroup ? groupSources : [source];
-      const result = duplicateFeatures(
-        sources,
-        features,
-        () => String(nextNodeIdRef.current--),
-        () => String(nextWayIdRef.current--),
-        duplicateOffset(sources)
-      );
-      const sourceCopy = result.copies.get(entityKey(source));
-      if (!sourceCopy) throw new Error('Không thể tạo bản sao của đối tượng đang chọn.');
-      const mutations = [...result.mutations];
-      if (selectedGroup) {
-        const relationId = String(nextRelationIdRef.current--);
-        const relation: GraphFeature = {
-          type: 'Feature',
-          id: `relation-${relationId}`,
-          properties: {
-            entityType: 'relation', entityId: relationId, version: 0, tags: { ...selectedGroup.properties.tags },
-            members: members.map((member, sequence) => {
-              const copy = result.copies.get(`${member.type}/${member.ref}`);
-              if (!copy) throw new Error('Không thể tạo đầy đủ thành viên của nhóm bản sao.');
-              return { ...member, ref: copy.properties.entityId, sequence };
-            })
-          },
-          geometry: { type: 'Point', coordinates: relationAnchor(sourceCopy.geometry) }
-        };
-        mutations.push({ key: `relation/${relationId}`, feature: relation });
-      }
-      replaceFeatures(mutations, selectedGroup ? 'Nhân bản nhóm' : 'Nhân bản đối tượng');
-      if (selectedGroup) selectFeatureSet(result.features, sourceCopy);
-      else handleSelectFeature(sourceCopy, false, true);
+      const mutations = planDeleteSelection(selectedKeys, getFeatures());
+      const plan = inspectMutations(getDraftState(), getFeatures(), selectedKeys, mutations);
+      if (plan.status !== 'ready') { setSaveStatus(plan.reason); return; }
+      const command = { label: 'Xóa các đối tượng đã chọn', plan, keys: [...selectedKeys] };
+      if (plan.impact.deleted > 1 || mutations.some(item => item.key.startsWith('relation/'))) { setSelectionMenuPosition(null); setPendingMutation(command); }
+      else commitInspectedMutation(command);
+    } catch (reason) { setSaveStatus(reason instanceof Error ? reason.message : 'Không thể xóa lựa chọn.'); }
+  }, [commitInspectedMutation, drawMode, getDraftState, getFeatures, saving, selectedKeys]);
+
+  const handleDuplicateSelected = useCallback((target?: Coordinate) => {
+    if (saving || drawMode !== 'select' || !selectedKeys.length) return;
+    try {
+      const snapshot = captureGeometry(selectedKeys, getFeatures());
+      const result = pasteGeometry(snapshot, () => String(nextNodeIdRef.current--), () => String(nextWayIdRef.current--), () => String(nextRelationIdRef.current--),
+        target ? placementOffset(snapshot.sources, target) : duplicateOffset(snapshot.sources));
+      if (!acceptCommand(replaceFeatures(result.mutations, snapshot.groups.length ? 'Nhân bản nhóm/lựa chọn' : 'Nhân bản lựa chọn'))) return;
+      const active = selectedKey ? result.copies.get(selectedKey) : undefined;
+      selectFeatureSet(result.features, active && active.properties.entityType !== 'relation' ? active : result.features.at(-1)!);
+      setSelectedVertexId(null);
+      setPropertiesOpen(true);
       setSelectionMenuPosition(null);
-      setSaveStatus(selectedGroup
-        ? `Đã nhân bản nhóm ${result.features.length} đối tượng, lệch khoảng 8 m về đông bắc.`
-        : 'Đã nhân bản đối tượng, lệch khoảng 8 m về đông bắc.');
+      setSaveStatus(`Đã nhân bản ${result.features.length} đối tượng${snapshot.groups.length ? ` trong ${snapshot.groups.length} nhóm` : ''}${target ? ' tại vị trí con trỏ.' : ', lệch khoảng 8 m về đông bắc.'}`);
     } catch (reason) {
       setSaveStatus(reason instanceof Error ? reason.message : 'Không thể nhân bản đối tượng.');
     }
-  }, [collectionGroups, features, handleSelectFeature, replaceFeatures, selectedKey, selectFeatureSet]);
+  }, [acceptCommand, drawMode, getFeatures, replaceFeatures, saving, selectedKey, selectedKeys, selectFeatureSet]);
+
+  const handleCopySelection = useCallback((cut = false) => {
+    if (saving || drawMode !== 'select' || !selectedKeys.length) return;
+    try {
+      const available = getFeatures();
+      const snapshot = captureGeometry(selectedKeys, available);
+      // Validate geometry before cutting anything out of the editor.
+      let temporaryId = -1;
+      pasteGeometry(snapshot, () => String(temporaryId--), () => String(temporaryId--), () => String(temporaryId--), [0, 0]);
+      if (cut) {
+        if (!acceptCommand(replaceFeatures(cutGeometry(snapshot, available), 'Cắt đối tượng'))) return;
+        selectFeature(null);
+      }
+      setGeometryClipboard(snapshot);
+      pasteCountRef.current = 0;
+      setSelectionMenuPosition(null);
+      setSaveStatus(`Đã ${cut ? 'cắt' : 'sao chép'} ${snapshot.sources.length} đối tượng. Nhấn Ctrl+V để dán.`);
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể sao chép đối tượng.');
+    }
+  }, [acceptCommand, drawMode, getFeatures, replaceFeatures, saving, selectFeature, selectedKeys]);
+
+  const handlePasteSelection = useCallback((target?: Coordinate) => {
+    if (saving || drawMode !== 'select' || !geometryClipboard) return;
+    try {
+      const count = pasteCountRef.current + 1;
+      const offset = duplicateOffset(geometryClipboard.sources);
+      const result = pasteGeometry(geometryClipboard,
+        () => String(nextNodeIdRef.current--), () => String(nextWayIdRef.current--), () => String(nextRelationIdRef.current--),
+        target ? placementOffset(geometryClipboard.sources, target) : [offset[0] * count, offset[1] * count]);
+      if (!acceptCommand(replaceFeatures(result.mutations, 'Dán đối tượng'))) return;
+      selectFeatureSet(result.features, result.features[0]);
+      if (!target) pasteCountRef.current = count;
+      setSelectedVertexId(null);
+      setPropertiesOpen(true);
+      setSelectionMenuPosition(null);
+      setSaveStatus(target ? `Đã dán ${result.features.length} đối tượng tại vị trí con trỏ.`
+        : `Đã dán ${result.features.length} đối tượng, lệch khoảng ${8 * count} m về đông bắc so với bản sao chép.`);
+    } catch (reason) {
+      setSaveStatus(reason instanceof Error ? reason.message : 'Không thể dán đối tượng.');
+    }
+  }, [acceptCommand, drawMode, geometryClipboard, replaceFeatures, saving, selectFeatureSet]);
 
   const handleMoveNode = useCallback((nodeId: string, coordinate: Coordinate) => {
+    const features = getFeatures();
     const existingNode = features.find(feature => feature.properties.entityType === 'node' && feature.properties.entityId === nodeId);
     const sourceNode = features
       .filter(feature => feature.properties.entityType === 'way')
@@ -1370,11 +1456,17 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         mutations.push({ key: entityKey(way), feature: moveNodeInWay(way, nodeId, coordinate) });
       }
     }
-    replaceFeatures(mutations, 'Di chuyển điểm');
-  }, [features, replaceFeatures]);
+    const keys = selectedKeys.length ? selectedKeys : [`node/${nodeId}`];
+    const plan = inspectMutations(getDraftState(), features, keys, mutations);
+    if (plan.status !== 'ready') { setSaveStatus(plan.reason); return; }
+    const command = { label: 'Di chuyển điểm', plan, keys: [...keys] };
+    if (plan.impact.externalWays.length || plan.impact.externalRelations.length) setPendingMutation(command);
+    else { try { commitInspectedMutation(command); } catch (reason) { setSaveStatus(reason instanceof Error ? reason.message : 'Không thể di chuyển điểm.'); } }
+  }, [commitInspectedMutation, getDraftState, getFeatures, selectedKeys]);
 
   const handleMoveFeatures = useCallback((keys: readonly string[], offset: Coordinate) => {
     if (!Number.isFinite(offset[0]) || !Number.isFinite(offset[1]) || (offset[0] === 0 && offset[1] === 0)) return;
+    const features = getFeatures();
     const selectedKeys = new Set(keys);
     const selectedFeatures = features.filter(feature => (
       feature.properties.entityType !== 'relation' && selectedKeys.has(entityKey(feature))
@@ -1429,8 +1521,12 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       for (const [nodeId, coordinate] of movedNodes) movedWay = moveNodeInWay(movedWay, nodeId, coordinate);
       mutations.set(entityKey(way), { key: entityKey(way), feature: movedWay });
     }
-    replaceFeatures([...mutations.values()], selectedFeatures.length > 1 ? 'Di chuyển các đối tượng' : 'Di chuyển đối tượng');
-  }, [features, replaceFeatures]);
+    const plan = inspectMutations(getDraftState(), getFeatures(), keys, [...mutations.values()]);
+    if (plan.status !== 'ready') { setSaveStatus(plan.reason); return; }
+    const command = { label: selectedFeatures.length > 1 ? 'Di chuyển các đối tượng' : 'Di chuyển đối tượng', keys: [...keys], plan };
+    if (plan.impact.externalWays.length || plan.impact.externalRelations.length) setPendingMutation(command);
+    else { try { commitInspectedMutation(command); } catch (reason) { setSaveStatus(reason instanceof Error ? reason.message : 'Không thể di chuyển lựa chọn.'); } }
+  }, [commitInspectedMutation, getDraftState, getFeatures]);
 
   const handlePointerStatus = useCallback((status: MapPointerStatus) => setPointerStatus(status), []);
 
@@ -1464,10 +1560,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       if (way) mutations.push({ key: entityKey(way), feature: insertNodeIntoFeature(way, nodeId, vertex.coordinate, vertex.segment.segmentIndex) });
     }
     const node = mutations[0].feature;
-    replaceFeatures(mutations, vertex.segment ? 'Nối điểm vào đường' : 'Thêm điểm mới');
+    if (!acceptCommand(replaceFeatures(mutations, vertex.segment ? 'Nối điểm vào đường' : 'Thêm điểm mới'))) return;
     if (node) handleSelectFeature(node);
     setDrawMode('select');
-  }, [drawMode, features, handleSelectFeature, replaceFeatures]);
+  }, [acceptCommand, drawMode, features, handleSelectFeature, replaceFeatures]);
 
   const handleInsertVertex = useCallback((vertex: SnappedVertex) => {
     if (!vertex.segment) return;
@@ -1477,16 +1573,17 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     try {
       const updatedWay = insertNodeIntoFeature(way, nodeId, vertex.coordinate, vertex.segment.segmentIndex);
       const node = makeNodeFeature(nodeId, vertex.coordinate);
-      replaceFeatures([
+      const committed = replaceFeatures([
         { key: `node/${nodeId}`, feature: node },
         { key: entityKey(way), feature: updatedWay }
       ], 'Thêm đỉnh vào way');
+      if (!acceptCommand(committed)) return;
       handleSelectFeature(updatedWay);
       setSelectedVertexId(nodeId);
     } catch (reason) {
       setSaveStatus(reason instanceof Error ? reason.message : 'Không thể thêm đỉnh vào way.');
     }
-  }, [features, handleSelectFeature, replaceFeatures]);
+  }, [acceptCommand, features, handleSelectFeature, replaceFeatures]);
 
   const selectedWay = useMemo(() => selected?.type === 'way'
     ? features.find(feature => feature.properties.entityType === 'way' && feature.properties.entityId === selected.id) ?? null
@@ -1521,13 +1618,13 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         close: 'Đóng way thành vùng',
         open: 'Mở vùng thành đường'
       };
-      replaceFeatures(result.mutations, labels[action]);
+      if (!acceptCommand(replaceFeatures(result.mutations, labels[action]))) return;
       handleSelectFeature(result.selected);
       setSelectedVertexId(result.vertexId ?? selectedVertexId);
     } catch (reason) {
       setSaveStatus(reason instanceof Error ? reason.message : 'Không thể thực hiện thao tác topology.');
     }
-  }, [features, handleSelectFeature, replaceFeatures, selectedVertexId, selectedWay]);
+  }, [acceptCommand, features, handleSelectFeature, replaceFeatures, selectedVertexId, selectedWay]);
 
   const handleContinueWay = useCallback(() => {
     if (!selectedWay || !selectedVertexId || !isOpenWay(selectedWay)) return;
@@ -1551,7 +1648,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     if (drawVertices.length < minimum) return;
     try {
       const { way, mutations } = planDrawing(features, drawVertices, drawMode, () => String(nextWayIdRef.current--), drawingExtension);
-      replaceFeatures(mutations, drawingExtension ? 'Tiếp tục way' : drawMode === 'area' ? 'Vẽ vùng mới' : 'Vẽ đường mới');
+      if (!acceptCommand(replaceFeatures(mutations, drawingExtension ? 'Tiếp tục way' : drawMode === 'area' ? 'Vẽ vùng mới' : 'Vẽ đường mới'))) return;
       handleSelectFeature(way);
       setDrawVertices([]);
       setDrawingExtension(null);
@@ -1559,7 +1656,34 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     } catch (reason) {
       setSaveStatus(reason instanceof Error ? reason.message : 'Không thể hoàn tất way.');
     }
-  }, [drawMode, drawVertices, drawingExtension, features, handleSelectFeature, replaceFeatures]);
+  }, [acceptCommand, drawMode, drawVertices, drawingExtension, features, handleSelectFeature, replaceFeatures]);
+
+  const handleGeometryTool = useCallback((request: GeometryToolRequest, fingerprint?: string) => {
+    if (saving || drawMode !== 'select') throw new Error('Chờ lưu hoàn tất và chuyển về chế độ chọn.');
+    const available = getFeatures();
+    selectedKeys.forEach(key => {
+      const feature = available.find(item => entityKey(item) === key);
+      if (!feature) throw new Error('Đối tượng chưa được tải đầy đủ. Hãy chọn lại trên bản đồ.');
+    });
+    if (request.operation === 'lock') {
+      lockGeometry(request.layer ? [] : selectedKeys, request.layer ? [request.layer] : []);
+      setSelectedVertexId(null);
+      setSaveStatus('Đã khóa tạm. Mở Quản lý khóa trên bản đồ để tiếp tục chỉnh sửa.');
+      return;
+    }
+    const plan = inspectGeometryTool(request);
+    if (plan.status !== 'ready') throw new Error(plan.reason ?? 'Không có thay đổi để áp dụng.');
+    if (!fingerprint || plan.fingerprint !== fingerprint) throw new Error('Dữ liệu hoặc phạm vi tác động đã thay đổi. Kiểm tra lại preview trước khi áp dụng.');
+    const committed = replaceFeatures(plan.mutations, `Geometry: ${request.operation}`);
+    if (committed.status === 'blocked') throw new Error(committed.message);
+    if (!acceptCommand(committed)) return;
+    const ids = reservePlannedIds(plan.mutations, { node: nextNodeIdRef.current, way: nextWayIdRef.current, relation: nextRelationIdRef.current });
+    nextNodeIdRef.current = ids.node; nextWayIdRef.current = ids.way; nextRelationIdRef.current = ids.relation;
+    if (plan.selected) selectFeature(plan.selected);
+    setSelectedVertexId(null);
+    setUndoOfferId(getDraftState().undoStack.at(-1)?.id ?? null);
+    setSaveStatus(plan.selected ? `Đã tạo vùng kết quả (${plan.impact.created} entity), giữ nguyên vùng gốc.` : `Đã cập nhật ${plan.impact.changedNodes} node; ${plan.impact.externalWays.length} đường/vùng và ${plan.impact.externalRelations.length} relation ngoài lựa chọn bị ảnh hưởng. ${committed.status === 'applied' ? committed.changedKeys.length : 0} entity thay đổi trong 1 bước Undo.`);
+  }, [acceptCommand, drawMode, getFeatures, getDraftState, inspectGeometryTool, lockGeometry, replaceFeatures, saving, selectFeature, selectedKeys]);
 
   const selectedName = selected?.tags.name || (selected ? (selected.type === 'node' ? 'Điểm chưa đặt tên' : selected.type === 'way' ? 'Đường/Vùng chưa đặt tên' : 'Quan hệ chưa đặt tên') : '');
 
@@ -1583,7 +1707,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   // Keyboard shortcuts (like iD editor / JOSM)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (saving || conflictSession || historyOpen || datasetManagerOpen) return;
+      if (pendingMutation || draft.blocked || saving || conflictSession || historyOpen || datasetManagerOpen || geometryToolGroup || locksOpen) return;
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, [contenteditable="true"]')) return;
       if (event.key === 'Escape') {
         if (drawMode !== 'select') {
@@ -1629,17 +1753,27 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       }
       if (!(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
+      if (drawMode === 'select' && (key === 'c' || key === 'x' || key === 'v')) {
+        event.preventDefault();
+        if (key === 'v') {
+          if (mapPointerRef.current) handlePasteSelection(mapPointerRef.current);
+          else setSaveStatus('Đưa con trỏ vào bản đồ rồi nhấn Ctrl+V để dán tại vị trí đó.');
+        }
+        else handleCopySelection(key === 'x');
+        return;
+      }
       if (key === 'z' && !event.shiftKey && canUndo) {
         event.preventDefault();
-        undo();
+        acceptCommand(undo());
       }
       if ((key === 'y' || (key === 'z' && event.shiftKey)) && canRedo) {
         event.preventDefault();
-        redo();
+        acceptCommand(redo());
       }
-      if (key === 'd' && drawMode === 'select' && selected?.type !== 'relation') {
+      if (key === 'd' && drawMode === 'select') {
         event.preventDefault();
-        handleDuplicateSelected();
+        if (mapPointerRef.current) handleDuplicateSelected(mapPointerRef.current);
+        else setSaveStatus('Đưa con trỏ vào bản đồ rồi nhấn Ctrl+D để nhân bản tại vị trí đó.');
         return;
       }
       if (key === 's' && changeCount > 0 && !saving) {
@@ -1649,10 +1783,11 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, handleCancelDrawing, handleDeleteSelected, handleDuplicateSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
+  }, [pendingMutation, draft.blocked, activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, geometryToolGroup, locksOpen, handleCancelDrawing, handleCopySelection, handlePasteSelection, handleDeleteSelected, handleDuplicateSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
 
   return (
-    <Box sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '56px minmax(0, 1fr) 32px', overflow: 'hidden', bgcolor: '#edf0f3' }}>
+    <Box inert={draft.blocked} sx={{ height: '100dvh', width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '56px minmax(0, 1fr) 32px', overflow: 'hidden', bgcolor: '#edf0f3' }}>
+      {draft.dialog}
       <CssBaseline />
       <GlobalStyles styles={{
         ':root': {
@@ -1684,6 +1819,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
       {/* Top Header / App Bar */}
       <AppBar
+        inert={Boolean(geometryToolGroup)}
         position="static"
         elevation={0}
         sx={{
@@ -1695,7 +1831,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       >
         <Toolbar variant="dense" sx={{ minHeight: '56px !important', px: { xs: 1, sm: 2 }, gap: { xs: 0.75, sm: 1.5 }, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
           {/* Logo & Application Title */}
-          <Stack direction="row" sx={{ alignItems: 'center', gap: 1.25 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', gap: 1.25, flexShrink: 0 }}>
             <Box
               sx={{
                 width: 32,
@@ -1712,11 +1848,11 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             >
               <Crosshair size={17} aria-hidden="true" />
             </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5, lineHeight: 1.15 }}>
+            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5, lineHeight: 1.15, whiteSpace: 'nowrap' }}>
                 GEODATA WEBGIS
               </Typography>
-              <Typography sx={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.75)', letterSpacing: 0.2 }}>
+              <Typography sx={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.75)', letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
                 Biên tập & Quản lý bản đồ
               </Typography>
             </Box>
@@ -1731,6 +1867,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               sx={{
                 alignItems: 'center',
                 gap: 0.8,
+                display: { xs: 'none', md: 'flex' }, flexShrink: 0, whiteSpace: 'nowrap',
                 bgcolor: 'rgba(0, 0, 0, 0.18)',
                 px: 1.2,
                 py: 0.4,
@@ -1755,9 +1892,9 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           <Box sx={{ flex: 1 }} />
 
           {/* Feature count & actions */}
-          <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', gap: { xs: 0.75, sm: 1.5 }, flexShrink: 0, whiteSpace: 'nowrap' }}>
             {graphVisible && (
-              <Typography sx={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.85)', display: { xs: 'none', sm: 'block' } }}>
+              <Typography sx={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.85)', display: { xs: 'none', lg: 'block' } }}>
                 {features.length > 0 ? `${features.length.toLocaleString('vi-VN')} đối tượng` : 'Chưa có đối tượng'}
                 {changeCount > 0 && ` · ${changeCount} chỉnh sửa`}
               </Typography>
@@ -1767,9 +1904,11 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               <Button
                 size="small"
                 variant="text"
+                aria-label="Đi tới vị trí theo tọa độ"
                 onClick={event => setCoordinateAnchor(event.currentTarget)}
                 sx={{
                   color: '#ffffff',
+                  minWidth: { xs: 36, sm: 64 },
                   bgcolor: 'rgba(255, 255, 255, 0.12)',
                   borderRadius: 1.5,
                   px: 1.25,
@@ -1780,7 +1919,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.22)' }
                 }}
               >
-                Tọa độ
+                <Box component="span" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}><Crosshair size={18} aria-hidden="true" /></Box><Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Tọa độ</Box>
               </Button>
             </Tooltip>
             <Menu
@@ -1855,18 +1994,18 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               </MenuItem>
             </Menu>
 
-            <Tooltip title={`Dataset đang mở: ${dataset.name}`}><Button color="inherit" disabled={saving || Boolean(conflictSession) || historyOpen} onClick={() => setDatasetManagerOpen(true)} sx={{ textTransform: 'none' }}>Dữ liệu / Import PBF</Button></Tooltip>
+            <Tooltip title={`Dữ liệu / Import PBF · ${dataset.name}`}><Button color="inherit" aria-label="Dữ liệu / Import PBF" disabled={saving || Boolean(conflictSession) || historyOpen} onClick={() => setDatasetManagerOpen(true)} sx={{ textTransform: 'none', minWidth: { xs: 36, md: 64 } }}><Box component="span" sx={{ display: { xs: 'inline-flex', md: 'none' } }}><Layers size={18} aria-hidden="true" /></Box><Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Dữ liệu / Import PBF</Box></Button></Tooltip>
 
             {/* Prominent Save Button */}
-            <Tooltip title={changeCount > 0 ? `Lưu ${changeCount} thay đổi vào hệ thống (Ctrl+S)` : 'Không có thay đổi nào cần lưu'}>
+            <Tooltip title={drawVertices.length ? 'Hoàn tất hoặc hủy bản vẽ dở trước khi lưu vào hệ thống' : changeCount > 0 ? `Lưu ${changeCount} thay đổi vào hệ thống (Ctrl+S)` : 'Không có thay đổi nào cần lưu'}>
               <span>
                 <Button
                   size="small"
                   variant="contained"
-                  disabled={saving || (!changeCount && !pendingCloseId)}
+                  disabled={saving || Boolean(geometryToolGroup) || Boolean(pendingMutation) || drawVertices.length > 0 || (!changeCount && !pendingCloseId)}
                   onClick={() => void handleSave()}
                   sx={{
-                    minWidth: 100,
+                    minWidth: { xs: 92, sm: 100 },
                     height: 32,
                     borderRadius: 1.5,
                     bgcolor: changeCount > 0 ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
@@ -1898,43 +2037,43 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       }} />}
       {conflictSession && <ConflictDialog dataset={dataset.name} session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} />}
       {historyOpen && <ChangesetHistoryDialog dataset={dataset.name} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} />}
-      {selected && (
+      {(selected || geometryClipboard || lockedKeys.length > 0 || lockedLayers.length > 0) && (
         <Menu
           open={Boolean(selectionMenuPosition)}
           onClose={() => setSelectionMenuPosition(null)}
           anchorReference="anchorPosition"
           anchorPosition={selectionMenuPosition ?? undefined}
-          slotProps={{ list: { 'aria-label': 'Thao tác đối tượng đang chọn' }, paper: { sx: { width: 236, overflow: 'hidden', borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.15)' } } }}
+          slotProps={{ list: { 'aria-label': 'Thao tác đối tượng đang chọn' }, paper: { sx: { width: 252, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', overflowX: 'hidden', borderRadius: 2, boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)', '& .MuiMenuItem-root': { minHeight: 36 }, '& .MuiMenuItem-root:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 } } } }}
         >
           <Box sx={{ px: 1.25, py: 1 }}>
             <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Typography noWrap sx={{ color: '#1e293b', fontSize: 12.5, fontWeight: 800 }}>{selectedName}</Typography>
+                <Typography noWrap sx={{ color: '#1e293b', fontSize: 12.5, fontWeight: 800 }}>{selectedName || 'Công cụ biên tập'}</Typography>
                 <Typography sx={{ mt: 0.15, color: '#64748b', fontFamily: 'monospace', fontSize: 10 }}>
-                  {selectedKeys.length > 1 ? `${selectedKeys.length} đối tượng đang chọn` : `${selected.type}/${selected.id}`}
+                  {selectedKeys.length > 1 ? `${selectedKeys.length} đối tượng đang chọn` : selected ? `${selected.type}/${selected.id}` : lockedKeys.length + lockedLayers.length > 0 ? `${lockedKeys.length} đối tượng · ${lockedLayers.length} layer đang khóa` : 'Dán đối tượng từ bộ nhớ tạm'}
                 </Typography>
               </Box>
             </Stack>
           </Box>
           <Divider />
-          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+          <MenuItem disabled={saving || !selected} onClick={() => handleCopySelection()} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#64748b' } }}>
             <Copy size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Sao chép</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+C</Typography>
           </MenuItem>
-          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+          <MenuItem disabled={saving || !geometryClipboard} onClick={() => handlePasteSelection()} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#64748b' } }}>
             <Clipboard size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Dán</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+V</Typography>
           </MenuItem>
           <MenuItem
-            disabled={saving || (selected.type === 'relation' && selected.tags.type !== 'collection')}
-            onClick={handleDuplicateSelected}
+            disabled={saving || !selected || (selected.type === 'relation' && selected.tags.type !== 'collection')}
+            onClick={() => handleDuplicateSelected()}
             sx={{ minHeight: 34, gap: 1, color: '#64748b', '&.Mui-disabled': { opacity: 0.55, color: '#64748b' } }}
           >
             <Files size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Nhân bản</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+D</Typography>
           </MenuItem>
           <MenuItem
-            disabled={saving}
+            disabled={saving || !selected}
             onClick={collectionGroups.length ? handleUngroupSelected : handleGroupSelected}
             sx={{ minHeight: 34, gap: 1, color: '#64748b', '&:hover': { bgcolor: '#f8fafc' }, '&.Mui-disabled': { opacity: 0.55, color: '#64748b' } }}
           >
@@ -1943,12 +2082,21 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             {collectionGroups.length > 1 && <Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>{collectionGroups.length} nhóm</Typography>}
           </MenuItem>
           <Divider sx={{ my: 0.25 }} />
-          <MenuItem disabled sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 1, color: '#64748b' } }}>
+          {geometryToolGroups.map(({ id, label, icon: ToolIcon }) => (
+            <MenuItem key={id} disabled={saving || !selected} onClick={() => { setSelectionMenuPosition(null); setGeometryToolGroup(id); }} sx={{ minHeight: 34, gap: 1 }}>
+              <ToolIcon size={15} aria-hidden="true" />
+              <Typography sx={{ fontSize: 12, fontWeight: 750 }}>{label}</Typography>
+              <ChevronRight size={14} aria-hidden="true" style={{ marginLeft: 'auto' }} />
+            </MenuItem>
+          ))}
+          <Divider sx={{ my: 0.25 }} />
+          {(lockedKeys.length > 0 || lockedLayers.length > 0) && <MenuItem disabled={saving} onClick={() => { setSelectionMenuPosition(null); setLocksOpen(true); }} sx={{ gap: 1 }}><LockKeyhole size={15} aria-hidden="true" /><Typography sx={{ fontSize: 12, fontWeight: 750 }}>Quản lý khóa ({lockedKeys.length + lockedLayers.length})</Typography></MenuItem>}
+          <MenuItem disabled={saving || !selected} onClick={() => handleCopySelection(true)} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#64748b' } }}>
             <Scissors size={15} aria-hidden="true" />
-            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Cắt</Typography>
+            <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Cắt</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+X</Typography>
           </MenuItem>
           <MenuItem
-            disabled={saving}
+            disabled={saving || !selected}
             onClick={handleDeleteSelected}
             sx={{ minHeight: 34, gap: 1, color: '#b4233c', '&:hover': { bgcolor: '#fff1f2' }, '&.Mui-disabled': { opacity: 0.55, color: '#b4233c' } }}
           >
@@ -1958,13 +2106,39 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         </Menu>
       )}
 
+      {locksOpen && <GeometryLocksDialog keys={lockedKeys} layers={lockedLayers} features={features} onClose={() => setLocksOpen(false)} onUnlock={() => { unlockGeometry(); setLocksOpen(false); setSaveStatus('Đã mở khóa tất cả đối tượng và layer.'); }} />}
+      {pendingMutation && <CommandImpactDialog command={pendingMutation} onClose={() => setPendingMutation(null)} onApply={() => commitInspectedMutation(pendingMutation)} />}
+      {geometryToolGroup && (
+        <GeometryToolsDialog
+          key={geometryToolGroup}
+          group={geometryToolGroup}
+          count={selectedKeys.length}
+          polygonCount={selectedFeatures.filter(feature => feature.geometry.type === 'Polygon' || feature.type === 'relation' && feature.tags.type === 'multipolygon').length}
+          selection={selectedFeatures}
+          impact={geometryImpact}
+          initialLayer={selectedKey && features.find(feature => entityKey(feature) === selectedKey) ? geometryLayer(features.find(feature => entityKey(feature) === selectedKey)!) : 'areas'}
+          onApply={handleGeometryTool}
+          onInspect={inspectGeometryTool}
+          onPreview={setGeometryPreview}
+          circularizable={selectedFeatures.length === 1 && (() => {
+            const geometry = selectedFeatures[0].geometry;
+            const ring = geometry.type === 'Polygon' ? geometry.coordinates[0] : geometry.type === 'LineString' ? geometry.coordinates : [];
+            return ring.length >= 4 && ring[0][0] === ring.at(-1)![0] && ring[0][1] === ring.at(-1)![1]
+              && new Set(ring.map(coordinate => coordinate.join(','))).size >= 3;
+          })()}
+          onClose={closeGeometryTool}
+        />
+      )}
+
       {/* Main Workspace Body */}
       <Box component="main" inert={saving || undefined} sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, position: 'relative', overflow: 'hidden', gap: { xs: 0.75, sm: 1 }, p: { xs: 0.75, sm: 1 }, bgcolor: '#edf0f3' }}>
         {/* Map Canvas Area */}
         <Box sx={{ position: 'relative', minWidth: 0, minHeight: 0, flex: 1, overflow: 'hidden', bgcolor: '#e2e8f0', borderRadius: { xs: 2, sm: 3 }, border: '1px solid #d7dee6' }}>
+          {(lockedKeys.length > 0 || lockedLayers.length > 0) && <Button size="small" variant="outlined" disabled={saving} onClick={() => setLocksOpen(true)} startIcon={<LockKeyhole size={14} aria-hidden="true" />} aria-label="Xem đối tượng và layer đang khóa" sx={{ position: 'absolute', zIndex: 10, right: 76, top: 16, bgcolor: 'background.paper', borderColor: 'divider', color: 'primary.dark', '&:hover': { bgcolor: 'primary.light' } }}>Đang khóa · {lockedKeys.length + lockedLayers.length}</Button>}
           {/* Primary editing rail */}
           <Paper
             elevation={4}
+            inert={Boolean(geometryToolGroup)}
             aria-label="Công cụ biên tập bản đồ"
             sx={{
               position: 'absolute',
@@ -2089,7 +2263,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 <IconButton
                   size="small"
                   disabled={!canUndo}
-                  onClick={undo}
+                  onClick={() => acceptCommand(undo())}
                   aria-label="Hoàn tác (Ctrl+Z)"
                   sx={{
                     width: 44,
@@ -2109,7 +2283,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 <IconButton
                   size="small"
                   disabled={!canRedo}
-                  onClick={redo}
+                  onClick={() => acceptCommand(redo())}
                   aria-label="Làm lại (Ctrl+Y)"
                   sx={{
                     width: 44,
@@ -2191,7 +2365,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           )}
 
           {/* Low Zoom Guidance Alert (iD / JOSM style) */}
-          {!graphVisible && (
+          {!graphVisible && !saveStatus && (
             <Paper
               elevation={2}
               sx={{
@@ -2280,7 +2454,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.25,
-                maxWidth: 440,
+                maxWidth: 'min(440px, calc(100% - 32px))',
                 px: 1.5,
                 py: 1,
                 borderRadius: 1.5,
@@ -2289,8 +2463,9 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 boxShadow: '0 8px 20px rgba(15,23,42,0.14)'
               }}
             >
-              <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b' }}>
+              <Typography role="status" aria-live="polite" sx={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b', overflowWrap: 'anywhere' }}>
                 {saveStatus}
+                {canUndo && undoOfferId !== null && undoOfferId === getDraftState().undoStack.at(-1)?.id && <Button size="small" disabled={saving || Boolean(geometryToolGroup)} onClick={() => { if (acceptCommand(undo())) { setUndoOfferId(null); setSaveStatus('Đã hoàn tác thao tác vừa áp dụng.'); } }} sx={{ ml: 1 }}>Hoàn tác</Button>}
               </Typography>
               <IconButton size="small" aria-label="Đóng thông báo trạng thái" onClick={() => setSaveStatus(null)} sx={{ color: '#94a3b8' }}>
                 <X size={16} aria-hidden="true" />
@@ -2300,6 +2475,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
           {/* The Underlying Map Component */}
           <MapCanvas
+            commandPreview={pendingMutation?.plan ?? geometryPreview}
+            inspectionOnly={Boolean(geometryToolGroup) || Boolean(pendingMutation)}
+            restoredCamera={restoredCamera}
+            isGeometryLocked={isGeometryLocked}
             dataset={dataset.name}
             initialBounds={dataset.bounds}
             features={graphVisible ? features : EMPTY_GRAPH}
@@ -2323,6 +2502,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             onMoveNode={handleMoveNode}
             onMoveFeatures={handleMoveFeatures}
             onPointerStatus={handlePointerStatus}
+            onPointerCoordinate={handlePointerCoordinate}
           />
         </Box>
 
@@ -2330,6 +2510,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         {selected && propertiesOpen && (
           <Paper
             component="aside"
+            inert={Boolean(geometryToolGroup)}
             aria-label="Bảng chi tiết đối tượng đang chọn"
             sx={{
               width: { xs: '100%', md: propertiesWidth },
@@ -2442,6 +2623,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 hidden={Boolean(selectedWay) && inspectorTab !== 'properties'}
               >
                 <PropertiesEditor
+                  onDraftTags={onDraftTags}
                   selected={selected}
                   onUpdate={handleUpdateTags}
                   onDelete={handleDeleteSelected}
@@ -2508,7 +2690,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         }}
       >
         {/* Status Indicator */}
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 1, minWidth: 0 }}>
           <Box
             sx={{
               width: 7,
@@ -2524,6 +2706,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
         <Box sx={{ flex: 1 }} />
 
+        <Button size="small" aria-label="Quản lý bản nháp" onClick={draft.open} disabled={saving} title={draft.error ?? 'Bản nháp chỉ nằm trên trình duyệt này; vẫn cần Lưu thay đổi để ghi vào hệ thống.'} sx={{ flexShrink: 1, minWidth: 0, maxWidth: { xs: 140, sm: 330 }, color: draft.error ? '#fca5a5' : '#e2e8f0', fontSize: 11, textTransform: 'none' }}><Box component="span" role="status" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{draft.error ? 'Lỗi lưu nháp · Xem chi tiết' : draft.status}</Box></Button>
         {/* Pointer Position & Zoom HUD */}
         <Stack direction="row" sx={{ alignItems: 'center', gap: 2, mr: { xs: 0, sm: 2 }, display: { xs: 'none', sm: 'flex' } }}>
           <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8' }}>
@@ -2540,7 +2723,8 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5, mr: 1.5 }}>
             <Button
               size="small"
-              onClick={discardChanges}
+              disabled={saving || Boolean(geometryToolGroup)}
+              onClick={() => { if (!saving && window.confirm('Hủy các thay đổi chưa lưu và xóa bản nháp tương ứng? Không thể khôi phục bằng Undo.')) discardChanges(); }}
               sx={{ minWidth: 0, px: 1, py: 0, color: '#fca5a5', fontSize: 10.5, textTransform: 'none', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.15)' } }}
             >
               Hủy thay đổi

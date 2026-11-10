@@ -5,6 +5,7 @@ export interface ChangesetInfo {
   id: string;
   status: 'open' | 'committed' | 'closed';
   committedRevision?: number;
+  diffResult?: Array<{ type: 'node' | 'way' | 'relation'; oldId: string; newId: string }>;
 }
 
 interface UploadEntityBase {
@@ -63,7 +64,11 @@ function parseChangesetInfo(value: unknown): ChangesetInfo {
 
 function parseChangesetResponse(value: unknown): ChangesetInfo {
   if (!isRecord(value)) throw new Error('Phản hồi changeset không hợp lệ.');
-  return parseChangesetInfo(value.changeset);
+  const result = parseChangesetInfo(value.changeset);
+  if (Array.isArray(value.diffResult)) result.diffResult = value.diffResult.flatMap(item => isRecord(item)
+    && (item.type === 'node' || item.type === 'way' || item.type === 'relation') && typeof item.oldId === 'string' && typeof item.newId === 'string'
+    ? [{ type: item.type, oldId: item.oldId, newId: item.newId }] : []);
+  return result;
 }
 
 function apiErrorMessage(value: unknown, status: number): string {
@@ -120,6 +125,13 @@ export function toUploadChanges(changes: EditorChange[]): UploadChange[] {
 
 export function createChangeset(dataset: string, comment: string): Promise<ChangesetInfo> {
   return request('create', '/api/0.6/changeset/create', 'PUT', { dataset, comment });
+}
+
+export async function getChangeset(id: string): Promise<ChangesetInfo> {
+  const response = await fetch(`/api/0.6/changeset/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) });
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(apiErrorMessage(payload, response.status));
+  return parseChangesetResponse(payload);
 }
 
 export function uploadChangeset(id: string, changes: UploadChange[]): Promise<ChangesetInfo> {

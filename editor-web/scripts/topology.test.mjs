@@ -6,11 +6,14 @@ const operationsURL = await loadSource('../src/features/editor/topologyOperation
 const operations = await import(operationsURL);
 const drawingURL = await loadSource('../src/features/editor/drawing.ts', { '../topology/graph': graph });
 const { duplicateFeature } = await import(await loadSource('../src/features/editor/duplicateFeature.ts', { './drawing': drawingURL }));
-const { duplicateFeatures } = await import(await loadSource('../src/features/editor/duplicateFeatures.ts', { './drawing': drawingURL }));
+const duplicateFeaturesURL = await loadSource('../src/features/editor/duplicateFeatures.ts', { './drawing': drawingURL });
+const { duplicateFeatures, placementOffset } = await import(duplicateFeaturesURL);
+const { captureGeometry, cutGeometry, pasteGeometry } = await import(await loadSource('../src/features/editor/geometryClipboard.ts', { './duplicateFeatures': duplicateFeaturesURL }));
 const { planDrawing } = await import(await loadSource('../src/features/editor/drawingTransactions.ts', { '../topology/graph': graph, './drawing': drawingURL, './topologyOperations': operationsURL }));
 const { editorReducer, initialState } = await import(await loadSource('../src/features/editor/EditorStore.tsx', {
   react: import.meta.resolve('react'), 'react/jsx-runtime': import.meta.resolve('react/jsx-runtime'),
-  './conflictResolution': await loadSource('../src/features/editor/conflictResolution.ts')
+  './conflictResolution': await loadSource('../src/features/editor/conflictResolution.ts'),
+  './geometryLocks': await loadSource('../src/features/editor/geometryLocks.ts')
 }));
 const { toUploadChanges } = await import(await loadSource('../src/api/changeset.ts'));
 const { closeWay, disconnectVertex, extendFeature, mergeFeatures, openWay, removeVertex, reverseFeature, reverseWayTags, splitFeature, wayVertices } = operations;
@@ -23,6 +26,67 @@ function relation(id, type, members) {
   return { type: 'Feature', properties: { entityType: 'relation', entityId: String(id), version: 1, tags: { type }, members: members.map(([ref, role = ''], sequence) => ({ type: 'way', ref: String(ref), role, sequence })) }, geometry: { type: 'Point', coordinates: [1, 1] } };
 }
 function changed(result, key) { return result.mutations.find(m => m.key === key)?.feature; }
+
+test('pointer placement centres a selection and preserves shared topology and relative positions', () => {
+  const sources = [way(10, [1, 2]), way(20, [2, 3])];
+  const offset = placementOffset(sources, [105, 21]);
+  assert.deepEqual(offset, [103, 20]);
+  let id = -1;
+  const result = duplicateFeatures(sources, sources, () => String(id--), () => String(id--), offset);
+  assert.deepEqual(result.features[0].geometry.coordinates, [[104, 21], [105, 21]]);
+  assert.deepEqual(result.features[1].geometry.coordinates, [[105, 21], [106, 21]]);
+  assert.equal(result.features[0].properties.nodeIds[1], result.features[1].properties.nodeIds[0]);
+  const clipboard = captureGeometry(['way/10', 'way/20'], sources);
+  const pasted = pasteGeometry(clipboard, () => String(id--), () => String(id--), () => String(id--), offset);
+  assert.deepEqual(pasted.features.map(feature => feature.geometry), result.features.map(feature => feature.geometry));
+});
+
+test('pointer placement puts a point exactly at the pointer and rejects out-of-bounds geometry', () => {
+  const point = { type: 'Feature', properties: { entityType: 'node', entityId: '1', version: 1, tags: {} }, geometry: { type: 'Point', coordinates: [105, 21] } };
+  assert.deepEqual(placementOffset([point], [106, 22]), [1, 1]);
+  assert.throws(() => placementOffset([way(10, [1, 2, 3])], [180, 21]), /giới hạn/);
+  assert.throws(() => placementOffset([], [105, 21]), /xác định/);
+});
+
+test('clipboard snapshot survives source edits and repeated paste creates independent topology', () => {
+  const first = way(10, [1, 2]);
+  const second = way(20, [2, 3]);
+  const snapshot = captureGeometry(['way/10', 'way/20'], [first, second]);
+  first.geometry.coordinates[0][0] = 50;
+  let id = -1;
+  const paste = () => pasteGeometry(snapshot, () => String(id--), () => String(id--), () => String(id--), [0.1, 0.2]);
+  const result = paste();
+  assert.deepEqual(result.features[0].geometry.coordinates[0], [1.1, 1.2]);
+  assert.equal(result.features[0].properties.nodeIds[1], result.features[1].properties.nodeIds[0]);
+  const again = paste();
+  assert.notEqual(result.features[0].properties.nodeIds[0], again.features[0].properties.nodeIds[0]);
+});
+
+test('clipboard expands collection, remaps members and refuses incomplete groups', () => {
+  const first = way(10, [1, 2]);
+  const second = way(20, [2, 3]);
+  const group = relation(30, 'collection', [[10], [20]]);
+  const snapshot = captureGeometry(['relation/30'], [first, second, group]);
+  let id = -1;
+  const result = pasteGeometry(snapshot, () => String(id--), () => String(id--), () => String(id--), [0, 0]);
+  const copiedGroup = result.copies.get('relation/30');
+  assert.deepEqual(copiedGroup.properties.members.map(member => member.ref), result.features.map(feature => feature.properties.entityId));
+  assert.throws(() => captureGeometry(['relation/30'], [first, group]), /chưa được tải/);
+});
+
+test('cut rejects external dependencies and undo restores an atomic cut', () => {
+  const first = way(10, [1, 2]);
+  const group = relation(30, 'collection', [[10]]);
+  const snapshot = captureGeometry(['way/10'], [first]);
+  assert.throws(() => cutGeometry(snapshot, [first, group]), /quan hệ khác/);
+  let state = editorReducer(initialState, { type: 'hydrate', features: [first] });
+  state = editorReducer(state, { type: 'commit-many', mutations: cutGeometry(snapshot, [first]), label: 'Cut' });
+  assert.equal(state.overrides['way/10'], null);
+  state = editorReducer(state, { type: 'undo' });
+  assert.deepEqual(state.overrides, {});
+  const grouped = captureGeometry(['relation/30'], [first, group]);
+  assert.deepEqual(cutGeometry(grouped, [first, group]).map(mutation => mutation.key).sort(), ['relation/30', 'way/10']);
+});
 
 test('viewport reload retains only the current clean selection and refreshes it when returned', () => {
   const input = way(10, [1, 2, 3]);

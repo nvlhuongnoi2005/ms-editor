@@ -5,7 +5,8 @@ import { loadSource } from './test-source.mjs';
 const resolutionURL = await loadSource('../src/features/editor/conflictResolution.ts');
 const { planConflictResolution, sameEntityContent } = await import(resolutionURL);
 const { editorReducer, initialState, visibleFeatures } = await import(await loadSource('../src/features/editor/EditorStore.tsx', {
-  react: import.meta.resolve('react'), 'react/jsx-runtime': import.meta.resolve('react/jsx-runtime'), './conflictResolution': resolutionURL
+  react: import.meta.resolve('react'), 'react/jsx-runtime': import.meta.resolve('react/jsx-runtime'), './conflictResolution': resolutionURL,
+  './geometryLocks': await loadSource('../src/features/editor/geometryLocks.ts')
 }));
 const { uploadChangeset, ChangesetApiError, toUploadChanges } = await import(await loadSource('../src/api/changeset.ts'));
 const { loadEntitySnapshots } = await import(await loadSource('../src/api/conflicts.ts', { './graph': await loadSource('../src/api/graph.ts') }));
