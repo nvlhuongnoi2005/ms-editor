@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, CssBaseline, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { Layers3, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
+import { BookOpen, Layers3, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
 import type { StyleSpecification } from 'maplibre-gl';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -9,6 +9,7 @@ import './enc-workspace.css';
 import { localEncStyle, type EncTheme } from './style';
 import { EncImportDialog } from './EncImportDialog';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
+import { EncSymbolCatalog } from './EncSymbolCatalog';
 import { installSectorImages } from './lightSectors';
 import { WorkspaceNavigation } from '../../shared/WorkspaceNavigation';
 import type { EncImport } from './imports';
@@ -34,6 +35,9 @@ export function EncPreview() {
   const [theme, setTheme] = useState<EncTheme>('day');
   const [source, setSource] = useState('local');
   const [importOpen, setImportOpen] = useState(false);
+  const [symbolsOpen, setSymbolsOpen] = useState(false);
+  const symbolsButton = useRef<HTMLButtonElement | null>(null);
+  const closeSymbols = useCallback(() => { setSymbolsOpen(false); symbolsButton.current?.focus(); }, []);
   const [camera, setCamera] = useState({ longitude: demoCamera.center[0], latitude: demoCamera.center[1], zoom: demoCamera.zoom });
   const [panelOpen, setPanelOpen] = useState(() => innerWidth > 700);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -60,13 +64,13 @@ export function EncPreview() {
   const position = (value: number, positive: string, negative: string) => `${Math.floor(Math.abs(value))}°${((Math.abs(value) % 1) * 60).toFixed(2).padStart(5,'0')}′${value < 0 ? negative : positive}`;
 
   useEffect(() => {
-    if (!selected || importOpen || deleteTarget) return;
+    if (!selected || importOpen || deleteTarget || symbolsOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelected(null);
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [selected, importOpen, deleteTarget]);
+  }, [selected, importOpen, deleteTarget, symbolsOpen]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -236,6 +240,11 @@ export function EncPreview() {
         <WorkspaceNavigation mode="enc" />
         <Typography className="workspace-domain-status" sx={{ color: 'text.secondary', fontSize: 12 }}>Chỉ xem</Typography>
         <Box sx={{ flex: 1 }} />
+        <Tooltip title="Bảng ký hiệu"><Button ref={symbolsButton} variant="outlined" className="enc-symbols-button"
+          aria-label="Bảng ký hiệu" aria-expanded={symbolsOpen} aria-controls={symbolsOpen ? 'enc-symbol-catalog' : undefined}
+          onClick={() => symbolsOpen ? closeSymbols() : setSymbolsOpen(true)} startIcon={<BookOpen size={17} />}>
+          <span>Bảng ký hiệu</span>
+        </Button></Tooltip>
         <Button variant="outlined" aria-label="Dữ liệu / Import ENC" onClick={() => setImportOpen(true)} startIcon={<Upload size={16} />}><Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Dữ liệu / Import</Box><Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Dữ liệu</Box></Button>
       </Box>
       <Box sx={{ minHeight: 0, position: 'relative' }}>
@@ -288,7 +297,8 @@ export function EncPreview() {
 
           </Stack>
         </Paper> : <Paper className="enc-collapsed" elevation={0} sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}><Button sx={{ minHeight: 44 }} startIcon={<Layers3 size={18} />} onClick={() => setPanelOpen(true)} aria-label="Mở bảng hiển thị hải đồ">Hiển thị hải đồ</Button></Paper>}
-        {selected && <EncPropertiesPanel properties={selected} onClose={() => setSelected(null)} onFitBounds={bounds => {
+        {symbolsOpen && <EncSymbolCatalog onClose={closeSymbols} />}
+        {selected && !symbolsOpen && <EncPropertiesPanel properties={selected} onClose={() => setSelected(null)} onFitBounds={bounds => {
           map.current?.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], {
             padding: { left: panelOpen && innerWidth > 700 ? 354 : 30, right: innerWidth > 700 ? 420 : 30, top: panelOpen && innerWidth <= 700 ? 260 : 40, bottom: innerWidth <= 700 ? Math.round(innerHeight * 0.46) : 40 }, duration: 500,
           });

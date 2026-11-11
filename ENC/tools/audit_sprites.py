@@ -29,6 +29,14 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     atlas = json.loads((root / "ENC/sprites/day_simplified@2x.json").read_text())
+    invalid = {}
+    for theme in ("day", "dusk", "night"):
+        entries = json.loads((root / f"ENC/sprites/{theme}_simplified@2x.json").read_text())
+        pixmap = pymupdf.Pixmap(root / f"ENC/sprites/{theme}_simplified@2x.png")
+        for name, entry in entries.items():
+            if (entry['x'] < 0 or entry['y'] < 0 or entry['width'] <= 0 or entry['height'] <= 0
+                    or entry['x'] + entry['width'] > pixmap.width or entry['y'] + entry['height'] > pixmap.height):
+                invalid.setdefault(name, []).append(theme)
     for theme in ("dusk", "night"):
         other = json.loads((root / f"ENC/sprites/{theme}_simplified@2x.json").read_text())
         if set(atlas) != set(other):
@@ -55,6 +63,8 @@ def main():
         page = catalogue.get((kind, symbol))
         reference = f"{kind}({symbol}), p.{page - 6} / PDF {page}" if page else "Not found in supplied 4.0(.3) catalogue; retained atlas asset"
         status = "Referenced by portrayal" if used else RESERVED[name]
+        if name in invalid:
+            status += "; **INVALID atlas rectangle** in " + ", ".join(invalid[name])
         rows.append(f"| `{name}` | {status} | {reference} |")
     header = ("# Sprite inventory\n\n"
               f"Atlas: {len(atlas)} images per theme. Runtime references: {referenced}.\n\n"
@@ -63,10 +73,13 @@ def main():
               "identify AP patterns; SY and LC names are separate catalogue entries.\n\n"
               "A reference means a selector/layer exists; it does not mean the dataset "
               "contains that condition or that the entire S-52 CSP is implemented. "
+              "Invalid image rectangles are reported independently of key existence. "
               "Assets absent from this edition are explicitly marked.\n\n"
               "| Sprite | Runtime status | Catalogue reference |\n|---|---|---|\n")
     (root / "ENC/SPRITE-INVENTORY.md").write_text(header + "\n".join(rows) + "\n", encoding="utf8")
     print(f"{len(atlas)} sprites audited across 3 themes; {referenced} runtime references; {len(atlas)-referenced} reserved")
+    for name, themes in invalid.items():
+        print(f"INVALID atlas rectangle: {name} ({', '.join(themes)}); key existence does not imply a usable image")
 
 
 if __name__ == "__main__":

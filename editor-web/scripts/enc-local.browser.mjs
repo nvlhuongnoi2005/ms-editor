@@ -98,6 +98,8 @@ try {
       ['Position uncertain','UWTROC',{WATLEV:3,s52_quapos:4}],
       ['Drying height','SOUNDG',{DEPTH:-1.7}], ['Flood stream','TS_FEB',{CAT_TS:1,ORIENT:90}],
       ['Ebb stream','TS_FEB',{CAT_TS:2,ORIENT:90}], ['Customs','CHKPNT',{CATCHP:1}],
+      ['Co-located tower','LNDMRK',{CATLMK:17,CONVIS:1}],
+      ['Generic building at tower','BUISGL',{}], ['Fog signal at tower','FOGSIG',{}],
     ];
     for (const [label,theme] of [['Ngày','day'],['Chạng vạng','dusk'],['Đêm','night']]) {
       await evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`);
@@ -111,8 +113,10 @@ try {
             const values = Array.isArray(value)?value:[value];
             properties['sym_'+key]=values[0]; properties['list_'+key]='|'+values.join('|')+'|';
           }
-          const location = testMap.unproject([450+(index%5)*230,190+Math.floor(index/5)*180]);
-          properties.fixture_label=name;
+          // The last three source objects share a location, as at Manitowoc.
+          const positionIndex = Math.min(index,24);
+          const location = testMap.unproject([450+(positionIndex%5)*230,190+Math.floor(positionIndex/5)*180]);
+          properties.fixture_label=index>24?'':name;
           return {type:'Feature',id:index,properties,geometry:{type:'Point',coordinates:[location.lng,location.lat]}};
         });
         const style = testMap.getStyle();
@@ -130,11 +134,14 @@ try {
           'text-font':['Roboto Bold'],'text-size':12,'text-offset':[0,5],'text-allow-overlap':true},paint:{'text-color':${JSON.stringify(theme==='day'?'#000000':'#B8C3CC')}}});
         testMap.setStyle(style);
       })()`);
-      await waitFor(`testMap.loaded() && ${JSON.stringify([`s52-sector:${theme}:350:10:3`,`s52-sector:${theme}:45:135:4`,`s52-sector:${theme}:210:300:6`,`s52-sector:${theme}:0:360:1`])}.every(id=>testMap.hasImage(id))`);
+      await waitFor(`testMap.loaded() && ${JSON.stringify([`s52-sector:${theme}:350:10:3`,`s52-sector:${theme}:45:135:4`,`s52-sector:${theme}:210:300:6`,`s52-sector:${theme}:0:360:6`])}.every(id=>testMap.hasImage(id))`);
       await pause(500); // Symbol fade starts after asynchronously generated images arrive.
       assert.ok(await evaluate('testMap.queryRenderedFeatures().filter(f=>f.source.startsWith("fixtures")).length>=20'));
       assert.ok(await evaluate('testMap.queryRenderedFeatures({layers:["enc-hazard-symbols"]}).length>=5'),'hazard symbols must coexist with their depth text');
       assert.equal(await evaluate('new Set(testMap.queryRenderedFeatures({layers:["enc-light-sectors"]}).map(f=>f.id)).size'),4,'all four dynamic light images must be placed, not just cached');
+      assert.ok(await evaluate('testMap.queryRenderedFeatures({layers:["enc-landmarks"]}).some(f=>f.id===24)'), 'co-located tower must remain visible');
+      assert.ok(await evaluate('testMap.queryRenderedFeatures({layers:["enc-fog-signals"]}).some(f=>f.id===26)'), 'fog signal must coexist with tower');
+      assert.ok(await evaluate('!testMap.queryRenderedFeatures({layers:["enc-objects"]}).some(f=>f.id===25)'), 'generic building must not replace tower');
       await writeFile(`../data/enc/portrayal-fixtures-${theme}.png`,Buffer.from((await call('Page.captureScreenshot',{format:'png'})).data,'base64'));
     }
   }

@@ -118,7 +118,7 @@ WITH tile AS (
    WHERE key IN ('COLOUR','CATCAM','CATLAM','CATSPM','BOYSHP','BCNSHP','CONVIS','CATLMK','FUNCTN',
      'TOPSHP','CATWRK','WATLEV','CATOBS','CATSIL','CATMOR','CATFIF','CATGAT','CATROS','CATTRK',
      'TRAFIC','RESTRN','CATVEG','QUASOU','QUAPOS','NATSUR','NATQUA','CATREA','CATPRA','CATLND','CONRAD',
-     'CATLIT','CATHAF','CATCHP','CATSLO','CATBRG','CATSCF','CAT_TS')
+     'CATLIT','LITVIS','CATHAF','CATCHP','CATSLO','CATBRG','CATSCF','CAT_TS')
  ) normalized ON true
  WHERE $1>=9 AND NOT ST_IsEmpty(m.visible) AND f.geometry && m.visible
  AND f.object_class NOT IN ('IsolatedNode','ConnectedNode','Edge','Face')
@@ -126,12 +126,14 @@ WITH tile AS (
  -- Missing or malformed depths are not zero-depth soundings. Keep them in the
  -- canonical store, but omit them from the portrayal and density competition.
  AND (f.object_class<>'SOUNDG' OR jsonb_typeof(f.attributes->'DEPTH')='number')
- -- The viewer previews point objects early; screen-space thinning and symbol collision
- -- keep this readable without changing any source feature or its attributes.
- -- Keep chart context and important point classes at z9+. Other features
- -- retain the existing relaxed SCAMIN profile (fourfold preview reduction).
- AND ($5<>'' OR f.object_class IN ('DEPARE','DRGARE','LNDARE','COALNE','DEPCNT','SOUNDG','LIGHTS','BOYLAT','BOYCAR','BOYISD','BOYSAW','BOYSPP','BOYINB','BCNLAT','BCNCAR','BCNISD','BCNSAW','BCNSPP','LITFLT','LITVES','TOPMAR','DAYMAR','OBSTRN','WRECKS','UWTROC') OR CASE WHEN f.attributes->>'SCAMIN' ~ '^[0-9]+$'
-       THEN (f.attributes->>'SCAMIN')::double precision IN (0) OR (f.attributes->>'SCAMIN')::double precision >= v.scale/4
+ -- SCAMIN is the largest display-scale denominator at which a detail is shown.
+ -- Apply it before emitting either MVT layer so icons, sector arcs and labels
+ -- disappear together. Selecting one cell changes scope, not display scale.
+ -- Keep continuous land/water context; missing, malformed or zero SCAMIN does
+ -- not define a cutoff. Symbol collisions cannot replace this scale filter:
+ -- compound light/topmark symbols deliberately allow overlap on detailed charts.
+ AND (f.object_class IN ('DEPARE','DRGARE','LNDARE','COALNE') OR CASE WHEN f.attributes->>'SCAMIN' ~ '^[0-9]+$'
+       THEN (f.attributes->>'SCAMIN')::double precision = 0 OR (f.attributes->>'SCAMIN')::double precision >= v.scale
        ELSE true END)
 ), thinned AS (
  SELECT *,CASE WHEN object_class='SOUNDG' AND density_x IS NOT NULL THEN

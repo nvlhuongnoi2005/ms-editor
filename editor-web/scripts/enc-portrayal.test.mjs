@@ -20,7 +20,7 @@ function properties(object_class, attributes = {}, dimension = 0) {
   return result;
 }
 function compile(expression, type = 'string') {
-  const result = createExpression(expression, {type,default:type==='boolean'?false:''});
+  const result = createExpression(expression, 'enc-portrayal.expression', {type,default:type==='boolean'?false:type==='number'?0:''});
   assert.equal(result.result,'success',JSON.stringify(result.value));
   return result.value;
 }
@@ -133,6 +133,81 @@ test('sector arcs wrap north and use reciprocal bearings', () => {
   assert.equal(filter.evaluate({zoom:14},{type:1,properties:properties('LIGHTS',{SECTR1:350,SECTR2:10})}),true);
   assert.equal(filter.evaluate({zoom:14},{type:1,properties:properties('LIGHTS',{SECTR1:null,SECTR2:10})}),false);
   assert.equal(filter.evaluate({zoom:14},{type:1,properties:properties('LIGHTS',{SECTR1:350,SECTR2:10,CATLIT:[9]})}),false);
+});
+
+test('LIGHTS06: the reported white 10.4 NM light legitimately uses a major-light circle', () => {
+  const filter = compile(sectors.isSectorLight,'boolean');
+  const p = properties('LIGHTS',{COLOUR:[1],VALNMR:10.4,LITCHR:7,CATLIT:null});
+  assert.equal(filter.evaluate({zoom:14},{type:1,properties:p}),true);
+  assert.equal(compile(sectors.sectorImage('day')).evaluate({zoom:14},{type:1,properties:p}),'s52-sector:day:0:360:6');
+});
+
+test('LIGHTS06: all-round limits, aero lights and Morse lights do not force major-light circles', () => {
+  const filter = compile(sectors.isSectorLight,'boolean');
+  const circle = attributes => filter.evaluate({zoom:14},{type:1,properties:properties('LIGHTS',attributes)});
+  for (const [SECTR1,SECTR2] of [[0,360],[20,20],[360,360]]) {
+    assert.equal(circle({SECTR1,SECTR2,VALNMR:9}),false);
+    assert.equal(circle({SECTR1,SECTR2,VALNMR:10}),true);
+  }
+  for (const CATLIT of [[5],[6],[4,5]]) assert.equal(circle({CATLIT,VALNMR:20}),false);
+  assert.equal(circle({LITCHR:12,VALNMR:20}),false);
+  assert.equal(circle({LITCHR:12,SECTR1:350,SECTR2:10,VALNMR:20}),true);
+});
+
+test('LIGHTS06: full colour lists, flare bearings and obscured sectors are respected', () => {
+  for (const COLOUR of [[1,3],[3,1]]) assert.equal(symbol('LIGHTS',{COLOUR}),'LIGHTS11');
+  for (const COLOUR of [[1,4],[4,1]]) assert.equal(symbol('LIGHTS',{COLOUR}),'LIGHTS12');
+  assert.equal(symbol('LIGHTS',{COLOUR:[9]}),'LITDEF11');
+  assert.equal(symbol('LIGHTS',{}),'LITDEF11');
+  const rotation = compile(sectors.lightFlareRotation,'number');
+  const bearing = attrs => rotation.evaluate({zoom:14},{type:1,properties:properties('LIGHTS',attrs)});
+  assert.equal(bearing({COLOUR:[1]}),45);
+  assert.equal(bearing({COLOUR:[3]}),135);
+  assert.equal(bearing({CATLIT:[1],ORIENT:90}),270);
+  assert.equal(bearing({CATLIT:[9],ORIENT:90}),0);
+  const image = compile(sectors.sectorImage('day'));
+  const name = image.evaluate({zoom:14},{type:1,properties:properties('LIGHTS',{COLOUR:[1,3],SECTR1:350,SECTR2:10,LITVIS:[8]})});
+  assert.equal(name,'s52-sector:day:350:10:3:obscured');
+  assert.equal(sectors.parseSectorImage(name).obscured,true);
+});
+
+test('dynamic light image resolver draws unknown colour magenta and obscured arcs dashed', () => {
+  const previous = globalThis.document;
+  const strokes = [], images = [];
+  let resolver, dash = [];
+  const ctx = {
+    scale(){},setLineDash(value){dash=value;},beginPath(){},moveTo(){},lineTo(){},arc(){},
+    stroke(){strokes.push({color:this.strokeStyle,width:this.lineWidth,dash:[...dash]});},
+    getImageData(){return {data:new Uint8ClampedArray(4),width:1,height:1};},
+  };
+  globalThis.document = {createElement:()=>({getContext:()=>ctx})};
+  try {
+    const remove = sectors.installSectorImages({hasImage:()=>false,addImage:(id)=>images.push(id),
+      setMissingStyleImageResolver:value=>{resolver=value;}});
+    resolver('s52-sector:day:0:360:12');
+    assert.equal(strokes.at(-1).color,'#C045D1');
+    strokes.length=0;
+    resolver('s52-sector:day:350:10:3:obscured');
+    assert.equal(strokes.at(-1).color,'#000000');
+    assert.equal(strokes.at(-1).width,1);
+    assert.deepEqual(strokes.at(-1).dash,[3,3]);
+    assert.equal(images.length,2);
+    remove(); assert.equal(resolver,null);
+  } finally {globalThis.document=previous;}
+});
+
+test('co-located lighthouse tower outranks a generic building and retains its fog signal', () => {
+  const layers = sprites.encSpriteLayers('#000','#fff');
+  const objects = layers.find(layer=>layer.id==='enc-objects');
+  const landmarks = layers.find(layer=>layer.id==='enc-landmarks');
+  assert.ok(layers.indexOf(landmarks)>layers.indexOf(objects));
+  assert.equal(compile(landmarks.filter,'boolean').evaluate({zoom:17},{type:1,properties:properties('LNDMRK')}),true);
+  assert.equal(compile(objects.filter,'boolean').evaluate({zoom:17},{type:1,properties:properties('LNDMRK')}),false);
+  const fog = layers.find(layer=>layer.id==='enc-fog-signals');
+  assert.equal(fog.layout['icon-allow-overlap'],true);
+  assert.equal(fog.layout['icon-ignore-placement'],true);
+  assert.equal(compile(fog.filter,'boolean').evaluate({zoom:17},{type:1,properties:properties('FOGSIG')}),true);
+  assert.equal(compile(objects.filter,'boolean').evaluate({zoom:17},{type:1,properties:properties('FOGSIG')}),false);
 });
 
 test('every possible symbol output exists in each shipped theme', async () => {

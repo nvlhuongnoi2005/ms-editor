@@ -16,6 +16,8 @@ ký hiệu vẫn xét thuộc tính, geometry và ngữ cảnh.
 ## Phạm vi atlas
 
 - 232 ảnh/theme, cùng bộ key trong day/dusk/night; 226 ảnh có tham chiếu runtime.
+- `FSHFAC03` có ô ảnh lỗi (`y=-140`) ở cả ba theme; key tồn tại nhưng không
+  thể coi là ảnh hợp lệ. Chưa gặp CATFIF=1 trong FSHFAC active. Chi tiết trong audit.
 - 6 ảnh giữ riêng: CHINFO08/09 là ghi chú của mariner; CHINFO10/11 là ghi chú
   của nhà sản xuất; DNGHILIT là highlight nguy hiểm của mariner; OBSTRN02
   thuộc thủ tục OBSTRN cũ (catalogue p.182).
@@ -32,7 +34,8 @@ Toàn bộ ảnh, trạng thái và trang tham chiếu: [SPRITE-INVENTORY.md](SP
 | BOYLAT / BCNLAT / BCNSAW / BCNSPP | CATLAM, BOYSHP/BCNSHP, màu chính COLOUR; CATSPM chọn notice/refuge/unknown |
 | BOYSPP | CATSPM ODAS/LANBY/unknown; BOYSHP chọn conical, can, spherical/barrel, pillar/spar/ice, super-buoy; dùng BOYSPP35 theo ý nghĩa p.54 |
 | LIGHTS | CATLIT chọn đèn pha/spotlight LIGHTS82, đèn dải LIGHTS81; đèn thường dùng flare theo COLOUR (p.155–160) |
-| Cung đèn | SECTR1/SECTR2, xử lý cung qua 0°; VALNMR ≥10 không có sector dùng vòng toàn hướng; màu theo theme |
+| Cung đèn | SECTR1/SECTR2, xử lý cung qua 0°; hai giới hạn bằng nhau hoặc 0–360 là toàn hướng. VALNMR ≥10 không có sector dùng vòng toàn hướng, trừ CATLIT 5/6 và LITCHR 12; CATLIT 8/9/11 dùng icon riêng |
+| Màu/hướng đèn | Xét tổ hợp COLOUR trắng/đỏ và trắng/xanh, màu không xác định dùng magenta. Flare trắng/vàng/cam 45°, màu khác 135°; đèn định hướng dùng ORIENT đối hướng. LITVIS 3/7/8 trên sector dùng cung đen nét đứt |
 | TOPMAR / DAYMAR | 33 mã TOPSHP; nền nổi/cố định trong cùng cell |
 | UWTROC | Thiếu VALSOU: luôn chìm → UWTROC03; covers/uncovers hoặc awash → UWTROC04 (p.461–462) |
 | Độ sâu hazard | VALSOU hợp lệ: âm → DANGER03; 0–20 m → DANGER01; >20 m → DANGER02 (p.95–97). Null, trống và lỗi không trở thành độ sâu 0 |
@@ -67,12 +70,29 @@ Giữ attributes gốc, bổ sung trường nội bộ:
 - `topmark_floating`: nền nổi ở đúng tọa độ, cell và revision.
 
 `enc_symbols` dùng điểm neo từ geometry gốc, không tạo tâm mới ở mỗi mảnh tile.
-Trường nội bộ không xuất hiện trong properties UI. Tile URL dùng `portrayal=10`.
+Trường nội bộ không xuất hiện trong properties UI. Tile URL dùng `portrayal=12`.
 Không cần migration hay import lại ENC.
+
+Rà soát theo dữ liệu đang công bố: [PORTRAYAL-AUDIT.md](PORTRAYAL-AUDIT.md).
+Tạo lại thống kê mức bao phủ bằng `node scripts/enc-dataset-audit.mjs ../ENC/DATASET-PORTRAYAL-COVERAGE.md`
+từ thư mục `editor-web`. Đây là kiểm tra bộ lọc, không phải chứng nhận S-52.
 
 `lightSectors.ts` dựng ảnh cung đèn qua `setMissingStyleImageResolver` của MapLibre 6;
 không gọi dịch vụ ngoài hay thay atlas. Bearing SECTR nhìn từ biển vào đèn,
 vì vậy cung quanh vị trí đèn dùng hướng cộng 180°.
+
+## Điểm neo LIGHTS và cụm hải đăng
+
+`spritePivotOffsets` trong `sprites.ts` đổi pivot của catalogue sang CSS px
+theo kích thước ô ảnh và pixelRatio=2 của atlas đang dùng. LIGHTS11/12/13,
+LITDEF11, LIGHTS81/82, FOGSIG01 và TOWERS03 dùng anchor `center` kèm offset
+riêng, để pivot bám tọa độ nguồn trước khi MapLibre xoay và phóng ký hiệu.
+Không dùng chung anchor `bottom` cho mọi kiểu đèn hoặc tâm ảnh cho tháp.
+
+Pivot FOGSIG01 nằm ngoài ô ảnh; các cung âm thanh nằm về một phía của vị trí
+phát tín hiệu. Vòng/sector động vẫn lấy tâm tại tọa độ LIGHTS. Những offset
+này chỉ điều chỉnh biểu diễn, không thay tọa độ S-57/PostGIS. Cần cập nhật
+kích thước trong bảng pivot nếu thay atlas; cả ba theme hiện cùng kích thước.
 
 ## Kiểm tra
 
@@ -113,6 +133,15 @@ tục suy luận LEAST_DEPTH/SEABED_DEPTH khi thiếu VALSOU, mọi nhánh CSP �
 dynamic SYMINS, display category và tham số an toàn theo người dùng chưa
 được triển khai trọn vẹn. Cần Part I chứa LUT/CSP và tài sản tương ứng để
 đối chiếu đầy đủ. Zoom/SCAMIN, chọn cell, thinning và collision vẫn là profile viewer.
+
+## Hiển thị theo tỷ lệ
+
+`tile.sql` áp dụng SCAMIN theo tỷ lệ mặt đất tại tile, kể cả khi chọn riêng một
+cell. Khi mẫu số tỷ lệ hiển thị lớn hơn SCAMIN, chi tiết được bỏ khỏi cả hai lớp
+MVT để icon, cung đèn và nhãn cùng ẩn; zoom vào sẽ hiển thị lại với đầy đủ quy
+tắc chọn sprite. Không dùng ngoại lệ cho toàn bộ nhóm phao/đèn hoặc nới SCAMIN
+bốn lần. Nền đất/nước (`DEPARE`, `DRGARE`, `LNDARE`, `COALNE`) được giữ liên tục;
+SCAMIN thiếu, sai định dạng hoặc bằng 0 không đặt ngưỡng ẩn.
 
 ## Nguồn và giấy phép
 

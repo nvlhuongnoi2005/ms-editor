@@ -16,7 +16,7 @@ export function localEncStyle(dataset: string, cell: string, theme: EncTheme, ca
   const classIn = (...classes: string[]): ExpressionSpecification => ['in', ['get', 'object_class'], ['literal', classes]];
   const depth: ExpressionSpecification = ['to-number', ['coalesce', ['get', 'DRVAL1'], 999999], 999999];
   const depthFill: ExpressionSpecification = ['case', ['<', depth, 0], p.tidal, ['<', depth, 3], p.veryShallow, ['<', depth, safetyContour], p.shallow, ['<', depth, 9], p.medium, p.deep];
-  const params = new URLSearchParams({ ...(dataset ? { dataset } : {}), portrayal: '10', revision: String(catalogRevision), ...(cell ? { cell } : {}) });
+  const params = new URLSearchParams({ ...(dataset ? { dataset } : {}), portrayal: '12', revision: String(catalogRevision), ...(cell ? { cell } : {}) });
   const style: StyleSpecification = {
     version: 8,
     glyphs: `${window.location.origin}/enc/assets/fonts/{fontstack}/{range}.pbf`,

@@ -1,5 +1,5 @@
 import type { ExpressionSpecification as Expression, LayerSpecification } from 'maplibre-gl';
-import { isSectorLight, sectorImage } from './lightSectors';
+import { isSectorLight, sectorImage, lightColour, lightFlareRotation } from './lightSectors';
 
 // Attribute codes and symbol choices follow Njord's per-class layerables.
 // Source: https://github.com/manimaul/njord/tree/master/crates/njord-symbology/src/layers
@@ -75,7 +75,7 @@ export const pointSprites: Record<string, SymbolValue> = {
   BCNSPP: choose(has('CATSPM',18), 'NOTBRD11', choose(has('CATSPM',44), 'BCNSPP13', choose(has('CATSPM',52), 'BCNDEF13', beacon))),
   BCNLAT: beacon, BOYINB: 'BOYDEF03', LITFLT: 'LITFLT02', LITVES: 'LITVES02',
   LIGHTS: choose(has('CATLIT',8,11), 'LIGHTS82', choose(has('CATLIT',9), 'LIGHTS81',
-    by('COLOUR', { 3:'LIGHTS11',4:'LIGHTS12',1:'LIGHTS13',6:'LIGHTS13',9:'LIGHTS13',11:'LIGHTS13' }, 'LITDEF11'))),
+    ['match',lightColour,3,'LIGHTS11',4,'LIGHTS12',6,'LIGHTS13','LITDEF11'])),
   TOPMAR: choose(['==', ['get','topmark_floating'], true], topmark(floatingTopmarks,'TMARDEF2'), topmark(rigidTopmarks,'TMARDEF1')),
   DAYMAR: by('TOPSHP', { 24:'DAYTRI01',25:'DAYTRI05' }, 'DAYSQR01'),
   WRECKS: choose(isolatedDanger, 'ISODGR01', choose(hasDepth, knownDanger,
@@ -130,6 +130,37 @@ export const linePointSprites: Record<string, SymbolValue> = {
 export const selectedSprite: Expression = ['case', ['==',['get','s52_geometry'],2],spriteExpression(areaSprites),
   ['==',['get','s52_geometry'],1],spriteExpression(linePointSprites), spriteExpression(pointSprites)];
 
+// The chart position belongs to the symbol's pivot, not necessarily its centre
+// or bottom edge. Convert catalogue millimetres to this atlas's CSS pixels.
+// MapLibre applies icon-offset before rotation and scales it with icon-size,
+// so the same pivot stays at the feature coordinate at every bearing/zoom.
+function pivotOffset(width: number, height: number, column: number, row: number, boxWidth: number, boxHeight: number): [number,number] {
+  const pixelRatio = 2;
+  return [(width / 2 - width * column / boxWidth) / pixelRatio,
+    (height / 2 - height * row / boxHeight) / pixelRatio];
+}
+// S-52 4.0(.3) catalogue p.155–160 (lights), p.130 (fog), p.448 (tower).
+// FOGSIG's pivot is outside its image: the arcs surround the signal position,
+// rather than being centred over the lighthouse. Do not clamp that offset.
+export const spritePivotOffsets: Record<string,[number,number]> = {
+  LIGHTS11:pivotOffset(20,56,1.20,7.05,2.32,7.05),
+  LIGHTS12:pivotOffset(20,56,1.20,7.05,2.32,7.05),
+  LIGHTS13:pivotOffset(20,56,1.20,7.05,2.32,7.05),
+  LITDEF11:pivotOffset(20,56,1.20,7.05,2.32,7.05),
+  LIGHTS81:pivotOffset(31,21,1.92,1.21,3.74,2.51),
+  LIGHTS82:pivotOffset(58,31,1.16,1.86,5.84,3.02),
+  FOGSIG01:pivotOffset(41,37,6.50,-0.10,3.60,4.40),
+  TOWERS03:pivotOffset(29,50,1.75,5.79,3.46,6.35),
+};
+export const spriteAnchor: Expression = ['case',
+  ['in',selectedSprite,['literal',Object.keys(spritePivotOffsets)]],'center',
+  ['match',['get','object_class'],[...aidClasses,'LIGHTS','TOPMAR','DAYMAR'],'bottom','center']];
+const pivotOffsetExpression = ['match',selectedSprite,
+  ...Object.entries(spritePivotOffsets).flatMap(([name,offset])=>[name,['literal',offset]]),['literal',[0,0]]] as unknown as Expression;
+export const spriteOffset: Expression = ['case',['==',['get','object_class'],'DAYMAR'],['literal',[0,-18]],
+  ['all',['==',['get','object_class'],'TOPMAR'],['==',['get','topmark_floating'],true]],['literal',[0,-8]],
+  pivotOffsetExpression];
+
 export const patternSprites: Record<string, SymbolValue> = {
   DRGARE:'DRGARE01P', ICEARE:'ICEARE04P', MARCUL:'MARCUL02P', SNDWAV:'SNDWAV01P',
   FSHFAC:by('CATFIF',{1:'FSHFAC03P',2:'FSHFAC04P',3:'FSHFAC04P',4:'FSHFAC04P'},'FSHHAV02P'),
@@ -155,15 +186,21 @@ export function spriteExpression(registry: Record<string, SymbolValue>, fallback
 
 export const spriteRotation: Expression = ['match',['get','object_class'],
   ['CURENT','TS_FEB','TSSLPT','TWRTPT','DWRTPT','RECTRC','RCTLPT','WRECKS','RDOCAL'], ['to-number',['coalesce',['get','ORIENT'],0],0],
-  'LIGHTS',['case',has('CATLIT',8,9,11),0,135],0];
+  'LIGHTS',lightFlareRotation,0];
 
 export function encSpriteLayers(ink: string, halo: string, theme = 'day'): LayerSpecification[] {
-  const reserved = [...aidClasses,...hazardClasses,'LIGHTS','TOPMAR','DAYMAR'];
+  const reserved = [...aidClasses,...hazardClasses,'LIGHTS','TOPMAR','DAYMAR','FOGSIG','LNDMRK'];
   const groups = [
     {id:'enc-objects', classes:Object.keys(pointSprites).filter(key=>!reserved.includes(key)), minzoom:11},
+    // Reserve landmark space before generic buildings and supplementary labels.
+    // A tower and BUISGL may occupy the same source position.
+    {id:'enc-landmarks', classes:['LNDMRK'], minzoom:11},
     {id:'enc-hazard-symbols', classes:hazardClasses, minzoom:9},
     {id:'enc-aids', classes:aidClasses, minzoom:9},
     {id:'enc-lights', classes:['LIGHTS'], minzoom:9},
+    // A fog signal can share a position with a tower and light. Its arc is a
+    // supplementary component, not a competing generic building symbol.
+    {id:'enc-fog-signals', classes:['FOGSIG'], minzoom:11},
     {id:'enc-topmarks', classes:['TOPMAR','DAYMAR'], minzoom:10},
   ];
   const layers = groups.flatMap(group => ['enc','enc_symbols'].map(sourceLayer => ({
@@ -174,12 +211,11 @@ export function encSpriteLayers(ink: string, halo: string, theme = 'day'): Layer
     layout:{
       'icon-image':['coalesce',['image',selectedSprite],['image','QUESMRK1']],
       'icon-size':['interpolate',['linear'],['zoom'],9,0.85,13,1],
-      'icon-anchor':['match',['get','object_class'],[...aidClasses,'LIGHTS','TOPMAR','DAYMAR'],'bottom','center'],
-      'icon-offset':['case',['==',['get','object_class'],'DAYMAR'],['literal',[0,-18]],
-        ['all',['==',['get','object_class'],'TOPMAR'],['==',['get','topmark_floating'],true]],['literal',[0,-8]],['literal',[0,0]]],
+      'icon-anchor':spriteAnchor,
+      'icon-offset':spriteOffset,
       'icon-rotate':spriteRotation,'icon-rotation-alignment':'map','icon-padding':3,
-      'icon-allow-overlap':group.id==='enc-topmarks'||group.id==='enc-lights',
-      'icon-ignore-placement':group.id==='enc-topmarks'||group.id==='enc-lights',
+      'icon-allow-overlap':group.id==='enc-topmarks'||group.id==='enc-lights'||group.id==='enc-fog-signals',
+      'icon-ignore-placement':group.id==='enc-topmarks'||group.id==='enc-lights'||group.id==='enc-fog-signals',
       // One placement owns the icon and its depth. Separate symbol layers would
       // let the depth text reserve collision space and hide the hazard itself.
       ...(group.id==='enc-hazard-symbols'?{
