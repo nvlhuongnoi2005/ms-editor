@@ -66,7 +66,7 @@ export function EncImportDialog({ datasets, error: catalogError, onClose, onRefr
         <Typography component="h3" variant="subtitle2">Upload hải đồ S-57</Typography>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
           <Button component="label" variant="outlined" disabled={busy} startIcon={<Upload size={16} />}>Chọn ZIP hoặc cell .000<input hidden type="file" accept=".zip,application/zip,.000" onChange={event => { const next = event.target.files?.[0] ?? null; event.target.value = ''; void selectFile(next); }} /></Button>
-          <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{file ? `${file.name} · ${(file.size / 1048576).toFixed(1)} MiB` : 'Chưa chọn file'}</Typography>
+          <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{file ? `${file.name} · ${file.size < 1048576 ? `${(file.size / 1024).toFixed(1)} KiB` : `${(file.size / 1048576).toFixed(1)} MiB`}` : 'Chưa chọn file'}</Typography>
         </Stack>
         <TextField label="Tên lần nhập mới" fullWidth value={name} disabled={busy} onChange={event => setName(event.target.value)} error={Boolean(nameError)} helperText={nameError || 'Tối đa 100 MiB. Tên duy nhất, 1–80 chữ ASCII, số hoặc gạch ngang.'} slotProps={{ htmlInput: { maxLength: 80 } }} />
         {checking && <Box role="status"><LinearProgress /><Typography variant="caption">Đang kiểm tra cấu trúc file…</Typography></Box>}

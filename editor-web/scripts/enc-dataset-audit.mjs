@@ -7,12 +7,13 @@ import { createExpression } from '@maplibre/maplibre-gl-style-spec';
 import { loadSource } from './test-source.mjs';
 
 const sectorURL = await loadSource('../src/domains/enc/lightSectors.ts');
-const spriteURL = await loadSource('../src/domains/enc/sprites.ts', {'./lightSectors':sectorURL});
-const infrastructureURL = await loadSource('../src/domains/enc/infrastructure.ts');
+const specsURL = await loadSource('../src/domains/enc/spriteSpecs.generated.ts');
+const spriteURL = await loadSource('../src/domains/enc/sprites.ts', {'./lightSectors':sectorURL,'./spriteSpecs.generated':specsURL});
+const infrastructureURL = await loadSource('../src/domains/enc/infrastructure.ts', {'./spriteSpecs.generated':specsURL});
 const { localEncStyle } = await import(await loadSource('../src/domains/enc/style.ts', {'./sprites':spriteURL,'./infrastructure':infrastructureURL}));
 const { isSectorLight } = await import(sectorURL);
 globalThis.window = {location:{origin:'http://localhost'}};
-const style = localEncStyle('','','day');
+const style = localEncStyle('','','day',0,false,6,6,'other');
 const atlas = JSON.parse(await readFile(new URL('../../ENC/sprites/day_simplified@2x.json',import.meta.url),'utf8'));
 const invalidSprites = new Map();
 for (const theme of ['day','dusk','night']) {
@@ -59,7 +60,7 @@ function expression(value) {
   if (result.result!=='success') throw Error(JSON.stringify(result.value));
   return feature => result.value.evaluate({zoom:17},feature);
 }
-const candidates = style.layers.filter(layer => layer.source==='enc' && ['enc','enc_symbols'].includes(layer['source-layer'])
+const candidates = style.layers.filter(layer => layer.source==='enc' && ['enc','enc_lines','enc_symbols'].includes(layer['source-layer'])
   && !layer.id.startsWith('enc-position-quality'))
   .map(layer => ({layer,filter:expression(layer.filter??true),
     icon:expression(layer.layout?.['icon-image']??''),text:expression(layer.layout?.['text-field']??''),
@@ -81,7 +82,8 @@ for (const row of rows) {
   for (const candidate of candidates) {
     const {layer} = candidate;
     if (layer['source-layer']==='enc_symbols' && row.dimension===0) continue;
-    const dimension = layer['source-layer']==='enc_symbols'?0:row.dimension;
+    if (layer['source-layer']==='enc_lines' && row.dimension===0) continue;
+    const dimension = layer['source-layer']==='enc_symbols'?0:layer['source-layer']==='enc_lines'?1:row.dimension;
     if (layer.type==='fill' && dimension!==2 || layer.type==='line' && dimension===0) continue;
     const feature = {type:dimension+1,properties};
     if (!candidate.filter(feature)) continue;

@@ -6,6 +6,8 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
+	"strings"
 )
 
 // detectUpload peeks into the multipart file content and replays every consumed
@@ -29,8 +31,17 @@ func detectUpload(r *http.Request) (string, error) {
 	domain := "osm"
 	if bytes.Equal(signature[:], []byte{'P', 'K', 3, 4}) {
 		domain = "enc"
+	} else if strings.EqualFold(filepath.Ext(part.FileName()), ".000") {
+		// A standalone S-57 cell has an ISO 8211 leader, not a ZIP signature.
+		// Replay the peeked bytes below so the ENC handler receives the full file.
+		var leader [24]byte
+		copy(leader[:], signature[:])
+		if _, err := io.ReadFull(part, leader[len(signature):]); err != nil || leader[6] != 'L' {
+			return "", fail(400, "Base cell is not an ISO 8211 S-57 file.")
+		}
+		domain = "enc"
 	} else if err := validatePBFHeader(io.MultiReader(bytes.NewReader(signature[:]), part)); err != nil {
-		return "", fail(400, "Upload an OSM snapshot PBF or S-57 ENC ZIP.")
+		return "", fail(400, "Upload an OSM snapshot PBF, S-57 ENC ZIP, or S-57 .000 base cell.")
 	}
 	r.Body = struct {
 		io.Reader

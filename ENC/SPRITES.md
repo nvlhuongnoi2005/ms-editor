@@ -74,7 +74,10 @@ Giữ attributes gốc, bổ sung trường nội bộ:
 - `topmark_floating`: nền nổi ở đúng tọa độ, cell và revision.
 
 `enc_symbols` dùng điểm neo từ geometry gốc, không tạo tâm mới ở mỗi mảnh tile.
-Trường nội bộ không xuất hiện trong properties UI. Tile URL và sprite dùng phiên bản `14`.
+Trường nội bộ không xuất hiện trong properties UI. Tile URL dùng phiên bản `15`; sprite giữ phiên bản `14`.
+Lớp `enc_lines` chứa nét và biên polygon, chia tối đa 6.000 đỉnh mỗi phần để phù hợp
+giới hạn segment của MapLibre. Tô vùng vẫn dùng polygon trong `enc`; điểm neo dùng
+`enc_symbols`. Biên được lấy trước khi chia, nên không sinh đường chia bên trong vùng.
 Không cần migration hay import lại ENC.
 
 Rà soát theo dữ liệu đang công bố: [PORTRAYAL-AUDIT.md](PORTRAYAL-AUDIT.md).

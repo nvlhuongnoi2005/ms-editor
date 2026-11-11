@@ -25,6 +25,11 @@ WITH selected AS MATERIALIZED (
  SELECT jsonb_build_object('type','Feature','geometry',ST_AsGeoJSON(area)::jsonb,
  'properties',props || jsonb_build_object('kind','region')) AS feature FROM areas
  UNION ALL
+ -- Keep the fill intact and split only its boundary for MapLibre's line mesh.
+ SELECT jsonb_build_object('type','Feature','geometry',ST_AsGeoJSON(part.geom)::jsonb,
+ 'properties',props || jsonb_build_object('kind','outline')) FROM areas
+ CROSS JOIN LATERAL ST_Subdivide(ST_Boundary(area),6000) AS part(geom)
+ UNION ALL
  SELECT jsonb_build_object('type','Feature','geometry',ST_AsGeoJSON(ST_PointOnSurface(area))::jsonb,
  'properties',props || jsonb_build_object('kind','label')) FROM areas
 )

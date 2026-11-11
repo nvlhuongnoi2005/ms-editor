@@ -10,7 +10,7 @@
     "start:go": "cd ../editor-api && go run ./cmd/editor-api",
     "dev": "vite --open /",
     "sync:id-schema": "node scripts/sync-id-tagging-schema.mjs",
-    "build:react": "tsc --noEmit && vite build",
+    "build:react": "tsc --noEmit && vite build && node scripts/compress-assets.mjs",
     "preview:react": "vite preview"
   },
   "dependencies": {

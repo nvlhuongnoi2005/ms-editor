@@ -16,7 +16,7 @@ const displayValue = (value: unknown): string => {
 const propertyOrder = ['OBJNAM','DEPTH','VALSOU','DRVAL1','DRVAL2','VALDCO','COLOUR','LITCHR','SIGPER','VALNMR','HEIGHT','WATLEV','CATLAM','CATCAM','cell_name'];
 
 export function EncPropertiesPanel({ properties, onClose, onFitBounds }: Props) {
-  const region = properties.kind === 'region' || properties.kind === 'label';
+  const region = properties.kind === 'region' || properties.kind === 'outline' || properties.kind === 'label';
   const title = displayValue(properties.object_class ?? properties.name ?? 'Đối tượng ENC');
   const entries = region
     ? [

@@ -84,6 +84,8 @@ Migration của database mới được Compose áp dụng khi tạo volume lầ
 
 ## Tài liệu khác
 
+- [Tối ưu tải trang và thao tác OSM/ENC](docs/frontend-performance.md): build gzip, cache tài nguyên và cập nhật bản đồ.
+
 - [`infra/README.md`](infra/README.md): PostGIS, import dữ liệu, render worker và tile server.
 - [`docs/pbf-import.md`](docs/pbf-import.md): upload PBF, import worker và cấu hình bảo vệ.
 - [`docs/requirements.md`](docs/requirements.md): phạm vi và yêu cầu sản phẩm.

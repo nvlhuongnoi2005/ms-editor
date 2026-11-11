@@ -146,8 +146,49 @@ func (a *app) serveStatic(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Cache-Control", "no-store")
+	// Vite fingerprints assets by content. HTML must revalidate to discover the
+	// latest filenames; fingerprinted assets can be reused across OSM/ENC visits.
+	w.Header().Set("Cache-Control", "no-cache")
+	if strings.HasPrefix(requested, "assets/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+	if compressed, err := os.Stat(path + ".gz"); err == nil && !compressed.IsDir() {
+		w.Header().Add("Vary", "Accept-Encoding")
+		if acceptsGzip(r.Header.Get("Accept-Encoding")) && r.Header.Get("Range") == "" {
+			w.Header().Set("Content-Encoding", "gzip")
+			path += ".gz"
+		}
+	}
 	http.ServeFile(w, r, path)
+}
+
+// An explicit gzip;q=0 overrides a wildcard. Older browsers can still request
+// the original file, including byte ranges, without requiring another build.
+func acceptsGzip(header string) bool {
+	wildcard := false
+	for _, item := range strings.Split(header, ",") {
+		parts := strings.Split(strings.TrimSpace(item), ";")
+		name := strings.TrimSpace(parts[0])
+		quality := 1.0
+		for _, parameter := range parts[1:] {
+			key, value, ok := strings.Cut(strings.TrimSpace(parameter), "=")
+			if ok && strings.EqualFold(key, "q") {
+				parsed, err := strconv.ParseFloat(value, 64)
+				if err != nil || math.IsNaN(parsed) || parsed < 0 || parsed > 1 {
+					quality = 0
+				} else {
+					quality = parsed
+				}
+			}
+		}
+		if strings.EqualFold(name, "gzip") {
+			return quality > 0
+		}
+		if name == "*" {
+			wildcard = quality > 0
+		}
+	}
+	return wildcard
 }
 func decodeJSON(r *http.Request, target any) error {
 	r.Body = http.MaxBytesReader(nil, r.Body, maxJSONBody)

@@ -3,7 +3,6 @@ import * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { Map, MapLayerMouseEvent, MapMouseEvent, StyleSpecification } from 'maplibre-gl';
 import { Banknote, BusFront, Fuel, GraduationCap, Hospital, Hotel, Landmark, MapPin, ShoppingBag, TreePine, Utensils, type LucideIcon } from 'lucide-react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildTopologyGraph, snapCoordinate, type DrawMode, type SnappedVertex } from '../editor/drawing';
@@ -163,7 +162,7 @@ const pointPinImageHeight = 120;
 // both hover feedback and click selection.
 const selectionHitRadius = 12;
 
-function pointPinDataURI(icon: LucideIcon, variant: 'normal' | 'selection' = 'normal'): string {
+function pointPinDataURI(renderToStaticMarkup: typeof import('react-dom/server')['renderToStaticMarkup'], icon: LucideIcon, variant: 'normal' | 'selection' = 'normal'): string {
   const lucideSVG = variant === 'normal'
     ? renderToStaticMarkup(createElement(icon, {
         x: 14,
@@ -225,6 +224,10 @@ function fallbackPointPin(): ImageData {
 }
 
 async function loadPointPinImages(map: Map, isDisposed: () => boolean): Promise<void> {
+  // The SVG renderer is only needed for detailed POIs at Z18+. Keep it out of
+  // the initial workspace download; geometry already has its circle preview.
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  if (isDisposed()) return;
   const pinVariants: Array<{ name: string; icon: LucideIcon; variant: 'normal' | 'selection' }> = Object.entries(pointIconComponents).flatMap(([name, icon]) => [
     { name, icon, variant: 'normal' as const },
     { name, icon, variant: 'selection' as const }
@@ -234,7 +237,7 @@ async function loadPointPinImages(map: Map, isDisposed: () => boolean): Promise<
     if (map.hasImage(imageName)) {
       return;
     }
-    const image = await rasterizePointPin(pointPinDataURI(icon, variant)).catch(() => fallbackPointPin());
+    const image = await rasterizePointPin(pointPinDataURI(renderToStaticMarkup, icon, variant)).catch(() => fallbackPointPin());
     if (!isDisposed() && !map.hasImage(imageName)) map.addImage(imageName, image, { pixelRatio: 2 });
   }));
 }

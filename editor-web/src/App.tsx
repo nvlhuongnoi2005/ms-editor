@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Autocomplete,
   AppBar,
@@ -29,7 +29,6 @@ import { closeChangeset, createChangeset, ChangesetApiError, rollbackChangeset, 
 import { DATASET_NAME, loadGraph } from './api/graph';
 import { loadPublishStatus, type PublishStatus } from './api/publish';
 import { loadDatasets, type DatasetInfo } from './api/datasets';
-import { DatasetManagerDialog } from './features/editor/DatasetManagerDialog';
 import { EditorStoreProvider, entityKey, pendingChanges, type CommandResult, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
 import { insertNodeIntoFeature, makeNodeFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
 import { planDrawing, type WayExtension } from './features/editor/drawingTransactions';
@@ -39,18 +38,16 @@ import { TopologyTools } from './features/editor/TopologyTools';
 import { GeometryToolsDialog, geometryToolGroups, type GeometryToolGroup, type GeometryToolRequest } from './features/editor/GeometryToolsDialog';
 import type { GeometryOptions } from './features/editor/geometryOperations';
 import { planGeometryCommand, reservePlannedIds, inspectMutations, type GeometryCommandPlan } from './features/editor/geometryCommandPlan';
-import { CommandImpactDialog, type PendingMutation } from './features/editor/CommandImpactDialog';
+import type { PendingMutation } from './features/editor/CommandImpactDialog';
 import { geometryLayer } from './features/editor/geometryLocks';
 import { summarizeGeometryImpact } from './features/editor/geometryToolPresentation';
-import { GeometryLocksDialog } from './features/editor/GeometryLocksDialog';
 import { groupSelectionFeatures, planDeleteSelection } from './features/editor/selectionCommands';
 import { useDraftProtection } from './features/editor/useDraftProtection';
 import { nextTemporaryIds } from './features/editor/drafts';
 import { Layers, LockKeyhole } from 'lucide-react';
 import { closeWay, disconnectVertex, isOpenWay, mergeFeatures, openWay, removeVertex, reverseFeature, splitFeature, wayVertices, type TopologyAction } from './features/editor/topologyOperations';
 import { findEditorIssues, type EditorIssue } from './features/editor/issues';
-import { ConflictDialog, type ConflictSession } from './features/editor/ConflictDialog';
-import { ChangesetHistoryDialog } from './features/editor/ChangesetHistoryDialog';
+import type { ConflictSession } from './features/editor/ConflictDialog';
 import { loadEntitySnapshots } from './api/conflicts';
 import { snapshotKeys, type ResolutionPlan } from './features/editor/conflictResolution';
 import {
@@ -64,11 +61,18 @@ import {
 } from './features/editor/presets';
 import { OSM_TAG_OPTIONS, type OsmTagOption } from './features/editor/tagCatalog';
 import { MapCanvas, type MapPointerStatus, type MapViewport } from './features/map/MapCanvas';
+import { MapPointerReadout, type MapPointerReadoutHandle } from './features/map/MapPointerReadout';
 import { ViewportGraphLoader } from './features/map/ViewportGraphLoader';
 import { GRAPH_MIN_ZOOM } from './features/map/graphRendering';
 import { resolvePointIcon, type PointIconName } from './features/map/styleRules';
 import { WorkspaceNavigation } from './shared/WorkspaceNavigation';
 import type { Coordinate, EntityType, GraphFeature, RelationMember, SelectedEntity, Tags } from './types/osm';
+import { DeferredDialog } from './shared/DeferredDialog';
+const DatasetManagerDialog = lazy(() => import('./features/editor/DatasetManagerDialog').then(module => ({ default: module.DatasetManagerDialog })));
+const ConflictDialog = lazy(() => import('./features/editor/ConflictDialog').then(module => ({ default: module.ConflictDialog })));
+const ChangesetHistoryDialog = lazy(() => import('./features/editor/ChangesetHistoryDialog').then(module => ({ default: module.ChangesetHistoryDialog })));
+const GeometryLocksDialog = lazy(() => import('./features/editor/GeometryLocksDialog').then(module => ({ default: module.GeometryLocksDialog })));
+const CommandImpactDialog = lazy(() => import('./features/editor/CommandImpactDialog').then(module => ({ default: module.CommandImpactDialog })));
 
 const propertiesWidth = 360;
 const CHANGESET_COMMENT = 'Chỉnh sửa từ Geodata WebGIS';
@@ -922,7 +926,8 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   const mapPointerRef = useRef<Coordinate | null>(null);
   const handlePointerCoordinate = useCallback((coordinate: Coordinate | null) => { mapPointerRef.current = coordinate; }, []);
   const [pinpoint, setPinpoint] = useState<Coordinate | null>(null);
-  const [pointerStatus, setPointerStatus] = useState<MapPointerStatus>({ longitude: 104.50728, latitude: 21.59988, zoom: 16 });
+  const pointerReadout = useRef<MapPointerReadoutHandle>(null);
+  const [pointerZoom, setPointerZoom] = useState(16);
   const [drawMode, setDrawMode] = useState<DrawMode>('select');
   const [drawVertices, setDrawVertices] = useState<SnappedVertex[]>([]);
   const [drawingExtension, setDrawingExtension] = useState<WayExtension | null>(null);
@@ -1528,7 +1533,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     else { try { commitInspectedMutation(command); } catch (reason) { setSaveStatus(reason instanceof Error ? reason.message : 'Không thể di chuyển lựa chọn.'); } }
   }, [commitInspectedMutation, getDraftState, getFeatures]);
 
-  const handlePointerStatus = useCallback((status: MapPointerStatus) => setPointerStatus(status), []);
+  const handlePointerStatus = useCallback((status: MapPointerStatus) => {
+    pointerReadout.current?.update(status);
+    setPointerZoom(current => current === status.zoom ? current : status.zoom);
+  }, []);
 
   const activateDrawMode = useCallback((mode: DrawMode) => {
     setDrawVertices([]);
@@ -1976,12 +1984,12 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         </Toolbar>
       </AppBar>
 
-      {datasetManagerOpen && <DatasetManagerDialog activeId={dataset.id} canSwitch={!changeCount && !saving && !pendingCloseId && !conflictSession && !historyOpen && drawMode === 'select'} onClose={() => setDatasetManagerOpen(false)} onOpenDataset={next => {
+      {datasetManagerOpen && <DeferredDialog onClose={() => setDatasetManagerOpen(false)}><DatasetManagerDialog activeId={dataset.id} canSwitch={!changeCount && !saving && !pendingCloseId && !conflictSession && !historyOpen && drawMode === 'select'} onClose={() => setDatasetManagerOpen(false)} onOpenDataset={next => {
         if (changeCount || saving || pendingCloseId || conflictSession || historyOpen || drawMode !== 'select') return;
         graphLoader.cancel(); entityRequestRef.current += 1; onOpenDataset(next);
-      }} />}
-      {conflictSession && <ConflictDialog dataset={dataset.name} session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} />}
-      {historyOpen && <ChangesetHistoryDialog dataset={dataset.name} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} />}
+      }} /></DeferredDialog>}
+      {conflictSession && <DeferredDialog onClose={() => setConflictSession(null)}><ConflictDialog dataset={dataset.name} session={conflictSession} onClose={() => setConflictSession(null)} onApply={handleApplyConflictResolution} /></DeferredDialog>}
+      {historyOpen && <DeferredDialog onClose={() => setHistoryOpen(false)}><ChangesetHistoryDialog dataset={dataset.name} hasDraft={changeCount > 0 || Boolean(pendingCloseId)} busy={saving} onClose={() => setHistoryOpen(false)} onRevert={handleRollbackChangeset} /></DeferredDialog>}
       {(selected || geometryClipboard || lockedKeys.length > 0 || lockedLayers.length > 0) && (
         <Menu
           open={Boolean(selectionMenuPosition)}
@@ -2051,8 +2059,8 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         </Menu>
       )}
 
-      {locksOpen && <GeometryLocksDialog keys={lockedKeys} layers={lockedLayers} features={features} onClose={() => setLocksOpen(false)} onUnlock={() => { unlockGeometry(); setLocksOpen(false); setSaveStatus('Đã mở khóa tất cả đối tượng và layer.'); }} />}
-      {pendingMutation && <CommandImpactDialog command={pendingMutation} onClose={() => setPendingMutation(null)} onApply={() => commitInspectedMutation(pendingMutation)} />}
+      {locksOpen && <DeferredDialog onClose={() => setLocksOpen(false)}><GeometryLocksDialog keys={lockedKeys} layers={lockedLayers} features={features} onClose={() => setLocksOpen(false)} onUnlock={() => { unlockGeometry(); setLocksOpen(false); setSaveStatus('Đã mở khóa tất cả đối tượng và layer.'); }} /></DeferredDialog>}
+      {pendingMutation && <DeferredDialog onClose={() => setPendingMutation(null)}><CommandImpactDialog command={pendingMutation} onClose={() => setPendingMutation(null)} onApply={() => commitInspectedMutation(pendingMutation)} /></DeferredDialog>}
       {geometryToolGroup && (
         <GeometryToolsDialog
           key={geometryToolGroup}
@@ -2331,7 +2339,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               }}
             >
               <Typography sx={{ fontSize: 12.5, fontWeight: 500 }}>
-                Phóng to bản đồ (mức thu phóng ≥ {GRAPH_MIN_ZOOM}, hiện tại Z {pointerStatus.zoom.toFixed(1)}) để bắt đầu biên tập đối tượng.
+                Phóng to bản đồ (mức thu phóng ≥ {GRAPH_MIN_ZOOM}, hiện tại Z {pointerZoom.toFixed(1)}) để bắt đầu biên tập đối tượng.
               </Typography>
             </Paper>
           )}
@@ -2595,15 +2603,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
         <Button size="small" aria-label="Quản lý bản nháp" onClick={draft.open} disabled={saving} title={draft.error ?? 'Bản nháp chỉ nằm trên trình duyệt này; vẫn cần Lưu thay đổi để ghi vào hệ thống.'} sx={{ flexShrink: 1, minWidth: 0, maxWidth: { xs: 140, sm: 330 }, color: draft.error ? 'error.main' : 'text.secondary', fontSize: 11, textTransform: 'none' }}><Box component="span" role="status" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{draft.error ? 'Lỗi lưu nháp · Xem chi tiết' : draft.status}</Box></Button>
         {/* Pointer Position & Zoom HUD */}
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 2, mr: { xs: 0, sm: 2 }, display: { xs: 'none', sm: 'flex' } }}>
-          <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8' }}>
-            {Math.abs(pointerStatus.latitude).toFixed(5)}° {pointerStatus.latitude >= 0 ? 'B' : 'N'}, {Math.abs(pointerStatus.longitude).toFixed(5)}° {pointerStatus.longitude >= 0 ? 'Đ' : 'T'}
-          </Typography>
-          <Box sx={{ height: 12, width: '1px', bgcolor: '#334155' }} />
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#f87171' }}>
-            Z {pointerStatus.zoom.toFixed(1)}
-          </Typography>
-        </Stack>
+        <MapPointerReadout ref={pointerReadout} />
 
         {/* Change Actions & System Attribution */}
         {changeCount > 0 && (

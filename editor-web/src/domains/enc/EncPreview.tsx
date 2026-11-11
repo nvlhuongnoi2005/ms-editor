@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Alert, Box, Button, CircularProgress, CssBaseline, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { BookOpen, Layers3, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
@@ -6,13 +6,14 @@ import type { StyleSpecification } from 'maplibre-gl';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './enc-workspace.css';
-import { localEncStyle, type EncDisplayCategory, type EncTheme } from './style';
-import { EncImportDialog } from './EncImportDialog';
+import { localEncStyle, type EncTheme } from './style';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
-import { EncSymbolCatalog } from './EncSymbolCatalog';
 import { installSectorImages } from './lightSectors';
 import { WorkspaceNavigation } from '../../shared/WorkspaceNavigation';
 import type { EncImport } from './imports';
+import { DeferredDialog } from '../../shared/DeferredDialog';
+const EncImportDialog = lazy(() => import('./EncImportDialog').then(module => ({ default: module.EncImportDialog })));
+const EncSymbolCatalog = lazy(() => import('./EncSymbolCatalog').then(module => ({ default: module.EncSymbolCatalog })));
 
 type Bounds = [number, number, number, number];
 type Dataset = EncImport;
@@ -29,29 +30,10 @@ async function readJSON<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-function readDepthPreference(key: string): number {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored == null) return 6;
-    const value = Number(stored);
-    return Number.isFinite(value) && value >= 0 && value <= 12000 ? value : 6;
-  } catch { return 6; }
-}
-
-function readCategoryPreference(): EncDisplayCategory {
-  try {
-    const value = localStorage.getItem('enc.displayCategory');
-    return value === 'base' || value === 'other' ? value : 'standard';
-  } catch { return 'standard'; }
-}
-
 export function EncPreview() {
   const container = useRef<HTMLDivElement | null>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [theme, setTheme] = useState<EncTheme>('day');
-  const [safetyContourValue, setSafetyContourValue] = useState(() => readDepthPreference('enc.safetyContour'));
-  const [safetyDepthValue, setSafetyDepthValue] = useState(() => readDepthPreference('enc.safetyDepth'));
-  const [displayCategory, setDisplayCategory] = useState<EncDisplayCategory>(readCategoryPreference);
   const [source, setSource] = useState('local');
   const [importOpen, setImportOpen] = useState(false);
   const [symbolsOpen, setSymbolsOpen] = useState(false);
@@ -83,14 +65,6 @@ export function EncPreview() {
   const position = (value: number, positive: string, negative: string) => `${Math.floor(Math.abs(value))}°${((Math.abs(value) % 1) * 60).toFixed(2).padStart(5,'0')}′${value < 0 ? negative : positive}`;
 
   useEffect(() => {
-    try {
-      localStorage.setItem('enc.safetyContour', String(safetyContourValue));
-      localStorage.setItem('enc.safetyDepth', String(safetyDepthValue));
-      localStorage.setItem('enc.displayCategory', displayCategory);
-    } catch { /* Keep the current session settings when storage is unavailable. */ }
-  }, [safetyContourValue, safetyDepthValue, displayCategory]);
-
-  useEffect(() => {
     if (!selected || importOpen || deleteTarget || symbolsOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelected(null);
@@ -108,15 +82,26 @@ export function EncPreview() {
     instance.addControl(new maplibregl.NavigationControl(), 'top-right');
     instance.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right');
     const canvas = instance.getCanvas();
-    const resetCursor = () => { canvas.style.cursor = ''; };
+    let hoverFrame: number | undefined;
+    let hoverPoint: maplibregl.Point | undefined;
+    const resetCursor = () => {
+      if (hoverFrame !== undefined) cancelAnimationFrame(hoverFrame);
+      hoverFrame = undefined; hoverPoint = undefined; canvas.style.cursor = '';
+    };
     const featureAt = (point: maplibregl.Point) => {
       if (!instance.isStyleLoaded()) return undefined;
       const features = instance.queryRenderedFeatures([[point.x - 6, point.y - 6], [point.x + 6, point.y + 6]]);
-      return features.find(item => item.source === 'enc' && ['enc', 'enc_symbols'].includes(item.sourceLayer ?? ''))
+      return features.find(item => item.source === 'enc' && ['enc', 'enc_lines', 'enc_symbols'].includes(item.sourceLayer ?? ''))
         ?? features.find(item => item.source === 'regions');
     };
     instance.on('mousemove', event => {
-      canvas.style.cursor = !instance.isMoving() && featureAt(event.point) ? 'pointer' : '';
+      hoverPoint = event.point;
+      // Pointer devices can emit several events per frame. Query geometry once
+      // per paint; clicks still inspect their exact position synchronously.
+      if (hoverFrame === undefined) hoverFrame = requestAnimationFrame(() => {
+        hoverFrame = undefined;
+        canvas.style.cursor = !instance.isMoving() && hoverPoint && featureAt(hoverPoint) ? 'pointer' : '';
+      });
     });
     instance.on('movestart', resetCursor);
     instance.on('style.load', resetCursor);
@@ -128,7 +113,7 @@ export function EncPreview() {
       if (feature && innerWidth <= 700) setPanelOpen(false);
     });
     map.current = instance;
-    return () => { canvas.removeEventListener('mouseleave', resetCursor); removeSectorImages(); instance.remove(); map.current = null; };
+    return () => { resetCursor(); canvas.removeEventListener('mouseleave', resetCursor); removeSectorImages(); instance.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {
@@ -178,22 +163,25 @@ export function EncPreview() {
     instance.on('error', failure);
     if (source === 'local' && ((datasetId && dataset?.state !== 'ready') || !cells.length)) {
       setState('empty');
-      instance.setStyle(localEncStyle('', '', theme, catalogRevision, true, safetyContourValue, safetyDepthValue, displayCategory));
+      instance.setStyle(localEncStyle('', '', theme, catalogRevision, true),
+        { diff: instance.isStyleLoaded() === true });
     } else {
       setState('loading');
       const load = async () => {
         try {
-          const style = source === 'local' ? localEncStyle(datasetId, cellName, theme, catalogRevision, false, safetyContourValue, safetyDepthValue, displayCategory) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
+          const style = source === 'local' ? localEncStyle(datasetId, cellName, theme, catalogRevision) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
           if (controller.signal.aborted) return;
           if (typeof style.sprite === 'string') style.sprite = new URL(style.sprite, location.origin).href;
           instance.once('idle', idle);
-          instance.setStyle(style);
+          // A settings change can arrive before the preceding style has loaded.
+          // MapLibre can only diff a fully loaded style; otherwise replace it.
+          instance.setStyle(style, { diff: instance.isStyleLoaded() === true });
         } catch (reason) { if (!controller.signal.aborted) { setState('error'); setError(reason instanceof Error ? reason.message : String(reason)); } }
       };
       void load();
     }
     return () => { controller.abort(); instance.off('idle', idle); instance.off('error', failure); };
-  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload, catalogRevision, safetyContourValue, safetyDepthValue, displayCategory]);
+  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload, catalogRevision]);
 
   const fit = () => {
     const allBounds = cells.reduce<Bounds | null>((bounds, item) => !item.bounds ? bounds : !bounds ? [...item.bounds] : [Math.min(bounds[0],item.bounds[0]),Math.min(bounds[1],item.bounds[1]),Math.max(bounds[2],item.bounds[2]),Math.max(bounds[3],item.bounds[3])], null);
@@ -247,11 +235,11 @@ export function EncPreview() {
   return (
     <Box className="enc-workspace" sx={{ height: '100dvh', display: 'grid', gridTemplateRows: '60px minmax(0,1fr) 32px', bgcolor: '#f5f2e9' }}>
       <CssBaseline />
-      {importOpen && <EncImportDialog datasets={datasets} error={catalogError}
+      {importOpen && <DeferredDialog onClose={() => setImportOpen(false)}><EncImportDialog datasets={datasets} error={catalogError}
         onClose={() => setImportOpen(false)} onRefresh={() => setReload(value => value + 1)}
         onImported={id => { setLastImportId(id); setSource('local'); setDatasetId(''); }}
         onView={id => { setDatasetId(id); setSource('local'); setImportOpen(false); setPanelOpen(true); }}
-        onDelete={item => { setDeleteTarget(item); setDeleteError(''); setDeleteNotice(''); }} />}
+        onDelete={item => { setDeleteTarget(item); setDeleteError(''); setDeleteNotice(''); }} /></DeferredDialog>}
       <Dialog open={deleteTarget !== null} onClose={() => { if (!deleting) setDeleteTarget(null); }} aria-labelledby="enc-delete-title" aria-describedby="enc-delete-description" fullWidth maxWidth="xs">
         <DialogTitle id="enc-delete-title">Xóa dataset ENC?</DialogTitle>
         <DialogContent>
@@ -306,7 +294,31 @@ export function EncPreview() {
               {importSummary?.state === 'ready' && importSummary.outcomes && <Alert severity={importSummary.outcomes.conflict ? 'warning' : 'success'}>{importSummary.name}: {importSummary.outcomes.imported ?? 0} cell đã nhập, {importSummary.outcomes.duplicate ?? 0} cell trùng, {importSummary.outcomes.older ?? 0} bản cũ, {importSummary.outcomes.conflict ?? 0} xung đột. Cell xung đột không tự công bố.</Alert>}
               {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Đang nhập ENC mới. Bản đồ chung vẫn hiển thị hải đồ đã công bố.</Alert>}
               {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'failed' && <Alert severity="error">{datasets.find(item => item.id === lastImportId)?.error || 'Lần nhập mới thất bại.'}</Alert>}
-              {cells.length > 0 && <TextField select label="Phạm vi hiển thị" size="small" slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} value={cellName} onChange={event => setCellName(event.target.value)}><MenuItem value="">Tất cả cell · tự động</MenuItem>{cells.map(item => <MenuItem key={item.revisionId ?? item.name} value={item.name}>{item.description || item.name} · {item.name}</MenuItem>)}</TextField>}
+              {cells.length > 0 && <TextField select label="Phạm vi hiển thị" size="small"
+                slotProps={{
+                  select: {
+                    displayEmpty: true,
+                    MenuProps: {
+                      anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+                      transformOrigin: { vertical: 'top', horizontal: 'left' },
+                      slotProps: {
+                        paper: { sx: { width: 520, maxWidth: 'calc(100vw - 32px)', maxHeight: 360,
+                          '& .MuiMenuItem-root': { whiteSpace: 'normal', minHeight: 44 } } },
+                        list: {
+                          // MUI opens on mousedown and can select on the matching
+                          // mouseup. Require a separate click on an option instead;
+                          // normal clicks and keyboard selection still work.
+                          onMouseUpCapture: (event: MouseEvent<HTMLElement>) => event.stopPropagation(),
+                        },
+                      },
+                    },
+                  },
+                  inputLabel: { shrink: true },
+                }}
+                value={cellName} onChange={event => setCellName(event.target.value)}>
+                <MenuItem value="">Tất cả cell · tự động</MenuItem>
+                {cells.map(item => <MenuItem key={item.revisionId ?? item.name} value={item.name}>{item.description || item.name} · {item.name}</MenuItem>)}
+              </TextField>}
               {dataset?.state === 'ready' && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{cells.length} cell · {dataset.featureCount.toLocaleString('vi-VN')} feature</Typography>}
               {!datasets.length && !catalogError && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Chưa có ENC. Tải lên ZIP gồm cell .000 và các update, tải trực tiếp một cell .000, hoặc chọn OpenENC demo.</Typography>}
             </>}
@@ -314,22 +326,6 @@ export function EncPreview() {
             <ToggleButtonGroup exclusive value={theme} size="small" onChange={(_, value: EncTheme | null) => value && setTheme(value)} aria-label="Chế độ màu ENC" sx={{ '& .MuiToggleButton-root': { flex: 1, gap: 0.6, fontSize: 11.5, textTransform: 'none' } }}>
               {themes.map(item => { const Icon = item.icon; return <ToggleButton key={item.value} value={item.value}><Icon size={15} />{item.label}</ToggleButton>; })}
             </ToggleButtonGroup>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Danh mục hiển thị · Display Base luôn bật</Typography>
-            <ToggleButtonGroup exclusive value={displayCategory} size="small" disabled={source !== 'local'}
-              onChange={(_, value: EncDisplayCategory | null) => value && setDisplayCategory(value)} aria-label="Danh mục đối tượng ENC"
-              sx={{ '& .MuiToggleButton-root': { flex: 1, fontSize: 11.5, textTransform: 'none' } }}>
-              <ToggleButton value="base">Cơ bản</ToggleButton><ToggleButton value="standard">Chuẩn</ToggleButton><ToggleButton value="other">Tất cả</ToggleButton>
-            </ToggleButtonGroup>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Ngưỡng an toàn · mét</Typography>
-            <Stack direction="row" spacing={1}>
-              <TextField fullWidth size="small" type="number" label="Safety depth" value={safetyDepthValue}
-                disabled={source !== 'local'} slotProps={{ htmlInput: { min: 0, max: 12000, step: 0.1 } }}
-                onChange={event => { const value = Number(event.target.value); if (event.target.value !== '' && Number.isFinite(value) && value >= 0 && value <= 12000) setSafetyDepthValue(value); }} />
-              <TextField fullWidth size="small" type="number" label="Safety contour" value={safetyContourValue}
-                disabled={source !== 'local'} slotProps={{ htmlInput: { min: 0, max: 12000, step: 0.1 } }}
-                onChange={event => { const value = Number(event.target.value); if (event.target.value !== '' && Number.isFinite(value) && value >= 0 && value <= 12000) setSafetyContourValue(value); }} />
-            </Stack>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Safety depth tô màu số đo độ sâu. Safety contour tô vùng nông và làm nổi đường đồng sâu khả dụng tiếp theo.</Typography>
             <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Độ sâu: mét · Mật độ chi tiết tự điều chỉnh theo mức zoom</Typography>
             <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography role="status" aria-live="polite" sx={{ fontSize: 12, color: state === 'error' ? 'error.main' : 'text.secondary' }}>{state === 'loading' ? 'Đang tải hải đồ…' : state === 'ready' ? 'Hải đồ sẵn sàng' : state === 'empty' ? 'Chọn dữ liệu để xem' : 'Không tải được hải đồ'}</Typography>
@@ -340,7 +336,7 @@ export function EncPreview() {
 
           </Stack>
         </Paper> : <Paper className="enc-collapsed" elevation={0} sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}><Button sx={{ minHeight: 44 }} startIcon={<Layers3 size={18} />} onClick={() => setPanelOpen(true)} aria-label="Mở bảng hiển thị hải đồ">Hiển thị hải đồ</Button></Paper>}
-        {symbolsOpen && <EncSymbolCatalog onClose={closeSymbols} />}
+        {symbolsOpen && <DeferredDialog onClose={closeSymbols}><EncSymbolCatalog onClose={closeSymbols} /></DeferredDialog>}
         {selected && !symbolsOpen && <EncPropertiesPanel properties={selected} onClose={() => setSelected(null)} onFitBounds={bounds => {
           map.current?.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], {
             padding: { left: panelOpen && innerWidth > 700 ? 354 : 30, right: innerWidth > 700 ? 420 : 30, top: panelOpen && innerWidth <= 700 ? 260 : 40, bottom: innerWidth <= 700 ? Math.round(innerHeight * 0.46) : 40 }, duration: 500,

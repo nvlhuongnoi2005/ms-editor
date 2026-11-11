@@ -5,14 +5,15 @@ import { createExpression, validateStyleMin } from '@maplibre/maplibre-gl-style-
 import { loadSource } from './test-source.mjs';
 
 const sectorsURL = await loadSource('../src/domains/enc/lightSectors.ts');
-const spriteURL = await loadSource('../src/domains/enc/sprites.ts', { './lightSectors':sectorsURL });
+const specsURL = await loadSource('../src/domains/enc/spriteSpecs.generated.ts');
+const spriteURL = await loadSource('../src/domains/enc/sprites.ts', { './lightSectors':sectorsURL,'./spriteSpecs.generated':specsURL });
 const sprites = await import(spriteURL);
 const sectors = await import(sectorsURL);
-const infrastructureURL = await loadSource('../src/domains/enc/infrastructure.ts');
+const infrastructureURL = await loadSource('../src/domains/enc/infrastructure.ts', {'./spriteSpecs.generated':specsURL});
 const { localEncStyle } = await import(await loadSource('../src/domains/enc/style.ts', { './sprites':spriteURL,'./infrastructure':infrastructureURL }));
 
 function properties(object_class, attributes = {}, dimension = 0) {
-  const result = { object_class, s52_geometry:dimension, ...attributes };
+  const result = { object_class, s52_geometry:dimension, s52_display_category:'STANDARD', ...attributes };
   // Match tile.sql's scalar/list contract, including GDAL lists of numeric strings.
   for (const [key,value] of Object.entries(attributes)) {
     const values = Array.isArray(value) ? value : [value];
@@ -34,6 +35,21 @@ test('all three themes produce a valid complete MapLibre style', () => {
     const errors = validateStyleMin(localEncStyle('','',theme));
     assert.deepEqual(errors.map(error => error.message),[]);
   }
+});
+
+test('ENC strokes use bounded paths while fills and symbol anchors retain original geometry', () => {
+  globalThis.window = { location:{origin:'http://localhost:5173'} };
+  const style=localEncStyle('','','day');
+  assert.equal(style.layers.find(layer=>layer.id==='enc-coast')['source-layer'],'enc_lines');
+  assert.equal(style.layers.find(layer=>layer.id==='enc-land')['source-layer'],'enc');
+  assert.equal(style.layers.find(layer=>layer.id==='enc-aids-areas')['source-layer'],'enc_symbols');
+  assert.equal(style.layers.find(layer=>layer.id==='enc-coverage-area-outline')['source-layer'],'coverage_area_lines');
+  const coast=compile(style.layers.find(layer=>layer.id==='enc-coast').filter,'boolean');
+  assert.equal(coast.evaluate({zoom:12},{type:2,properties:properties('LNDARE',{s52_display_category:'BASE'},2)}),true);
+  assert.equal(coast.evaluate({zoom:12},{type:2,properties:properties('LNDARE',{s52_display_category:'OTHER'},2)}),false);
+  const conveyor=compile(style.layers.find(layer=>layer.id==='enc-conveyors-solid').filter,'boolean');
+  assert.equal(conveyor.evaluate({zoom:12},{type:2,properties:properties('CONVYR',{},2)}),true);
+  assert.equal(conveyor.evaluate({zoom:12},{type:2,properties:properties('CONVYR',{},1)}),false);
 });
 
 test('catalogue pp.461–462: submerged rocks and drying/awash rocks are distinct', () => {

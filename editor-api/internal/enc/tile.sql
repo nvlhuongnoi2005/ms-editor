@@ -164,6 +164,15 @@ WITH tile AS (
  SELECT feature_id,cell_name,object_class,attributes,revision_id,producer,
  compilation_scale,intended_usage,cell_selection,colour_code,geom
  FROM thinned WHERE density_rank=1
+), line_features AS (
+ -- MapLibre's line bucket reserves up to 10 mesh vertices per input point.
+ -- Keep each path below 65535 / 10 without simplifying chart geometry. Take
+ -- polygon boundaries BEFORE subdivision so split edges never become outlines.
+ SELECT f.feature_id,f.cell_name,f.object_class,f.attributes,f.revision_id,f.producer,
+ f.compilation_scale,f.intended_usage,f.cell_selection,f.colour_code,part.geom
+ FROM features f CROSS JOIN LATERAL ST_Subdivide(ST_CollectionExtract(
+   CASE WHEN ST_Dimension(f.geom)=2 THEN ST_Boundary(f.geom) ELSE f.geom END,2),6000) AS part(geom)
+ WHERE ST_Dimension(f.geom)>0
 ), symbol_features AS (
  SELECT feature_id,cell_name,object_class,attributes,revision_id,producer,
  compilation_scale,intended_usage,cell_selection,colour_code,symbol_geom AS geom
@@ -176,8 +185,13 @@ WITH tile AS (
  SELECT c.name AS cell_name,
  ST_AsMVTGeom(ST_Transform(c.area,3857),v.box,4096,128,true) AS geom
  FROM coverage c CROSS JOIN viewport v WHERE $1<9
+), overview_area_lines AS (
+ SELECT a.cell_name,part.geom FROM overview_areas a
+ CROSS JOIN LATERAL ST_Subdivide(ST_Boundary(a.geom),6000) AS part(geom)
 )
 SELECT (SELECT COALESCE(ST_AsMVT(features,'enc',4096,'geom'),''::bytea) FROM features)
+ || (SELECT COALESCE(ST_AsMVT(line_features,'enc_lines',4096,'geom'),''::bytea) FROM line_features)
  || (SELECT COALESCE(ST_AsMVT(symbol_features,'enc_symbols',4096,'geom'),''::bytea) FROM symbol_features)
  || (SELECT COALESCE(ST_AsMVT(overview,'coverage',4096,'geom'),''::bytea) FROM overview)
  || (SELECT COALESCE(ST_AsMVT(overview_areas,'coverage_areas',4096,'geom'),''::bytea) FROM overview_areas)
+ || (SELECT COALESCE(ST_AsMVT(overview_area_lines,'coverage_area_lines',4096,'geom'),''::bytea) FROM overview_area_lines)
