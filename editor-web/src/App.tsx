@@ -1634,6 +1634,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       if (!endpoint || (vertices[0].id !== endpoint.id && vertices.at(-1)!.id !== endpoint.id)) {
         throw new Error('Hãy chọn endpoint của way để tiếp tục vẽ.');
       }
+
       setDrawVertices([{ nodeId: endpoint.id, coordinate: [...endpoint.coordinates] as Coordinate }]);
       setDrawingExtension({ key: entityKey(selectedWay), endpoint: endpoint.id });
       setDrawMode('line');

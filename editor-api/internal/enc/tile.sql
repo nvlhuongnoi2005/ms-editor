@@ -47,10 +47,29 @@ WITH tile AS (
 ), display_profile AS (
  SELECT *, CASE WHEN $1<11 THEN 64 WHEN $1<14 THEN 32 ELSE 16 END AS sounding_spacing
  FROM viewport
+), cell_safety AS MATERIALIZED (
+ -- If the configured 6 m contour is absent, use the next deeper chart contour.
+ -- Keep this cell-wide so the effective contour does not change at tile edges.
+ SELECT c.dataset_id,c.name,min((f.attributes->>'VALDCO')::double precision) AS contour
+ FROM candidates c JOIN enc.feature f ON f.dataset_id=c.dataset_id AND f.cell_name=c.name
+ WHERE f.object_class='DEPCNT' AND CASE WHEN jsonb_typeof(f.attributes->'VALDCO')='number'
+ THEN (f.attributes->>'VALDCO')::double precision>=6 ELSE false END
+ GROUP BY c.dataset_id,c.name
+), position_quality AS MATERIALIZED (
+ -- QUAPOS is a spatial attribute in S-57; GDAL keeps it on the linked primitive,
+ -- not necessarily on the feature. Build one small lookup per original cell.
+ SELECT s.dataset_id,s.cell_name,
+ jsonb_object_agg((s.attributes->>'RCNM')||':'||(s.attributes->>'RCID'),s.attributes->'QUAPOS') AS records
+ FROM enc.spatial_record s JOIN candidates c ON c.dataset_id=s.dataset_id AND c.name=s.cell_name
+ WHERE s.attributes->>'QUAPOS' IN ('2','3','4','5','6','7','8','9')
+ GROUP BY s.dataset_id,s.cell_name
 ), raw_features AS (
  SELECT m.revision_id::text||':'||f.cell_name||':'||f.object_class||':'||f.source_id AS feature_id,
  f.cell_name,f.object_class,
  f.attributes || COALESCE(normalized.properties,'{}'::jsonb) ||
+ jsonb_build_object('s52_geometry',ST_Dimension(f.geometry),
+   's52_quapos',COALESCE(f.attributes->>'QUAPOS',linked_quality.quapos),
+   's52_surrounding_depth',depth_context.deepest_lower_bound,'s52_safety_contour',safety.contour) ||
  CASE WHEN f.object_class='TOPMAR' THEN jsonb_build_object('topmark_floating',EXISTS(
    SELECT 1 FROM enc.feature platform WHERE platform.dataset_id=f.dataset_id AND platform.cell_name=f.cell_name
    AND platform.object_class IN ('BOYLAT','BOYCAR','BOYISD','BOYSAW','BOYSPP','BOYINB','LITFLT','LITVES')
@@ -72,6 +91,24 @@ WITH tile AS (
         ELSE ST_Intersection(ST_MakeValid(f.geometry),m.visible) END,
    ST_Dimension(f.geometry)+1),3857),v.box,4096,128,true) AS geom
  FROM masks m JOIN enc.feature f ON f.dataset_id=m.dataset_id AND f.cell_name=m.name CROSS JOIN display_profile v
+ LEFT JOIN cell_safety safety ON safety.dataset_id=f.dataset_id AND safety.name=f.cell_name
+ LEFT JOIN position_quality q ON q.dataset_id=f.dataset_id AND q.cell_name=f.cell_name
+ LEFT JOIN LATERAL (
+   SELECT max(q.records->>((f.attributes->'NAME_RCNM'->>(refs.ordinal-1)::integer)||':'||refs.rcid)) AS quapos
+   FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(f.attributes->'NAME_RCID')='array'
+     THEN f.attributes->'NAME_RCID' ELSE '[]'::jsonb END) WITH ORDINALITY AS refs(rcid,ordinal)
+ ) linked_quality ON true
+ LEFT JOIN LATERAL (
+   -- Evaluate against original geometry, before clipping/density filtering. The
+   -- context must come from the same source cell, never another edition/upload.
+   SELECT max((d.attributes->>'DRVAL1')::double precision) FILTER (
+     WHERE jsonb_typeof(d.attributes->'DRVAL1')='number') AS deepest_lower_bound
+   FROM enc.feature d
+   WHERE f.object_class IN ('WRECKS','UWTROC','OBSTRN')
+   AND d.dataset_id=f.dataset_id AND d.cell_name=f.cell_name
+   AND d.object_class IN ('DEPARE','DRGARE') AND ST_Dimension(d.geometry)=2
+   AND d.geometry && f.geometry AND ST_Intersects(ST_MakeValid(d.geometry),f.geometry)
+ ) depth_context ON true
  LEFT JOIN LATERAL (
    SELECT jsonb_object_agg('sym_'||key,CASE WHEN jsonb_typeof(value)='array' THEN value->0 ELSE value END)
      || jsonb_object_agg('list_'||key,'|'||CASE WHEN jsonb_typeof(value)='array'
@@ -80,7 +117,8 @@ WITH tile AS (
    FROM jsonb_each(f.attributes)
    WHERE key IN ('COLOUR','CATCAM','CATLAM','CATSPM','BOYSHP','BCNSHP','CONVIS','CATLMK','FUNCTN',
      'TOPSHP','CATWRK','WATLEV','CATOBS','CATSIL','CATMOR','CATFIF','CATGAT','CATROS','CATTRK',
-     'TRAFIC','RESTRN','CATVEG','QUASOU','QUAPOS','NATSUR','CATREA','CATPRA','CATLND','CONRAD')
+     'TRAFIC','RESTRN','CATVEG','QUASOU','QUAPOS','NATSUR','NATQUA','CATREA','CATPRA','CATLND','CONRAD',
+     'CATLIT','CATHAF','CATCHP','CATSLO','CATBRG','CATSCF','CAT_TS')
  ) normalized ON true
  WHERE $1>=9 AND NOT ST_IsEmpty(m.visible) AND f.geometry && m.visible
  AND f.object_class NOT IN ('IsolatedNode','ConnectedNode','Edge','Face')

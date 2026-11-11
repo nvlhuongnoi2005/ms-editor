@@ -1,5 +1,5 @@
 import type { ExpressionSpecification, StyleSpecification } from 'maplibre-gl';
-import { encSpriteLayers, encPatternLayers } from './sprites';
+import { encSpriteLayers, encPatternLayers, safetyContour } from './sprites';
 
 export type EncTheme = 'day' | 'dusk' | 'night';
 // Njord palette tokens; style rules here are a deliberately limited ENC viewer
@@ -15,8 +15,8 @@ export function localEncStyle(dataset: string, cell: string, theme: EncTheme, ca
   const source = { source: 'enc', 'source-layer': 'enc' };
   const classIn = (...classes: string[]): ExpressionSpecification => ['in', ['get', 'object_class'], ['literal', classes]];
   const depth: ExpressionSpecification = ['to-number', ['coalesce', ['get', 'DRVAL1'], 999999], 999999];
-  const depthFill: ExpressionSpecification = ['case', ['<', depth, 0], p.tidal, ['<', depth, 3], p.veryShallow, ['<', depth, 6], p.shallow, ['<', depth, 9], p.medium, p.deep];
-  const params = new URLSearchParams({ ...(dataset ? { dataset } : {}), portrayal: '9', revision: String(catalogRevision), ...(cell ? { cell } : {}) });
+  const depthFill: ExpressionSpecification = ['case', ['<', depth, 0], p.tidal, ['<', depth, 3], p.veryShallow, ['<', depth, safetyContour], p.shallow, ['<', depth, 9], p.medium, p.deep];
+  const params = new URLSearchParams({ ...(dataset ? { dataset } : {}), portrayal: '10', revision: String(catalogRevision), ...(cell ? { cell } : {}) });
   const style: StyleSpecification = {
     version: 8,
     glyphs: `${window.location.origin}/enc/assets/fonts/{fontstack}/{range}.pbf`,
@@ -40,11 +40,14 @@ export function localEncStyle(dataset: string, cell: string, theme: EncTheme, ca
       }, paint: { 'text-color': p.ink, 'text-halo-color': theme === 'day' ? '#ffffff' : p.background, 'text-halo-width': 2 } },
       { ...source, id: 'enc-depth', type: 'fill', filter: classIn('DEPARE', 'DRGARE'), paint: { 'fill-color': depthFill } },
       { ...source, id: 'enc-land', type: 'fill', filter: classIn('LNDARE', 'SLCONS', 'BUAARE', 'PONTON'), paint: { 'fill-color': p.land } },
+      { ...source, id: 'enc-structure-fill', type: 'fill', filter: classIn('BUISGL', 'LNDMRK', 'SILTNK', 'SMCFAC', 'FORSTC'), paint: { 'fill-color': p.land } },
+      { ...source, id: 'enc-structure-outline', type: 'line', filter: classIn('BUISGL', 'LNDMRK', 'SILTNK', 'SMCFAC', 'FORSTC', 'BRIDGE'), paint: { 'line-color': ['case', ['==', ['to-number', ['get', 'sym_CONVIS'], -1], 1], p.ink, p.coast], 'line-width': 1 } },
       { ...source, id: 'enc-coast', type: 'line', filter: classIn('COALNE', 'SLCONS', 'LNDARE'), paint: { 'line-color': p.coast, 'line-width': 1.25 } },
       { ...source, id: 'enc-contours', type: 'line', filter: classIn('DEPCNT'), paint: { 'line-color': p.coast, 'line-width': 0.7 } },
       { ...source, id: 'enc-waterways', type: 'line', filter: classIn('NAVLNE', 'RECTRC', 'FAIRWY'), paint: { 'line-color': p.magenta, 'line-width': 1, 'line-dasharray': [4, 2] } },
       { ...source, id: 'enc-restrictions', type: 'line', filter: classIn('RESARE', 'ACHARE', 'CBLARE', 'PIPARE', 'TSSBND', 'TSSLPT', 'TSEZNE'), paint: { 'line-color': p.magenta, 'line-width': 1, 'line-dasharray': [3, 2] } },
-      { ...source, id: 'enc-soundings', type: 'symbol', minzoom: 9, filter: ['all', classIn('SOUNDG'), ['has', 'DEPTH']], layout: { 'text-field': ['to-string', ['/', ['round', ['*', ['to-number', ['get', 'DEPTH']], 10]], 10]], 'text-font': ['Roboto Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 13, 14, 17, 15], 'text-padding': 4, 'text-allow-overlap': false, 'symbol-sort-key': ['to-number', ['get', 'DEPTH'], 99999] }, paint: { 'text-color': p.ink, 'text-halo-color': p.deep, 'text-halo-width': 1.5 } },
+      { ...source, id: 'enc-soundings', type: 'symbol', minzoom: 9, filter: ['all', classIn('SOUNDG'), ['has', 'DEPTH'], ['>=', ['to-number', ['get', 'DEPTH'], 0], 0]], layout: { 'text-field': ['to-string', ['/', ['round', ['*', ['to-number', ['get', 'DEPTH']], 10]], 10]], 'text-font': ['Roboto Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 13, 14, 17, 15], 'text-padding': 4, 'text-allow-overlap': false, 'symbol-sort-key': ['to-number', ['get', 'DEPTH'], 99999] }, paint: { 'text-color': p.ink, 'text-halo-color': p.deep, 'text-halo-width': 1.5 } },
+      { ...source, id: 'enc-soundings-drying', type: 'symbol', minzoom: 9, filter: ['all', classIn('SOUNDG'), ['<', ['to-number', ['get', 'DEPTH'], 0], 0]], layout: { 'text-field': ['to-string', ['abs', ['/', ['round', ['*', ['to-number', ['get', 'DEPTH']], 10]], 10]]], 'text-font': ['Roboto Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 13, 14, 17, 15], 'text-padding': 4, 'icon-image': 'SOUNDSA1', 'icon-text-fit': 'both', 'symbol-sort-key': ['to-number', ['get', 'DEPTH'], 99999] }, paint: { 'text-color': p.ink, 'text-halo-color': p.tidal, 'text-halo-width': 1 } },
       { ...source, id: 'enc-contour-labels', type: 'symbol', minzoom: 10, filter: ['all', classIn('DEPCNT'), ['has', 'VALDCO']], layout: { 'symbol-placement': 'line', 'symbol-spacing': 400, 'text-field': ['concat', ['to-string', ['get', 'VALDCO']], ' m'], 'text-font': ['Roboto Bold'], 'text-size': 11, 'text-padding': 12 }, paint: { 'text-color': p.coast, 'text-halo-color': p.deep, 'text-halo-width': 1.5 } },
       { ...source, id: 'enc-names', type: 'symbol', minzoom: 10, filter: ['all', ['has', 'OBJNAM'], ['!=', ['get', 'OBJNAM'], ''], classIn('LNDARE', 'LNDRGN', 'BOYLAT', 'BOYCAR', 'BOYISD', 'BOYSAW', 'BOYSPP', 'BCNLAT', 'BCNCAR', 'BCNSPP', 'LIGHTS', 'BUAARE')], layout: { 'text-field': ['get', 'OBJNAM'], 'text-font': ['Roboto Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 11, 14, 13], 'text-variable-anchor': ['top-left', 'top-right', 'bottom-left', 'bottom-right'], 'text-radial-offset': 1.1, 'text-padding': 6, 'text-max-width': 12, 'text-justify': 'auto', 'symbol-sort-key': ['case', classIn('LIGHTS','BOYLAT','BOYCAR','BOYISD','BOYSAW','BOYSPP','BCNLAT','BCNCAR','BCNSPP'), 0, 1] }, paint: { 'text-color': p.ink, 'text-halo-color': p.deep, 'text-halo-width': 1.5 } }
     ]
@@ -56,9 +59,9 @@ export function localEncStyle(dataset: string, cell: string, theme: EncTheme, ca
   style.layers.splice(landIndex + 1, 0, ...patterns.filter(layer => layer.type === 'fill'));
   style.layers.push(...patterns.filter(layer => layer.type !== 'fill'));
   // The last symbol layer reserves collision space first.
-  const symbolOrder = ['enc-names', 'enc-contour-labels', 'enc-soundings'];
+  const symbolOrder = ['enc-names', 'enc-contour-labels', 'enc-soundings', 'enc-soundings-drying'];
   const symbols = symbolOrder.flatMap(id => style.layers.filter(layer => layer.id === id));
-  const spriteLayers = encSpriteLayers(p.ink, p.deep);
+  const spriteLayers = encSpriteLayers(p.ink, p.deep, theme);
   const supplementary = (id: string) => id.startsWith('enc-objects') || id.startsWith('enc-natural-labels') || id === 'enc-unmapped-points';
   style.layers = [...style.layers.filter(layer => !symbolOrder.includes(layer.id)),
     ...spriteLayers.filter(layer => supplementary(layer.id)), ...symbols,

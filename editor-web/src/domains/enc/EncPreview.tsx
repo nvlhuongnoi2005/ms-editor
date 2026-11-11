@@ -9,6 +9,7 @@ import './enc-workspace.css';
 import { localEncStyle, type EncTheme } from './style';
 import { EncImportDialog } from './EncImportDialog';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
+import { installSectorImages } from './lightSectors';
 import { WorkspaceNavigation } from '../../shared/WorkspaceNavigation';
 import type { EncImport } from './imports';
 
@@ -70,6 +71,7 @@ export function EncPreview() {
   useEffect(() => {
     if (!container.current) return;
     const instance = new maplibregl.Map({ container: container.current, ...demoCamera, style: { version: 8, sources: {}, layers: [{ id: 'base', type: 'background', paint: { 'background-color': '#93AEBB' } }] } });
+    const removeSectorImages = installSectorImages(instance);
     const updateCamera = () => { const center = instance.getCenter(); setCamera({ longitude: center.lng, latitude: center.lat, zoom: instance.getZoom() }); };
     instance.on('moveend', updateCamera);
     instance.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -95,7 +97,7 @@ export function EncPreview() {
       if (feature && innerWidth <= 700) setPanelOpen(false);
     });
     map.current = instance;
-    return () => { canvas.removeEventListener('mouseleave', resetCursor); instance.remove(); map.current = null; };
+    return () => { canvas.removeEventListener('mouseleave', resetCursor); removeSectorImages(); instance.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {

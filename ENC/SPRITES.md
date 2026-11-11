@@ -1,90 +1,123 @@
-# Mapping sprite ENC local
+# Chọn ký hiệu ENC theo S-52
 
-Registry: `editor-web/src/domains/enc/sprites.ts`. Style gọi registry thay cho
-mapping 9 nhóm phao/đèn trước đây. Áp dụng cho ENC local; nguồn demo giữ style
-do server demo cung cấp.
+Registry: `editor-web/src/domains/enc/sprites.ts`. Áp dụng cho ENC local;
+nguồn demo sử dụng style của server demo.
 
-## Phạm vi
+## Tài liệu đã đối chiếu
 
-- 85 lớp đối tượng trong registry point symbol, bao gồm lớp có geometry vùng.
-- 9 lớp pattern vùng và 5 lớp ký hiệu lặp trên đường.
-- 209 tên sprite được tham chiếu; tất cả tồn tại trong cả ba atlas day/dusk/night.
-- Mỗi atlas có 232 tên và cùng bộ key. Có 23 tài sản dự phòng chưa kích hoạt,
-  được liệt kê trong inventory bên dưới; không ép dùng mỗi ảnh chỉ để đủ số.
+S-52 PresLib Ed 4.0(.3), Part I Addendum, December 2020, **S-52 ENC Symbol
+Catalogue** (564 trang PDF) do người dùng cung cấp. Trang PDF bằng số trang
+in cộng 6. Catalogue mô tả SY, LC, AP, ý nghĩa, kích thước, màu và dẫn chiếu
+tới look-up table/CSP; không chứa toàn bộ bảng tra và sơ đồ CSP của Part I.
+
+`simplified` trong tên atlas là tên bộ ký hiệu điểm của IHO. Các nhánh chọn
+ký hiệu vẫn xét thuộc tính, geometry và ngữ cảnh.
+
+## Phạm vi atlas
+
+- 232 ảnh/theme, cùng bộ key trong day/dusk/night; 226 ảnh có tham chiếu runtime.
+- 6 ảnh giữ riêng: CHINFO08/09 là ghi chú của mariner; CHINFO10/11 là ghi chú
+  của nhà sản xuất; DNGHILIT là highlight nguy hiểm của mariner; OBSTRN02
+  thuộc thủ tục OBSTRN cũ (catalogue p.182).
+- DISMAR06, SISTAT03 và SISTAW03 có trong atlas nhưng không thấy tên tương
+  ứng trong catalogue 4.0(.3). Inventory ghi rõ, không coi là bằng chứng phù hợp phiên bản.
+
+Toàn bộ ảnh, trạng thái và trang tham chiếu: [SPRITE-INVENTORY.md](SPRITE-INVENTORY.md).
 
 ## Quy tắc chính
 
-| Nhóm | Thuộc tính / cách chọn |
+| Nhóm | Điều kiện |
 |---|---|
-| BOYCAR, BCNCAR | CATCAM: đủ bốn phương vị; thiếu dùng ký hiệu phao/beacon không xác định |
-| BOYLAT | CATLAM, BOYSHP và COLOUR: conical/can/spherical/pillar/spar, đỏ/xanh/khác |
-| BCNLAT, BCNSAW, BCNSPP | BCNSHP, COLOUR, CATSPM: dạng ngắn/dài, cairn, notice/refuge |
-| BOYSPP | CATSPM và BOYSHP; LANBY/unknown có fallback riêng |
-| BOYISD, BCNISD, BOYSAW | Ký hiệu nguy hiểm biệt lập, nước an toàn và biến thể màu |
-| LIGHTS | COLOUR: đỏ/xanh/vàng hoặc LITDEF11; flare xoay 135 độ |
-| TOPMAR | Đủ 33 mã TOPSHP, phân biệt nền nổi/cố định; thiếu dùng TMARDEF1/2 |
-| DAYMAR | TOPSHP: vuông/tam giác lên/tam giác xuống |
-| WRECKS | CATWRK, WATLEV, VALSOU; ngưỡng viewer hiện tại 6 m |
-| UWTROC | WATLEV: chìm/ngập theo triều/khác |
-| OBSTRN | CATOBS, WATLEV, VALSOU, QUASOU: fish haven, tackle, boom, nổi/chìm, độ tin cậy thấp |
-| LNDMRK, BUISGL | FUNCTN, CATLMK, CONVIS: công trình tôn giáo, tháp, ống khói, cột, mái vòm, windmill… |
-| SILTNK | CATSIL và CONVIS: silo, tank, grain elevator, water tower |
-| MORFAC | CATMOR: dolphin, bollard, pile, mooring buoy |
-| PRDARE | CATPRA: quarry, mine, refinery, timber yard, tank farm, wind farm |
-| RESARE | RESTRN: hạn chế neo/hạn chế vào vùng |
-| RECTRC, TWRTPT | CATTRK, TRAFIC: một chiều/hai chiều, theo hệ thống mốc/khác |
-| RCTLPT, CURENT, RDOCAL | Có ORIENT dùng biến thể định hướng; thiếu có fallback |
-| FSHFAC, LNDRGN, OBSTRN | Pattern theo CATFIF, CATLND, CATOBS |
-| Các nhóm khác | Sprite riêng: radar, fog signal, pilot, harbour facility, current, tide, kelp… |
+| BOYCAR / BCNCAR | Bốn CATCAM; thiếu mã dùng BOYDEF03 / BCNDEF13 |
+| BOYLAT / BCNLAT / BCNSAW / BCNSPP | CATLAM, BOYSHP/BCNSHP, màu chính COLOUR; CATSPM chọn notice/refuge/unknown |
+| BOYSPP | CATSPM ODAS/LANBY/unknown; BOYSHP chọn conical, can, spherical/barrel, pillar/spar/ice, super-buoy; dùng BOYSPP35 theo ý nghĩa p.54 |
+| LIGHTS | CATLIT chọn đèn pha/spotlight LIGHTS82, đèn dải LIGHTS81; đèn thường dùng flare theo COLOUR (p.155–160) |
+| Cung đèn | SECTR1/SECTR2, xử lý cung qua 0°; VALNMR ≥10 không có sector dùng vòng toàn hướng; màu theo theme |
+| TOPMAR / DAYMAR | 33 mã TOPSHP; nền nổi/cố định trong cùng cell |
+| UWTROC | Thiếu VALSOU: luôn chìm → UWTROC03; covers/uncovers hoặc awash → UWTROC04 (p.461–462) |
+| Độ sâu hazard | VALSOU hợp lệ: âm → DANGER03; 0–20 m → DANGER01; >20 m → DANGER02 (p.95–97). Null, trống và lỗi không trở thành độ sâu 0 |
+| Nguy hiểm biệt lập | VALSOU không lớn hơn safety contour và có DEPARE/DRGARE xung quanh đủ sâu; loại WATLEV 1/2; không suy ra chỉ từ độ sâu đối tượng |
+| Safety contour | Mặc định 6 m; thiếu DEPCNT 6 m thì chọn đường đồng sâu kế tiếp sâu hơn trong cùng cell, ổn định giữa các tile |
+| WRECKS thiếu độ sâu | CATWRK/WATLEV chọn wreck nguy hiểm/không nguy hiểm/phần thân lộ/distributed remains |
+| OBSTRN | CATOBS: fish haven, foul ground, tackle, floating boom; WATLEV: nổi/chìm/ngập theo triều |
+| Độ tin cậy | QUAPOS từ primitive bổ sung LOWACC01, không thay biểu tượng hazard; QUASOU nghi ngờ bổ sung dấu hỏi cho nhãn độ sâu |
+| LNDMRK / BUISGL | FUNCTN, CATLMK, CONVIS; xét toàn bộ danh sách mã. Thiếu ảnh không conspicuous thì dùng vị trí chung, không dùng nhầm ảnh conspicuous |
+| SILTNK | CATSIL, CONVIS; TOWERS12 là tháp nước conspicuous, TOWERS02 là tháp nước thường (p.447,450) |
+| HRBFAC | CATHAF 1 → RoRo, 4 → cảng cá, 5 → marina; các loại khác dùng thông tin HO |
+| CHKPNT / RSCSTA | CATCHP 1 hoặc FUNCTN customs → CHKPNT01; rescue station → RSCSTA02 |
+| RDOCAL | ORIENT hợp lệ; TRAFIC 1/2/3 → RDOCAL02, 4 → RDOCAL03; thiếu → RCLDEF01 (p.204–207) |
+| TS_FEB / TS_PAD | CAT_TS và ORIENT chọn flood/ebb/current; thiếu hướng → CURDEF01; bảng tidal stream → TIDSTR01 |
+| PRDARE | CATPRA, CONVIS, geometry: refinery/tank farm/wind farm vùng khác công trình điểm |
+| ACHARE | Điểm → ACHARE02; tâm vùng → ACHARE51 (p.3–4) |
+| Vùng công trình | BUISGL/LNDMRK/SILTNK hiển thị footprint/outline, không gắn icon điểm vào mọi polygon |
+| Pattern | CATFIF/CATLND/CATOBS; wood/mangrove theo CATVEG; DEPARE thiếu DRVAL1/2 → PRTSUR01P; unknown NEWOBJ → pattern dấu hỏi |
+| Drying sounding | DEPTH âm dùng trị tuyệt đối và gạch chân SOUNDSA1 (p.402) |
 
 ## Hợp đồng tile
 
-API giữ nguyên attributes gốc, bổ sung các trường phục vụ style:
+Giữ attributes gốc, bổ sung trường nội bộ:
 
-- `sym_<attribute>`: giá trị đầu tiên để đọc mã scalar hoặc list nhất quán.
-- `list_<attribute>`: danh sách có dấu phân cách để kiểm tra nhiều mã, tránh
-  nhầm mã 1 với 11. Dùng cho FUNCTN, CATSPM, RESTRN, QUASOU, NATSUR…
-- `topmark_floating`: có phao hoặc light vessel/platform nổi tại đúng tọa độ,
-  trong cùng cell và phiên bản. Không suy luận nền nổi từ một đối tượng bất kỳ.
+- `sym_<attribute>`: mã đầu tiên cho thuộc tính cần thứ tự (màu chính).
+- `list_<attribute>`: danh sách `|1|11|` để xét đủ mã, phân biệt 1 với 11.
+- `s52_geometry`: dimension geometry nguồn 0/1/2, trước khi chuyển sang điểm neo.
+- `s52_quapos`: chất lượng vị trí từ feature/primitive RCID và RCNM liên kết.
+- `s52_surrounding_depth`: DRVAL1 lớn nhất của DEPARE/DRGARE cắt geometry gốc,
+  chỉ trong cùng dataset/cell và trước khi cắt tile.
+- `s52_safety_contour`: DEPCNT kế tiếp không nông hơn mặc định 6 m.
+- `topmark_floating`: nền nổi ở đúng tọa độ, cell và revision.
 
-Lớp MVT `enc_symbols` chứa điểm neo cho geometry không phải point. Điểm được
-tính từ geometry nguồn trước khi cắt tile, rồi xét quyền phủ của cell. Không
-tạo một tâm mới cho mỗi mảnh tile. Polygon LNDARE không nhận icon giữa đất liền;
-LNDARE dạng point vẫn dùng LNDARE01. Click symbol vùng mở cùng bảng properties.
+`enc_symbols` dùng điểm neo từ geometry gốc, không tạo tâm mới ở mỗi mảnh tile.
+Trường nội bộ không xuất hiện trong properties UI. Tile URL dùng `portrayal=10`.
+Không cần migration hay import lại ENC.
 
-Các trường chuẩn hóa nội bộ không xuất hiện trong bảng properties. Không cần
-thay schema hoặc import lại dữ liệu. Tile URL dùng portrayal 9.
+`lightSectors.ts` dựng ảnh cung đèn qua `setMissingStyleImageResolver` của MapLibre 6;
+không gọi dịch vụ ngoài hay thay atlas. Bearing SECTR nhìn từ biển vào đèn,
+vì vậy cung quanh vị trí đèn dùng hướng cộng 180°.
 
-## Tránh thiếu và chọn nhầm icon
+## Kiểm tra
 
-- Symbol class chưa có quy tắc riêng dùng dấu hỏi ở zoom 13+, vẫn chọn được.
-- SBDARE dùng chữ viết tắt NATSUR, không dùng hình thay cho chất đáy biển.
-  LNDELV có nhãn ELEVAT; sounding tiếp tục dùng số độ sâu.
-- Icon dùng image fallback QUESMRK1 nếu bộ atlas triển khai thiếu một ảnh.
-- Icon phao/beacon và hazard có collision. TOPMAR và flare LIGHTS là các phần
-  ghép tại cùng tọa độ, cho phép chồng lên ký hiệu nền.
-- Nhãn/sounding giữ cơ chế ưu tiên và lọc mật độ ở phần 2; đối tượng phụ còn
-  chịu SCAMIN và mức zoom. Mapping không đồng nghĩa mọi đối tượng luôn hiện.
+```powershell
+cd editor-web
+node --test scripts/enc-portrayal.test.mjs scripts/enc-import.test.mjs
+npm run build:react
+cd ..
+python ENC/tools/check_portrayal_db.py
+cd editor-api
+go test ./internal/enc
+```
 
-## Giới hạn
+Kiểm tra browser dùng dữ liệu local và fixture chỉ trong trình duyệt:
 
-Đây là profile simplified atlas. Chưa có sector light tạo động, toàn bộ
-conditional symbology và kiểm tra độ sâu vùng lân cận của S-52. Một số lớp
-như HRBFAC/SMCFAC hiện dùng biểu tượng chung của lớp; không có đủ ảnh trong
-atlas để biểu diễn mọi danh mục con. Các tài sản dự phòng chưa có quy tắc
-đáng tin cậy được giữ nguyên thay vì tự gán sang lớp có tên gần giống.
+```powershell
+cd editor-web
+$env:ENC_PREVIEW_URL = 'http://127.0.0.1:4173/?mode=enc'
+$env:ENC_PORTRAYAL_FIXTURES = '1'
+node scripts/enc-local.browser.mjs
+```
 
-Đã build Go và frontend; xem dữ liệu Manitowoc zoom 10/14, mobile zoom 12 và
-ba theme, không có lỗi JavaScript/MapLibre trong phiên xem. Chưa chạy bộ kiểm
-thử tự động; dữ liệu hiện tại không chứa mọi biến thể trong registry.
+Fixture gồm các biến thể không nhất thiết có trong dữ liệu local, cung đèn
+qua hướng Bắc và toàn hướng, ở cả ba theme. Kiểm tra SQL chỉ dùng bảng tạm
+và rollback; không thay dữ liệu canonical.
+
+Tạo lại inventory (cần PyMuPDF cho tác vụ offline):
+
+```powershell
+python ENC/tools/audit_sprites.py --catalogue 'path/to/S-52 Part I Addendum.pdf'
+```
+
+## Phần chưa có trong bộ tài sản/catalogue này
+
+226 tham chiếu không có nghĩa là toàn bộ Presentation Library đã được triển
+khai. Atlas thiếu nhiều biến thể, bộ chữ số SOUNDG và toàn bộ LC/AP. Các thủ
+tục suy luận LEAST_DEPTH/SEABED_DEPTH khi thiếu VALSOU, mọi nhánh CSP đầy đủ,
+dynamic SYMINS, display category và tham số an toàn theo người dùng chưa
+được triển khai trọn vẹn. Cần Part I chứa LUT/CSP và tài sản tương ứng để
+đối chiếu đầy đủ. Zoom/SCAMIN, chọn cell, thinning và collision vẫn là profile viewer.
 
 ## Nguồn và giấy phép
 
-Quy tắc được đối chiếu và chuyển thể từ
-[Njord symbology](https://github.com/manimaul/njord/tree/master/crates/njord-symbology/src/layers).
-Những điều chỉnh của viewer như collision, fallback, anchor và ngưỡng độ sâu
-được ghi ở trên. Giấy phép Apache-2.0 của mã tham chiếu được giữ trong
-`NJORD-LICENSE.txt`. Sprite atlas vẫn là bộ người dùng đã cung cấp; provenance
-của ảnh không được thay thế bằng giấy phép mã nguồn.
-
-Danh mục từng ảnh: [SPRITE-INVENTORY.md](SPRITE-INVENTORY.md).
+Catalogue người dùng cung cấp là căn cứ đối chiếu ý nghĩa ký hiệu; không
+sao chép PDF vào repo. Quy tắc trước đây chuyển thể từ
+[Njord symbology](https://github.com/manimaul/njord/tree/master/crates/njord-symbology/src/layers)
+giữ giấy phép Apache-2.0 tại `NJORD-LICENSE.txt`. Atlas vẫn là tài sản người
+dùng cung cấp; giấy phép mã nguồn không thay giấy phép của ảnh.

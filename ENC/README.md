@@ -151,8 +151,11 @@ contract biên tập topology hay đảm bảo xuất ngược ENC từ các b�
 Style local là profile giới hạn theo màu Njord: vùng nước theo ngưỡng 3/6/9 m,
 đất, đường bờ, đường đẳng sâu, vùng hạn chế, sounding, phao/đèn và nhãn.
 Registry sprite và phạm vi mapping được mô tả trong [SPRITES.md](SPRITES.md).
-Đây chưa phải toàn bộ conditional symbology S-52. Các ngưỡng hiện cố định cho
-viewer; settings theo người dùng và safety contour sẽ được thêm riêng.
+Các nhánh chọn ký hiệu đã đối chiếu catalogue S-52 PresLib 4.0(.3), gồm biến
+thể theo thuộc tính/geometry, cung đèn tạo động, QUAPOS từ primitive và ngữ
+cảnh độ sâu cùng cell. Safety contour mặc định 6 m chọn đường đồng sâu kế
+tiếp sâu hơn nếu cần. Chi tiết phạm vi và kiểm tra nằm trong [SPRITES.md](SPRITES.md);
+chưa triển khai toàn bộ LUT/CSP hoặc settings theo người dùng.
 
 Glyph PBF lấy từ `https://openenc.com/v1/content/fonts/Roboto%20Bold/` (range
 0–255, 256–511). Sprite do người dùng cung cấp từ OpenENC/Njord. Giữ provenance

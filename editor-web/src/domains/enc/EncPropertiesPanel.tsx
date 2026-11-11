@@ -29,7 +29,7 @@ export function EncPropertiesPanel({ properties, onClose, onFitBounds }: Props) 
       ['Revision', properties.revisionId],
     ]
     : Object.entries(properties)
-      .filter(([key]) => !['feature_id', 'object_class', 'topmark_floating'].includes(key) && !key.startsWith('sym_') && !key.startsWith('list_'))
+      .filter(([key]) => !['feature_id', 'object_class', 'topmark_floating'].includes(key) && !key.startsWith('sym_') && !key.startsWith('list_') && !key.startsWith('s52_'))
       .sort(([left], [right]) => {
         const rank = (key: string) => propertyOrder.includes(key) ? propertyOrder.indexOf(key) : propertyOrder.length;
         return rank(left) - rank(right);
