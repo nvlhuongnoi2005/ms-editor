@@ -1,5 +1,6 @@
 import type { ExpressionSpecification as Expression, LayerSpecification } from 'maplibre-gl';
 import { isSectorLight, sectorImage, lightColour, lightFlareRotation } from './lightSectors';
+import { spriteSpecs } from './spriteSpecs.generated';
 
 // Attribute codes and symbol choices follow Njord's per-class layerables.
 // Source: https://github.com/manimaul/njord/tree/master/crates/njord-symbology/src/layers
@@ -39,7 +40,7 @@ const landmark = choose(has('FUNCTN', 20, 21), conspicuous('BUIREL13', 'BUIREL01
     choose(has('FUNCTN', 22, 23, 24, 25), conspicuous('BUIREL14', 'BUIREL04'),
       by('CATLMK', {
         1: conspicuous('CAIRNS11', 'CAIRNS01'), 3: conspicuous('CHIMNY11', 'CHIMNY01'),
-        4: conspicuous('DSHAER11','POSGEN01'), 5: 'FLGSTF01', 6: conspicuous('FLASTK11', 'FLASTK01'),
+        4: conspicuous('DSHAER11','DSHAER01'), 5: 'FLGSTF01', 6: conspicuous('FLASTK11', 'FLASTK01'),
         7: conspicuous('MSTCON14', 'MSTCON04'), 9: conspicuous('MONUMT12','POSGEN01'), 10: conspicuous('MONUMT12','POSGEN01'),
         12: conspicuous('MONUMT12','POSGEN01'), 13: conspicuous('MONUMT12','POSGEN01'), 14: conspicuous('POSGEN03', 'POSGEN01'),
         15: conspicuous('DOMES011', 'DOMES001'), 16: conspicuous('RASCAN11', 'RASCAN01'),
@@ -91,6 +92,9 @@ export const pointSprites: Record<string, SymbolValue> = {
     choose(has('FUNCTN',35),conspicuous('TNKCON12','TNKCON02'),choose(has('FUNCTN',20,21,22,23,24,25,26,27), landmark, conspicuous('BUISGL11','BUISGL01'))))),
   SILTNK: by('CATSIL', { 1:conspicuous('SILBUI11','SILBUI01'),2:conspicuous('TNKCON12','TNKCON02'),3:conspicuous('TOWERS03','TOWERS01'),4:conspicuous('TOWERS12','TOWERS02') }, conspicuous('TNKCON12','TNKCON02')),
   MORFAC: by('CATMOR', { 1:'MORFAC03',2:'MORFAC04',3:'PILPNT02',5:'PILPNT02',7:'BOYMOR11' }, 'MORFAC03'),
+  // The point lookup for SLCONS explicitly uses MORFAC03; CATSLC changes
+  // the shoreline's line portrayal, not the point into an invented emblem.
+  SLCONS:'MORFAC03',
   ACHARE:'ACHARE02', ACHBRT:'ACHBRT07', ACHPNT:'ACHARE02', AIRARE:'AIRARE02', BERTHS:'BRTHNO01',
   BRIDGE:'', BUAARE:'BUAARE02', CGUSTA:'CGUSTA02', CHKPNT:by('CATCHP',{1:'CHKPNT01'},'POSGEN04'), CTRPNT:'POSGEN04', CRANES:'CRANES01',
   CTNARE:'CHINFO06', DISMAR:'DISMAR06', FOGSIG:'FOGSIG01', FORSTC:conspicuous('FORSTC11','FORSTC01'),
@@ -120,7 +124,7 @@ const openingBridge = choose(has('CATBRG',2,3,4,5,7,8),'BRIDGE01','');
 export const areaSprites: Record<string, SymbolValue> = {
   ...pointSprites, ACHARE:'ACHARE51', BRIDGE:openingBridge,
   // These objects' area lookup uses their footprint and outline, not a point emblem.
-  BUISGL:'', LNDMRK:'', SILTNK:'', LNDARE:'', LNDELV:'', LNDRGN:'', SLOGRD:'', SLOTOP:'',
+  BUISGL:'', LNDMRK:'', SILTNK:'', LNDARE:'', LNDELV:'', LNDRGN:'', SLOGRD:'', SLOTOP:'', SLCONS:'',
   PRDARE:by('CATPRA',{1:'QUARRY01',5:conspicuous('RFNERY11','POSGEN01'),6:'TMBYRD01',8:conspicuous('TNKFRM11','POSGEN01'),9:conspicuous('WNDFRM61','POSGEN01')},''),
 };
 export const linePointSprites: Record<string, SymbolValue> = {
@@ -130,34 +134,39 @@ export const linePointSprites: Record<string, SymbolValue> = {
 export const selectedSprite: Expression = ['case', ['==',['get','s52_geometry'],2],spriteExpression(areaSprites),
   ['==',['get','s52_geometry'],1],spriteExpression(linePointSprites), spriteExpression(pointSprites)];
 
-// The chart position belongs to the symbol's pivot, not necessarily its centre
-// or bottom edge. Convert catalogue millimetres to this atlas's CSS pixels.
-// MapLibre applies icon-offset before rotation and scales it with icon-size,
-// so the same pivot stays at the feature coordinate at every bearing/zoom.
-function pivotOffset(width: number, height: number, column: number, row: number, boxWidth: number, boxHeight: number): [number,number] {
-  const pixelRatio = 2;
-  return [(width / 2 - width * column / boxWidth) / pixelRatio,
-    (height / 2 - height * row / boxHeight) / pixelRatio];
-}
-// S-52 4.0(.3) catalogue p.155–160 (lights), p.130 (fog), p.448 (tower).
-// FOGSIG's pivot is outside its image: the arcs surround the signal position,
-// rather than being centred over the lighthouse. Do not clamp that offset.
-export const spritePivotOffsets: Record<string,[number,number]> = {
-  LIGHTS11:pivotOffset(20,56,1.20,7.05,2.32,7.05),
-  LIGHTS12:pivotOffset(20,56,1.20,7.05,2.32,7.05),
-  LIGHTS13:pivotOffset(20,56,1.20,7.05,2.32,7.05),
-  LITDEF11:pivotOffset(20,56,1.20,7.05,2.32,7.05),
-  LIGHTS81:pivotOffset(31,21,1.92,1.21,3.74,2.51),
-  LIGHTS82:pivotOffset(58,31,1.16,1.86,5.84,3.02),
-  FOGSIG01:pivotOffset(41,37,6.50,-0.10,3.60,4.40),
-  TOWERS03:pivotOffset(29,50,1.75,5.79,3.46,6.35),
-};
+// The catalogue supplies pivot and bounding-box measurements in millimetres.
+// Sprite dimensions are in @2x atlas pixels, so convert them back to CSS pixels
+// before deriving the offset. The atlas builder keeps transparent margins; the
+// pivot must use the complete image box, including those margins.
+const cssPixelsPerMm = 96 / 25.4;
+export const spritePivotOffsets: Record<string,[number,number]> = Object.fromEntries(
+  Object.entries(spriteSpecs).flatMap(([name,spec]) => {
+    if (spec.kind !== 'SY' || spec.pivotColumnMm == null || spec.pivotRowMm == null ||
+        !spec.widthMm || !spec.heightMm || !spec.imageWidthPx || !spec.imageHeightPx || !spec.pixelRatio) return [];
+    const width = spec.imageWidthPx / spec.pixelRatio;
+    const height = spec.imageHeightPx / spec.pixelRatio;
+    return [[name,[width/2-width*spec.pivotColumnMm/spec.widthMm,
+      height/2-height*spec.pivotRowMm/spec.heightMm] as [number,number]]];
+  }),
+);
+// Native atlas symbol sizes vary because supplied pixels and SVG additions use
+// different rasterization paths. Scale each catalogue symbol to its physical
+// bounding-box width at 96 CSS dpi. This scale stays constant across zooms.
+const spriteSizeScales: Record<string,number> = Object.fromEntries(
+  Object.entries(spriteSpecs).flatMap(([name,spec]) => {
+    if (spec.kind !== 'SY' || !spec.widthMm || !spec.imageWidthPx || !spec.pixelRatio) return [];
+    return [[name, Number((spec.widthMm * cssPixelsPerMm / (spec.imageWidthPx / spec.pixelRatio)).toFixed(5))]];
+  }),
+);
+const physicalSpriteSize = (image: Expression): Expression => ['match',image,
+  ...Object.entries(spriteSizeScales).flatMap(([name,size])=>[name,size]),1] as unknown as Expression;
+const spriteSize = physicalSpriteSize(selectedSprite);
 export const spriteAnchor: Expression = ['case',
   ['in',selectedSprite,['literal',Object.keys(spritePivotOffsets)]],'center',
   ['match',['get','object_class'],[...aidClasses,'LIGHTS','TOPMAR','DAYMAR'],'bottom','center']];
 const pivotOffsetExpression = ['match',selectedSprite,
   ...Object.entries(spritePivotOffsets).flatMap(([name,offset])=>[name,['literal',offset]]),['literal',[0,0]]] as unknown as Expression;
-export const spriteOffset: Expression = ['case',['==',['get','object_class'],'DAYMAR'],['literal',[0,-18]],
+export const spriteOffset: Expression = ['case',
   ['all',['==',['get','object_class'],'TOPMAR'],['==',['get','topmark_floating'],true]],['literal',[0,-8]],
   pivotOffsetExpression];
 
@@ -177,7 +186,7 @@ export const lineSprites: Record<string, SymbolValue> = {
     3:by('CATTRK',{1:'RECTRC58'},'RECTRC57'),4:by('CATTRK',{1:'RECTRC56'},'RECTRC55'),
   },'RECDEF51'), GATCON:by('CATGAT',{4:'GATCON03',2:'GATCON04',3:'GATCON04'},''),
   FERYRT:'FRYARE51', PIPOHD:choose(has('CONRAD',1,3),'RACNSP01',''),
-  CONVYR:choose(has('CONRAD',1,3),'RACNSP01',''),
+  CONVYR:choose(has('CONRAD',1,3),'RACNSP01',''), CBLOHD:choose(has('CONRAD',1,3),'RACNSP01',''),
 };
 
 export function spriteExpression(registry: Record<string, SymbolValue>, fallback = ''): Expression {
@@ -187,6 +196,24 @@ export function spriteExpression(registry: Record<string, SymbolValue>, fallback
 export const spriteRotation: Expression = ['match',['get','object_class'],
   ['CURENT','TS_FEB','TSSLPT','TWRTPT','DWRTPT','RECTRC','RCTLPT','WRECKS','RDOCAL'], ['to-number',['coalesce',['get','ORIENT'],0],0],
   'LIGHTS',lightFlareRotation,0];
+
+const validText = (field: string): Expression => ['all',['has',field],['!=',['get',field],null],['!=',['get',field],'']];
+const lightCharacteristic: Expression = ['match',numeric('LITCHR'),
+  1,'F',2,'Fl',3,'LFl',4,'Q',5,'VQ',6,'UQ',7,'Iso',8,'Oc',9,'IQ',10,'IVQ',11,'IUQ',12,'Mo',13,'FFl',14,'Al',''];
+const lightGroup: Expression = ['case',validText('SIGGRP'),
+  ['case',['>=',['index-of','(',['to-string',['get','SIGGRP']]],0],['to-string',['get','SIGGRP']],['concat','(',['to-string',['get','SIGGRP']],')']],''];
+const lightColourCodes: ReadonlyArray<readonly [number,string]> = [
+  [1,'W'],[2,'Bk'],[3,'R'],[4,'G'],[5,'Bu'],[6,'Y'],[7,'Gy'],[8,'Br'],[9,'Am'],[10,'Vi'],[11,'Or'],
+];
+const lightColourText: Expression = ['concat',...lightColourCodes.map(([value,label],index) => {
+  const earlier = lightColourCodes.slice(0,index).map(([code]) => has('COLOUR',code));
+  const separator: SymbolValue = earlier.length ? ['case',['any',...earlier],'/', ''] as Expression : '';
+  return choose(has('COLOUR',value),['concat',separator,label],'');
+})];
+const lightCharacteristicLabel: Expression = ['concat',lightCharacteristic,lightGroup,
+  ['case',['!=',lightColourText,''],['concat',' ',lightColourText],''],
+  ['case',validNumber('SIGPER'),['concat',' ',['to-string',['get','SIGPER']],'s'],''],
+  ['case',validNumber('VALNMR'),['concat',' ',['to-string',['get','VALNMR']],'M'],'']];
 
 export function encSpriteLayers(ink: string, halo: string, theme = 'day'): LayerSpecification[] {
   const reserved = [...aidClasses,...hazardClasses,'LIGHTS','TOPMAR','DAYMAR','FOGSIG','LNDMRK'];
@@ -210,7 +237,7 @@ export function encSpriteLayers(ink: string, halo: string, theme = 'day'): Layer
       sourceLayer==='enc_symbols'?group.classes.filter(key=>key!=='LNDARE'):group.classes]]],
     layout:{
       'icon-image':['coalesce',['image',selectedSprite],['image','QUESMRK1']],
-      'icon-size':['interpolate',['linear'],['zoom'],9,0.85,13,1],
+      'icon-size':spriteSize,
       'icon-anchor':spriteAnchor,
       'icon-offset':spriteOffset,
       'icon-rotate':spriteRotation,'icon-rotation-alignment':'map','icon-padding':3,
@@ -231,7 +258,7 @@ export function encSpriteLayers(ink: string, halo: string, theme = 'day'): Layer
   layers.unshift({id:'enc-unmapped-points',type:'symbol',source:'enc','source-layer':'enc',minzoom:13,
     filter:['all',['==',['geometry-type'],'Point'],['!', ['in',['get','object_class'],
       ['literal',[...Object.keys(pointSprites),'SOUNDG','SBDARE','LNDELV','LNDRGN','SEAARE']]]]],
-    layout:{'icon-image':'QUESMRK1','icon-size':0.75,'icon-allow-overlap':false,'icon-padding':6}});
+    layout:{'icon-image':'QUESMRK1','icon-size':physicalSpriteSize(['literal','QUESMRK1']),'icon-allow-overlap':false,'icon-padding':6}});
   const seabed: Expression = ['concat', ...Object.entries({1:'M',2:'Cy',3:'Si',4:'S',5:'St',6:'G',7:'P',8:'Cb',9:'R',11:'R',14:'Co',17:'Sh',18:'R'})
     .map(([key,label]) => choose(has('NATSUR',Number(key)),label+' ',''))];
   layers.unshift(...['enc','enc_symbols'].map(sourceLayer => ({
@@ -245,13 +272,21 @@ export function encSpriteLayers(ink: string, halo: string, theme = 'day'): Layer
   // Positional quality is independent of depth quality. Never replace a hazard with LOWACC01.
   layers.push(...['enc','enc_symbols'].map(sourceLayer => ({
     id:'enc-position-quality-'+sourceLayer,type:'symbol',source:'enc','source-layer':sourceLayer,minzoom:11,
-    filter:['all',['==',['geometry-type'],'Point'],['>=',numeric('s52_quapos'),2],['<=',numeric('s52_quapos'),9]],
-    layout:{'icon-image':'LOWACC01','icon-size':0.85,'icon-allow-overlap':true,'icon-ignore-placement':true},
+    filter:['all',['==',['geometry-type'],'Point'],['>=',numeric('s52_quapos'),2],['<=',numeric('s52_quapos'),9],
+      ['any',['!=',['get','object_class'],'SLCONS'],['==',['get','s52_geometry'],0]]],
+    layout:{'icon-image':'LOWACC01','icon-size':physicalSpriteSize(['literal','LOWACC01']),'icon-allow-overlap':true,'icon-ignore-placement':true},
   } as LayerSpecification)));
   layers.push({id:'enc-light-sectors',type:'symbol',source:'enc','source-layer':'enc',minzoom:10,
     filter:['all',['==',['get','object_class'],'LIGHTS'],isSectorLight],
     layout:{'icon-image':['image',sectorImage(theme)],'icon-anchor':'center','icon-size':1,
       'icon-rotation-alignment':'map','icon-pitch-alignment':'map','icon-allow-overlap':true,'icon-ignore-placement':true},
+  });
+  layers.push({id:'enc-light-characteristics',type:'symbol',source:'enc','source-layer':'enc',minzoom:12,
+    filter:['all',['==',['get','object_class'],'LIGHTS'],['!=',lightCharacteristicLabel,'']],
+    layout:{'text-field':lightCharacteristicLabel,'text-font':['Roboto Bold'],'text-size':11,
+      'text-variable-anchor':['left','right','top','bottom'],'text-radial-offset':1.35,'text-padding':5,
+      'text-max-width':12,'text-optional':true},
+    paint:{'text-color':ink,'text-halo-color':halo,'text-halo-width':1.5},
   });
   return layers;
 }
@@ -263,5 +298,5 @@ export function encPatternLayers(): LayerSpecification[] {
   {id:'enc-line-symbols',type:'symbol',source:'enc','source-layer':'enc',minzoom:10,
     filter:['all',['!=',['geometry-type'],'Point'],['!=',spriteExpression(lineSprites),'']],
     layout:{'symbol-placement':'line','symbol-spacing':220,'icon-image':spriteExpression(lineSprites),
-      'icon-size':0.85,'icon-padding':8,'icon-allow-overlap':false,'icon-rotation-alignment':'map'}}];
+      'icon-size':physicalSpriteSize(spriteExpression(lineSprites)),'icon-padding':8,'icon-allow-overlap':false,'icon-rotation-alignment':'map'}}];
 }

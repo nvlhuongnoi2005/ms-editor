@@ -1,0 +1,3457 @@
+{
+  "revision": 14,
+  "baseCount": 232,
+  "addedCount": 267,
+  "totalCount": 499,
+  "width": 2048,
+  "height": 961,
+  "entries": {
+    "ACHRES61": {
+      "kind": "SY",
+      "symbol": "ACHRES61",
+      "cataloguePage": 7,
+      "pdfPage": 13,
+      "description": "area where anchoring is prohibited or restricted, with other cautions",
+      "sourcePath": "sprites/svg_unused/ACHRES61.svg",
+      "sha256": "de2232b63bacae92931a7dd643664af17ab787edfc27eae9da6a6cd6636f2381",
+      "pivot": [
+        1.2149976269577598,
+        1.2114656571119524
+      ]
+    },
+    "ACHRES71": {
+      "kind": "SY",
+      "symbol": "ACHRES71",
+      "cataloguePage": 8,
+      "pdfPage": 14,
+      "description": "area where anchoring is prohibited or restricted, with other information",
+      "sourcePath": "sprites/svg_unused/ACHRES71.svg",
+      "sha256": "70f321717a6f8c293b6a59a9685c5aaf4b0cdbf7a6a8b96a166b371f0027e8c0",
+      "pivot": [
+        1.2119936875328774,
+        1.2114656571119524
+      ]
+    },
+    "AIRARE02P": {
+      "kind": "AP",
+      "symbol": "AIRARE02",
+      "cataloguePage": 533,
+      "pdfPage": 539,
+      "description": "pattern of symbols for an airport area",
+      "sourcePath": "sprites/svg_unused/AIRARE02P.svg",
+      "sha256": "ead13976f00960e52432d4d1d615efb3bfd92d947dc3c8834523ce91188873ce",
+      "pivot": [
+        139.7844827586207,
+        137.78867102396515
+      ]
+    },
+    "BCNGEN01": {
+      "kind": "SY",
+      "symbol": "BCNGEN01",
+      "cataloguePage": 15,
+      "pdfPage": 21,
+      "description": "beacon in general, paper-chart",
+      "sourcePath": "sprites/svg_unused/BCNGEN01.svg",
+      "sha256": "065ad46e96e7aaf3b8d3ff472b6275fe9f4098ef3a30c085908a0efbf3c6335b",
+      "pivot": [
+        14,
+        36.6286701208981
+      ]
+    },
+    "BCNGEN03": {
+      "kind": "SY",
+      "symbol": "BCNGEN03",
+      "cataloguePage": 16,
+      "pdfPage": 22,
+      "description": "default symbol for beacon, paper-chart",
+      "sourcePath": "sprites/svg_unused/BCNGEN03.svg",
+      "sha256": "50234d06b823ae5a3044e176f392cf1dd41d7fc3db42277f8d38e4b4da0a1ae7",
+      "pivot": [
+        13.91263650546022,
+        39.36241610738255
+      ]
+    },
+    "BCNLTC01": {
+      "kind": "SY",
+      "symbol": "BCNLTC01",
+      "cataloguePage": 22,
+      "pdfPage": 28,
+      "description": "lattice beacon, paper-chart",
+      "sourcePath": "sprites/svg_unused/BCNLTC01.svg",
+      "sha256": "3ecc7853b982f2779b927eb817314d7bf7234c1fa9f90e0c06c126d6bbde03d8",
+      "pivot": [
+        21.5,
+        36.43986254295533
+      ]
+    },
+    "BCNSTK02": {
+      "kind": "SY",
+      "symbol": "BCNSTK02",
+      "cataloguePage": 27,
+      "pdfPage": 33,
+      "description": "minor, stake or pole beacon, paper-chart",
+      "sourcePath": "sprites/svg_unused/BCNSTK02.svg",
+      "sha256": "5a33cc796d89420b56d1e9b3631600cb32a9e9d3473472e4a579530218ef6c67",
+      "pivot": [
+        12,
+        36.57669902912621
+      ]
+    },
+    "BCNTOW01": {
+      "kind": "SY",
+      "symbol": "BCNTOW01",
+      "cataloguePage": 28,
+      "pdfPage": 34,
+      "description": "beacon tower, paper-chart",
+      "sourcePath": "sprites/svg_unused/BCNTOW01.svg",
+      "sha256": "5f902e9f8c056df9b441c7d8dbfa03f3c4e906ec6468f943b6e4a2043ffc7b6c",
+      "pivot": [
+        21.5,
+        37.14041095890411
+      ]
+    },
+    "BLKADJ01": {
+      "kind": "SY",
+      "symbol": "BLKADJ01",
+      "cataloguePage": 29,
+      "pdfPage": 35,
+      "description": "symbol for checking and adjusting the brightness and contrast controls",
+      "sourcePath": "sprites/svg_unused/BLKADJ01.svg",
+      "sha256": "c4ae36ce2f090bd6945b646450f0c099ca9c60a93af647fad4c67bf981f9b586",
+      "pivot": [
+        79.5009842519685,
+        80.25885826771653
+      ]
+    },
+    "BOYBAR01": {
+      "kind": "SY",
+      "symbol": "BOYBAR01",
+      "cataloguePage": 30,
+      "pdfPage": 36,
+      "description": "barrel buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYBAR01.svg",
+      "sha256": "3418f357b0f4ac2395093f98e741db20314808e24ea5cf73ae92c42dc27ed007",
+      "pivot": [
+        29.637702503681883,
+        32.6547619047619
+      ]
+    },
+    "BOYCAN01": {
+      "kind": "SY",
+      "symbol": "BOYCAN01",
+      "cataloguePage": 31,
+      "pdfPage": 37,
+      "description": "can buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYCAN01.svg",
+      "sha256": "9cc178bb5ae464f85cdcb61d89f962ed5a7adf5966a169992be3aef3187ea716",
+      "pivot": [
+        24.47058823529412,
+        28.045851528384276
+      ]
+    },
+    "BOYCON01": {
+      "kind": "SY",
+      "symbol": "BOYCON01",
+      "cataloguePage": 36,
+      "pdfPage": 42,
+      "description": "conical buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYCON01.svg",
+      "sha256": "d52cce5f02ecc649fd34f68a2c3a6e5b39000aa91bddfe466293d5619186e1b0",
+      "pivot": [
+        24.538341158059467,
+        36.218637992831546
+      ]
+    },
+    "BOYGEN03": {
+      "kind": "SY",
+      "symbol": "BOYGEN03",
+      "cataloguePage": 38,
+      "pdfPage": 44,
+      "description": "default symbol for buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYGEN03.svg",
+      "sha256": "07c715c47b7fefd96c623f65d24187dd0daa7c8f4b2f86269a73f5a1eb6ac737",
+      "pivot": [
+        21.583437892095358,
+        33.68181818181819
+      ]
+    },
+    "BOYINB01": {
+      "kind": "SY",
+      "symbol": "BOYINB01",
+      "cataloguePage": 39,
+      "pdfPage": 45,
+      "description": "installation buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYINB01.svg",
+      "sha256": "f13db5d81c1ecb25d7498eb223022eb5249ff0fc1a1f8c74969913e07a9182be",
+      "pivot": [
+        35.03800217155266,
+        35.59147424511545
+      ]
+    },
+    "BOYMOR01": {
+      "kind": "SY",
+      "symbol": "BOYMOR01",
+      "cataloguePage": 45,
+      "pdfPage": 51,
+      "description": "mooring buoy, barrel shape, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYMOR01.svg",
+      "sha256": "39b4e8c22d332514a7be83011b385b872e7dc611acad83f6cda4cae65db9f982",
+      "pivot": [
+        28.526706231454003,
+        41.99999999999999
+      ]
+    },
+    "BOYMOR03": {
+      "kind": "SY",
+      "symbol": "BOYMOR03",
+      "cataloguePage": 46,
+      "pdfPage": 52,
+      "description": "mooring buoy, can shape, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYMOR03.svg",
+      "sha256": "17781cec35645fb62728db4beb42c7e22f55e549fff32f4f913f2f92dea1a8c4",
+      "pivot": [
+        24.241176470588236,
+        39.64677419354839
+      ]
+    },
+    "BOYPIL01": {
+      "kind": "SY",
+      "symbol": "BOYPIL01",
+      "cataloguePage": 48,
+      "pdfPage": 54,
+      "description": "pillar buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYPIL01.svg",
+      "sha256": "318e711e68a9e59cb4e6c69bb3f4bd4f7a72381799e728cafb869cdb096ce06d",
+      "pivot": [
+        25.642965204236006,
+        35.11351351351352
+      ]
+    },
+    "BOYSPH01": {
+      "kind": "SY",
+      "symbol": "BOYSPH01",
+      "cataloguePage": 50,
+      "pdfPage": 56,
+      "description": "spherical buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYSPH01.svg",
+      "sha256": "fa54dd10ab4cd745375f72f487934e4f481868660505d9e1e04cdb836da884d8",
+      "pivot": [
+        23.656597774244833,
+        35.567567567567565
+      ]
+    },
+    "BOYSPR01": {
+      "kind": "SY",
+      "symbol": "BOYSPR01",
+      "cataloguePage": 55,
+      "pdfPage": 61,
+      "description": "spar buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYSPR01.svg",
+      "sha256": "f7f2db645287df2e78b76b10ca87be1ea5a6443ea596a1a51355b1bea5497761",
+      "pivot": [
+        13.76923076923077,
+        35.11351351351352
+      ]
+    },
+    "BOYSUP01": {
+      "kind": "SY",
+      "symbol": "BOYSUP01",
+      "cataloguePage": 56,
+      "pdfPage": 62,
+      "description": "super-buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYSUP01.svg",
+      "sha256": "e6ceb20935c64abb5021068e58fd3b962abf57a3d142cd065690d610caab5104",
+      "pivot": [
+        35.03800217155266,
+        38.61258278145696
+      ]
+    },
+    "BOYSUP03": {
+      "kind": "SY",
+      "symbol": "BOYSUP03",
+      "cataloguePage": 58,
+      "pdfPage": 64,
+      "description": "LANBY, super-buoy, paper-chart",
+      "sourcePath": "sprites/svg_unused/BOYSUP03.svg",
+      "sha256": "b4da2ed057ad71a2367770904e0c1556dcdd38b96ae3f7b28d48feac1375d807",
+      "pivot": [
+        35.266015200868615,
+        46.06043165467626
+      ]
+    },
+    "CHCRDEL1": {
+      "kind": "SY",
+      "symbol": "CHCRDEL1",
+      "cataloguePage": 74,
+      "pdfPage": 80,
+      "description": "this object has been manually deleted or modified",
+      "sourcePath": "sprites/svg_unused/CHCRDEL1.svg",
+      "sha256": "7c5954b0b5192fa39ef445a420f05ea6725df6cb240ed67567b6a09e291d8cc2",
+      "pivot": [
+        32.49701314217444,
+        31.88530465949821
+      ]
+    },
+    "CHCRID01": {
+      "kind": "SY",
+      "symbol": "CHCRID01",
+      "cataloguePage": 75,
+      "pdfPage": 81,
+      "description": "this object has been manually updated",
+      "sourcePath": "sprites/svg_unused/CHCRID01.svg",
+      "sha256": "174018e0bdab241842e1e04ec2ab8ef9745e7612dbff6ad4740a00277edfd52b",
+      "pivot": [
+        5,
+        1.4384858044164037
+      ]
+    },
+    "CHDATD01": {
+      "kind": "SY",
+      "symbol": "CHDATD01",
+      "cataloguePage": 152,
+      "pdfPage": 158,
+      "description": "This object is a date dependent object",
+      "sourcePath": "sprites/svg_unused/CHDATD01.svg",
+      "sha256": "507c62cc1483e5f99fae90357960fcb812b2aee8e25b1eecd8274bb17edcb753",
+      "pivot": [
+        119.80615735461802,
+        13.21391304347826
+      ]
+    },
+    "CHKSYM01": {
+      "kind": "SY",
+      "symbol": "CHKSYM01",
+      "cataloguePage": 86,
+      "pdfPage": 92,
+      "description": "test symbol for checking symbol sizes, should measure 5mm by 5mm",
+      "sourcePath": "sprites/svg_unused/CHKSYM01.svg",
+      "sha256": "212f120ceb2c868c06c7b68ef962f55dfe22a252d5b23c240adac18a448ed6df",
+      "pivot": [
+        21.307692307692307,
+        20.422932330827066
+      ]
+    },
+    "CHRVDEL1": {
+      "kind": "SY",
+      "symbol": "CHRVDEL1",
+      "cataloguePage": 87,
+      "pdfPage": 93,
+      "description": "This object has been deleted by an automatic update",
+      "sourcePath": "sprites/svg_unused/CHRVDEL1.svg",
+      "sha256": "0bd1c0e5e590f95521c6715a02248eeb122e2c954425b963031d9bcaece29108",
+      "pivot": [
+        37.96180904522613,
+        38.03819095477388
+      ]
+    },
+    "CHRVID01": {
+      "kind": "SY",
+      "symbol": "CHRVID01",
+      "cataloguePage": 88,
+      "pdfPage": 94,
+      "description": "This object has been inserted or modified by an automatic update",
+      "sourcePath": "sprites/svg_unused/CHRVID01.svg",
+      "sha256": "bb93d2a9319de078211a1866432402d91fe42e602ad326dd77690abb25c630be",
+      "pivot": [
+        19,
+        7.2339449541284395
+      ]
+    },
+    "CTNARE51": {
+      "kind": "SY",
+      "symbol": "CTNARE51",
+      "cataloguePage": 90,
+      "pdfPage": 96,
+      "description": "caution area, a specific caution note applies",
+      "sourcePath": "sprites/svg_unused/CTNARE51.svg",
+      "sha256": "9ae8362c51d637954cb86f90f2893a994e737376c08574520e777bb7f1770313",
+      "pivot": [
+        139.35087719298244,
+        3.635502958579882
+      ]
+    },
+    "CTYARE71": {
+      "kind": "SY",
+      "symbol": "CTYARE71",
+      "cataloguePage": 92,
+      "pdfPage": 98,
+      "description": "cautionary area with further information",
+      "sourcePath": "sprites/svg_unused/CTYARE71.svg",
+      "sha256": "b19fa5211a7f2e1c2aa8e2d3c4dea1dee63d68d025a9b2159262f9bc1a7b7171",
+      "pivot": [
+        157.35815268614513,
+        3.635502958579882
+      ]
+    },
+    "DAYSQR21": {
+      "kind": "SY",
+      "symbol": "DAYSQR21",
+      "cataloguePage": 99,
+      "pdfPage": 105,
+      "description": "square or rectangular daymark, paper chart",
+      "sourcePath": "sprites/svg_unused/DAYSQR21.svg",
+      "sha256": "c4bcbdf2e639af960ea48b9621c9ec259c76940c4074592f14175f6c39fddc03",
+      "pivot": [
+        16.309468822170903,
+        48.92307692307692
+      ]
+    },
+    "DAYTRI21": {
+      "kind": "SY",
+      "symbol": "DAYTRI21",
+      "cataloguePage": 102,
+      "pdfPage": 108,
+      "description": "triangular daymark, point up, paper chart",
+      "sourcePath": "sprites/svg_unused/DAYTRI21.svg",
+      "sha256": "470501f9fb36c0d1722942e6c5341105c6f1c81292b31f59176b68eb68f24d11",
+      "pivot": [
+        20.345864661654133,
+        51.8866930171278
+      ]
+    },
+    "DAYTRI25": {
+      "kind": "SY",
+      "symbol": "DAYTRI25",
+      "cataloguePage": 103,
+      "pdfPage": 109,
+      "description": "triangular daymark, point down, paper chart",
+      "sourcePath": "sprites/svg_unused/DAYTRI25.svg",
+      "sha256": "2fc7b5cd90263b264a9923b54af0ea0d3c7cb17eda28270fc524943c2a420925",
+      "pivot": [
+        20.461682242990655,
+        45.967694566813506
+      ]
+    },
+    "DIAMOND1P": {
+      "kind": "AP",
+      "symbol": "DIAMOND1",
+      "cataloguePage": 534,
+      "pdfPage": 540,
+      "description": "area of depth less than the safety contour",
+      "sourcePath": "sprites/svg_unused/DIAMOND1P.svg",
+      "sha256": "2e711fd54ca25e4b1cd3132e1e5a63f14005613aad1e26c5ecae062974d2e5cd",
+      "pivot": [
+        86.5,
+        164.53785960874566
+      ]
+    },
+    "DIRBOY01": {
+      "kind": "SY",
+      "symbol": "DIRBOY01",
+      "cataloguePage": 104,
+      "pdfPage": 110,
+      "description": "direction of buoyage",
+      "sourcePath": "sprites/svg_unused/DIRBOY01.svg",
+      "sha256": "d7a12c40761de74d9539638aa7eb38e34fd90322f9c0963b4859578a3d272257",
+      "pivot": [
+        50.54464285714286,
+        231.78764227642276
+      ]
+    },
+    "DIRBOYA1": {
+      "kind": "SY",
+      "symbol": "DIRBOYA1",
+      "cataloguePage": 105,
+      "pdfPage": 111,
+      "description": "direction and color of buoyage for approaching harbour in IALA region A (red to port)",
+      "sourcePath": "sprites/svg_unused/DIRBOYA1.svg",
+      "sha256": "b719a3d64446095bd1d536ad1ccb3d33eb2034f9ed5051431f9ded362963903e",
+      "pivot": [
+        50.54464285714286,
+        231.78764227642276
+      ]
+    },
+    "DIRBOYB1": {
+      "kind": "SY",
+      "symbol": "DIRBOYB1",
+      "cataloguePage": 106,
+      "pdfPage": 112,
+      "description": "direction and color of buoyage for approaching harbour in IALA region B (green to port)",
+      "sourcePath": "sprites/svg_unused/DIRBOYB1.svg",
+      "sha256": "4db4c4a8de92ded1dfb9f420c3e07c5df2e8c66f6dfa1fa868076bf212de47e1",
+      "pivot": [
+        50.54464285714286,
+        231.78764227642276
+      ]
+    },
+    "DQUALA11P": {
+      "kind": "AP",
+      "symbol": "DQUALA11",
+      "cataloguePage": 535,
+      "pdfPage": 541,
+      "description": "pattern of symbols for a chart of 5m accuracy with full seafloor coverage",
+      "sourcePath": "sprites/svg_unused/DQUALA11P.svg",
+      "sha256": "cbc7c4e038548698cf62c50ed43fffef31a18be40f428083d8417b9ba10c6c70",
+      "pivot": [
+        65.84094852515905,
+        43.65460526315789
+      ]
+    },
+    "DQUALA21P": {
+      "kind": "AP",
+      "symbol": "DQUALA21",
+      "cataloguePage": 536,
+      "pdfPage": 542,
+      "description": "pattern of symbols for a chart with 20m accuracy with full seafloor coverage",
+      "sourcePath": "sprites/svg_unused/DQUALA21P.svg",
+      "sha256": "9c5bcb4c49f44dda0b37811ea5115b4e79e222b98d839fa4e49800822baf8f72",
+      "pivot": [
+        64.17408906882592,
+        30.79276315789474
+      ]
+    },
+    "DQUALB01P": {
+      "kind": "AP",
+      "symbol": "DQUALB01",
+      "cataloguePage": 537,
+      "pdfPage": 543,
+      "description": "pattern of symbols for a chart with 50m accuracy from standard survey based on lines of continuous soundings",
+      "sourcePath": "sprites/svg_unused/DQUALB01P.svg",
+      "sha256": "d7c05088b5f86458157675a2978ac15b5cbf8140e7a80e4fb52b1dc546084769",
+      "pivot": [
+        64.17408906882592,
+        30.79276315789474
+      ]
+    },
+    "DQUALC01P": {
+      "kind": "AP",
+      "symbol": "DQUALC01",
+      "cataloguePage": 538,
+      "pdfPage": 544,
+      "description": "pattern of symbols for a low accuracy or incomplete chart",
+      "sourcePath": "sprites/svg_unused/DQUALC01P.svg",
+      "sha256": "8e6d7998fad1855837ff42d5874b1503c1740cdd4a7e2421728d41f02a6f54ae",
+      "pivot": [
+        63.06112469437653,
+        18.257575757575758
+      ]
+    },
+    "DQUALD01P": {
+      "kind": "AP",
+      "symbol": "DQUALD01",
+      "cataloguePage": 539,
+      "pdfPage": 545,
+      "description": "pattern of symbols for an unreliable chart",
+      "sourcePath": "sprites/svg_unused/DQUALD01P.svg",
+      "sha256": "20b2e86af54e0f82be46253a991e4d46acf7529f866d3aea8a386b60d39bda0d",
+      "pivot": [
+        62,
+        19.015151515151516
+      ]
+    },
+    "DQUALU01P": {
+      "kind": "AP",
+      "symbol": "DQUALU01",
+      "cataloguePage": 540,
+      "pdfPage": 546,
+      "description": "pattern of symbols for a chart with quality not assessed",
+      "sourcePath": "sprites/svg_unused/DQUALU01P.svg",
+      "sha256": "8f689a6648b811432c64cfc1e518981009d939ed5b8822b04495079545268374",
+      "pivot": [
+        62.07579462102689,
+        17.727272727272727
+      ]
+    },
+    "DRFSTA01": {
+      "kind": "SY",
+      "symbol": "DRFSTA01",
+      "cataloguePage": 112,
+      "pdfPage": 118,
+      "description": "DGPS reference station",
+      "sourcePath": "sprites/svg_unused/DRFSTA01.svg",
+      "sha256": "833d71779de317c9a8d3ab56443fd8ba7a657666520bc41f90ba41436f0dd899",
+      "pivot": [
+        23.97831978319783,
+        24
+      ]
+    },
+    "DSHAER01": {
+      "kind": "SY",
+      "symbol": "DSHAER01",
+      "cataloguePage": 113,
+      "pdfPage": 119,
+      "description": "dish aerial",
+      "sourcePath": "sprites/svg_unused/DSHAER01.svg",
+      "sha256": "4b1196410ba8e617dbd9ec2cecfac8737e1f86000aa74ed9d14affb70f6b4f6d",
+      "pivot": [
+        13.816753926701573,
+        38.722912966252224
+      ]
+    },
+    "DWRTPT51": {
+      "kind": "SY",
+      "symbol": "DWRTPT51",
+      "cataloguePage": 115,
+      "pdfPage": 121,
+      "description": "part of deep water route",
+      "sourcePath": "sprites/svg_unused/DWRTPT51.svg",
+      "sha256": "dfed1933f74e90268b9aecdfd663d55d4f908793e97da4bf22e93ceacc04a418",
+      "pivot": [
+        57.522643818849446,
+        133.57953281423804
+      ]
+    },
+    "EBLVRM11": {
+      "kind": "SY",
+      "symbol": "EBLVRM11",
+      "cataloguePage": 118,
+      "pdfPage": 124,
+      "description": "point of origin for an offset EBL or VRM",
+      "sourcePath": "sprites/svg_unused/EBLVRM11.svg",
+      "sha256": "fee7e51e2d70f2044695ad390ab4360c0d1dd2a32722bfeb6629f7ecd6706357",
+      "pivot": [
+        9,
+        9
+      ]
+    },
+    "ENTRES61": {
+      "kind": "SY",
+      "symbol": "ENTRES61",
+      "cataloguePage": 120,
+      "pdfPage": 126,
+      "description": "area where entry is prohibited or restricted or \"to be avoided\", with other cautions",
+      "sourcePath": "sprites/svg_unused/ENTRES61.svg",
+      "sha256": "ff38511e46b7d88da781439f9d0b6ab67affad3b8f165646d08f290a21823386",
+      "pivot": [
+        154.36258992805756,
+        70.36322869955157
+      ]
+    },
+    "ENTRES71": {
+      "kind": "SY",
+      "symbol": "ENTRES71",
+      "cataloguePage": 121,
+      "pdfPage": 127,
+      "description": "area where entry is prohibited or restricted or \"to be avoided\", with other information",
+      "sourcePath": "sprites/svg_unused/ENTRES71.svg",
+      "sha256": "6ff6c5a5d10f602cd877430b6cde446e47bd6d16c35396a806d8ef3445b06309",
+      "pivot": [
+        172.36801375752364,
+        70.2834862385321
+      ]
+    },
+    "ESSARE01": {
+      "kind": "SY",
+      "symbol": "ESSARE01",
+      "cataloguePage": 122,
+      "pdfPage": 128,
+      "description": "ESSA - centred symbol",
+      "sourcePath": "sprites/svg_unused/ESSARE01.svg",
+      "sha256": "92fe1bada5dff47717703c7832921082e90369c5e6e51c3038dd864a2ba80952",
+      "pivot": [
+        50.5,
+        2.437346437346437
+      ]
+    },
+    "FAIRWY51": {
+      "kind": "SY",
+      "symbol": "FAIRWY51",
+      "cataloguePage": 123,
+      "pdfPage": 129,
+      "description": "fairway with one-way traffic in direction indicated",
+      "sourcePath": "sprites/svg_unused/FAIRWY51.svg",
+      "sha256": "d391a1dfd6e3d6242a46397ffcb3845f85b9ec699486d57d4aa32f27eaac529f",
+      "pivot": [
+        24,
+        58.198263386396526
+      ]
+    },
+    "FAIRWY52": {
+      "kind": "SY",
+      "symbol": "FAIRWY52",
+      "cataloguePage": 124,
+      "pdfPage": 130,
+      "description": "fairway with two-way traffic",
+      "sourcePath": "sprites/svg_unused/FAIRWY52.svg",
+      "sha256": "17ff33326af07062db65354dcaf82eacc114008b446a0cfe35c817ca6f6b7185",
+      "pivot": [
+        24.11374407582938,
+        58.232104121475054
+      ]
+    },
+    "FRYARE52": {
+      "kind": "SY",
+      "symbol": "FRYARE52",
+      "cataloguePage": 135,
+      "pdfPage": 141,
+      "description": "cable ferry area",
+      "sourcePath": "sprites/svg_unused/FRYARE52.svg",
+      "sha256": "6693ac672a4675ed7d7d000343ee808399d72e38fd3df4c55763dd9a1a904262",
+      "pivot": [
+        85.74999999999999,
+        11.43939393939394
+      ]
+    },
+    "FSHRES51": {
+      "kind": "SY",
+      "symbol": "FSHRES51",
+      "cataloguePage": 140,
+      "pdfPage": 146,
+      "description": "area where fishing or trawling is prohibited or restricted",
+      "sourcePath": "sprites/svg_unused/FSHRES51.svg",
+      "sha256": "761749c4a71cc22a16b49d9ae9288f33ed95fde3679b556e8c4f47e42eb7fbed",
+      "pivot": [
+        2.430379746835443,
+        79.5681186283596
+      ]
+    },
+    "FSHRES61": {
+      "kind": "SY",
+      "symbol": "FSHRES61",
+      "cataloguePage": 141,
+      "pdfPage": 147,
+      "description": "area where fishing or trawling is prohibited or restricted, with other cautions",
+      "sourcePath": "sprites/svg_unused/FSHRES61.svg",
+      "sha256": "adeb4538310c0233c8bb9d6aac0800429ace71b6e81984f6a5fc7b8b50e90f0c",
+      "pivot": [
+        2.430022075055188,
+        79.5681186283596
+      ]
+    },
+    "FSHRES71": {
+      "kind": "SY",
+      "symbol": "FSHRES71",
+      "cataloguePage": 142,
+      "pdfPage": 148,
+      "description": "area where fishing or trawling is prohibited or restricted, with other information",
+      "sourcePath": "sprites/svg_unused/FSHRES71.svg",
+      "sha256": "6a1584c5b031ee649abf29b50c796da523a28c288eeaa0e5f92344262b0b229c",
+      "pivot": [
+        2.430379746835443,
+        79.5681186283596
+      ]
+    },
+    "INDHLT01": {
+      "kind": "SY",
+      "symbol": "INDHLT01",
+      "cataloguePage": 150,
+      "pdfPage": 156,
+      "description": "indication highlight for mariner's use",
+      "sourcePath": "sprites/svg_unused/INDHLT01.svg",
+      "sha256": "0d167d24ef9f64eb1e862159eef4282a0958b06c4f86f58d50b76a5992115593",
+      "pivot": [
+        49.57603686635945,
+        49.57603686635945
+      ]
+    },
+    "INFARE51": {
+      "kind": "SY",
+      "symbol": "INFARE51",
+      "cataloguePage": 149,
+      "pdfPage": 155,
+      "description": "area with minor restrictions or information notices",
+      "sourcePath": "sprites/svg_unused/INFARE51.svg",
+      "sha256": "2f360cfa65e4c4878511a6bc09ef2557d9ef4ae04a963bff389318cb0f2c067b",
+      "pivot": [
+        2.431095406360424,
+        21.797468354430382
+      ]
+    },
+    "INFORM01": {
+      "kind": "SY",
+      "symbol": "INFORM01",
+      "cataloguePage": 151,
+      "pdfPage": 157,
+      "description": "this object has additional information available by cursor query",
+      "sourcePath": "sprites/svg_unused/INFORM01.svg",
+      "sha256": "bd5cfe2f901e8815e8a3716e9061f5704cd4b13c40495f4151816c1b6b789b86",
+      "pivot": [
+        10.972972972972974,
+        116.5234657039711
+      ]
+    },
+    "ITZARE51": {
+      "kind": "SY",
+      "symbol": "ITZARE51",
+      "cataloguePage": 154,
+      "pdfPage": 160,
+      "description": "area of inshore traffic",
+      "sourcePath": "sprites/svg_unused/ITZARE51.svg",
+      "sha256": "3bf008648a254ff6079ce9cdb3eb8014b965e7403cc5a20cbfce2578bce8d66c",
+      "pivot": [
+        40.04616652926628,
+        32.67979274611399
+      ]
+    },
+    "LITFLT01": {
+      "kind": "SY",
+      "symbol": "LITFLT01",
+      "cataloguePage": 161,
+      "pdfPage": 167,
+      "description": "light float, paper-chart",
+      "sourcePath": "sprites/svg_unused/LITFLT01.svg",
+      "sha256": "dd6e0a15cae332323ececdc1767ba8a4698d7b5a31debd7b90015534fc2a98fe",
+      "pivot": [
+        36.5,
+        21.917098445595855
+      ]
+    },
+    "LITVES01": {
+      "kind": "SY",
+      "symbol": "LITVES01",
+      "cataloguePage": 163,
+      "pdfPage": 169,
+      "description": "light vessel, paper-chart",
+      "sourcePath": "sprites/svg_unused/LITVES01.svg",
+      "sha256": "d7e5c3579a929332bc93171500ab0bfc3f75cf8c32fb799e28bb29c423f71ac8",
+      "pivot": [
+        36.5,
+        48.21798365122616
+      ]
+    },
+    "LOCMAG51": {
+      "kind": "SY",
+      "symbol": "LOCMAG51",
+      "cataloguePage": 167,
+      "pdfPage": 173,
+      "description": "cursor pick site for a magnetic anomaly along a line or over an area",
+      "sourcePath": "sprites/svg_unused/LOCMAG51.svg",
+      "sha256": "02e17d3e8e8549a2f0a787b556ac2932fdec2ecbea799595a85b34b06b929952",
+      "pivot": [
+        23.442922374429223,
+        2.422216760874908
+      ]
+    },
+    "MAGVAR51": {
+      "kind": "SY",
+      "symbol": "MAGVAR51",
+      "cataloguePage": 170,
+      "pdfPage": 176,
+      "description": "cursor pick site for magnetic variation along a line or over an area",
+      "sourcePath": "sprites/svg_unused/MAGVAR51.svg",
+      "sha256": "a4c033e875748b3632cdbe9eeea5888ee5ab035c74794e7c477d8d1d51f7eecf",
+      "pivot": [
+        21.872093023255815,
+        280.5773140716961
+      ]
+    },
+    "MONUMT02": {
+      "kind": "SY",
+      "symbol": "MONUMT02",
+      "cataloguePage": 172,
+      "pdfPage": 178,
+      "description": "monument",
+      "sourcePath": "sprites/svg_unused/MONUMT02.svg",
+      "sha256": "0fa18677de1b7905087e191d37e147765c9013d5856222284933241d97f3b42c",
+      "pivot": [
+        16.270833333333332,
+        28.799086757990867
+      ]
+    },
+    "NORTHAR1": {
+      "kind": "SY",
+      "symbol": "NORTHAR1",
+      "cataloguePage": 179,
+      "pdfPage": 185,
+      "description": "north arrow",
+      "sourcePath": "sprites/svg_unused/NORTHAR1.svg",
+      "sha256": "3a3fbc412b4db8f1e978a31289acb2fbd13de2d963c2eaabb4123449e0f037b4",
+      "pivot": [
+        17.18377088305489,
+        65.20652173913044
+      ]
+    },
+    "OVERSC01P": {
+      "kind": "AP",
+      "symbol": "OVERSC01",
+      "cataloguePage": 550,
+      "pdfPage": 556,
+      "description": "overscale part of a display containing data from more than one navigation purpose",
+      "sourcePath": "sprites/svg_unused/OVERSC01P.svg",
+      "sha256": "3a035df2d4ddbeb095de9874e163fccb300c930be69d740f99da054a67c2c000",
+      "pivot": [
+        62.163090128755364,
+        31.777777777777775
+      ]
+    },
+    "PRCARE51": {
+      "kind": "SY",
+      "symbol": "PRCARE51",
+      "cataloguePage": 192,
+      "pdfPage": 198,
+      "description": "traffic precautionary area",
+      "sourcePath": "sprites/svg_unused/PRCARE51.svg",
+      "sha256": "6e79e56bc76b2ebba1babfbe3a687f3eff4bdf0389f5189d78942a713f330167",
+      "pivot": [
+        41.31645569620253,
+        2.433081369497555
+      ]
+    },
+    "PRICKE03": {
+      "kind": "SY",
+      "symbol": "PRICKE03",
+      "cataloguePage": 194,
+      "pdfPage": 200,
+      "description": "withy, port-hand, paper-chart",
+      "sourcePath": "sprites/svg_unused/PRICKE03.svg",
+      "sha256": "53c9946786db3ad7aba6401914820433431df4b9c79941d7a88c09d4b3033183",
+      "pivot": [
+        10.846153846153845,
+        34.76659528907923
+      ]
+    },
+    "PRICKE04": {
+      "kind": "SY",
+      "symbol": "PRICKE04",
+      "cataloguePage": 195,
+      "pdfPage": 201,
+      "description": "withy, starboard-hand, paper-chart",
+      "sourcePath": "sprites/svg_unused/PRICKE04.svg",
+      "sha256": "394cf969adc9240feec21f65a57625197670b8a76de118008b3a51124cd2ed5a",
+      "pivot": [
+        12.119298245614036,
+        34.78991596638655
+      ]
+    },
+    "PSSARE01": {
+      "kind": "SY",
+      "symbol": "PSSARE01",
+      "cataloguePage": 196,
+      "pdfPage": 202,
+      "description": "PSSA - centred symbol",
+      "sourcePath": "sprites/svg_unused/PSSARE01.svg",
+      "sha256": "fefe60779560f4c5337dc7845babe4d715b9a395225407fe410c3268e60bdc68",
+      "pivot": [
+        50.5,
+        2.437346437346437
+      ]
+    },
+    "QUAPOS01": {
+      "kind": "SY",
+      "symbol": "QUAPOS01",
+      "cataloguePage": 197,
+      "pdfPage": 203,
+      "description": "position approximate",
+      "sourcePath": "sprites/svg_unused/QUAPOS01.svg",
+      "sha256": "d6732ee0cf648deaa3673906f5ad04c0f7f3c6e58b3d68f3f926648a77d57e4c",
+      "pivot": [
+        11.206266318537859,
+        13.19174041297935
+      ]
+    },
+    "RCKLDG01P": {
+      "kind": "AP",
+      "symbol": "RCKLDG01",
+      "cataloguePage": 553,
+      "pdfPage": 559,
+      "description": "rock or coral drying ledges",
+      "sourcePath": "sprites/svg_unused/RCKLDG01P.svg",
+      "sha256": "e463ca8347e7f4b3db3d0fbd28f2e8c19dc6f5aaf3549b801f9c250595a79ee7",
+      "pivot": [
+        1.2159594680177328,
+        102.78540145985401
+      ]
+    },
+    "RETRFL01": {
+      "kind": "SY",
+      "symbol": "RETRFL01",
+      "cataloguePage": 214,
+      "pdfPage": 220,
+      "description": "retro reflector, paper chart",
+      "sourcePath": "sprites/svg_unused/RETRFL01.svg",
+      "sha256": "a1953c0391aeb3b1659be14b9333cbea2561391bab55cd016a4741b62d634f4f",
+      "pivot": [
+        1.2216014897579144,
+        27.622691292875988
+      ]
+    },
+    "RFNERY01": {
+      "kind": "SY",
+      "symbol": "RFNERY01",
+      "cataloguePage": 216,
+      "pdfPage": 222,
+      "description": "refinery",
+      "sourcePath": "sprites/svg_unused/RFNERY01.svg",
+      "sha256": "86176a44d8d34e4e734a9d130eeb653833a6895db0858eaf3ab9fddaeee79ad9",
+      "pivot": [
+        27.07584269662921,
+        27.985955056179773
+      ]
+    },
+    "RSRDEF51": {
+      "kind": "SY",
+      "symbol": "RSRDEF51",
+      "cataloguePage": 220,
+      "pdfPage": 226,
+      "description": "area in which undefined restrictions exist",
+      "sourcePath": "sprites/svg_unused/RSRDEF51.svg",
+      "sha256": "35495f95b41ad1a2463eb7fba5d86651bf91cf74669e85fdd615025ba8b3b061",
+      "pivot": [
+        153.36819277108432,
+        70.96880733944954
+      ]
+    },
+    "SAFCON00": {
+      "kind": "SY",
+      "symbol": "SAFCON00",
+      "cataloguePage": 223,
+      "pdfPage": 229,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON00.svg",
+      "sha256": "f07e4e5f1f58b03286925d4a7bdde206d779070df3ccd1b9459e26824df6228f",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON01": {
+      "kind": "SY",
+      "symbol": "SAFCON01",
+      "cataloguePage": 224,
+      "pdfPage": 230,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON01.svg",
+      "sha256": "0fd91e4f19c2e7756987e922a5367143adc47399a0433e309989f22da70fa4cb",
+      "pivot": [
+        8.5906432748538,
+        13.5
+      ]
+    },
+    "SAFCON02": {
+      "kind": "SY",
+      "symbol": "SAFCON02",
+      "cataloguePage": 225,
+      "pdfPage": 231,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON02.svg",
+      "sha256": "a8d926651fba85d274d37e000d30028501ea6ca7fdc3bdd58fe8544a04b40896",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON03": {
+      "kind": "SY",
+      "symbol": "SAFCON03",
+      "cataloguePage": 226,
+      "pdfPage": 232,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON03.svg",
+      "sha256": "72c5cdd2e8e9992796f57fc5b3e023119341596c4589229eb7342ba76043f5c8",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON04": {
+      "kind": "SY",
+      "symbol": "SAFCON04",
+      "cataloguePage": 227,
+      "pdfPage": 233,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON04.svg",
+      "sha256": "d7922fbe8afaa2b50c22b6df8ac61061afc71d1b71a03c4e2b323fb5ae2162d3",
+      "pivot": [
+        8.55378486055777,
+        15.076142131979694
+      ]
+    },
+    "SAFCON05": {
+      "kind": "SY",
+      "symbol": "SAFCON05",
+      "cataloguePage": 228,
+      "pdfPage": 234,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON05.svg",
+      "sha256": "d6672899ef8e67fde2919af8f06a73c2019edd039149e39568ca57e6c2a01f4e",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON06": {
+      "kind": "SY",
+      "symbol": "SAFCON06",
+      "cataloguePage": 229,
+      "pdfPage": 235,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON06.svg",
+      "sha256": "b8a86a40e4c63dd412b0ab659aa1876e97e89e95978763af4066bc18e798fbad",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON07": {
+      "kind": "SY",
+      "symbol": "SAFCON07",
+      "cataloguePage": 230,
+      "pdfPage": 236,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON07.svg",
+      "sha256": "d380f2cfb0d0ccecb4cc5f6e10b4d6cb1acc98445636c76ed03bf84b77c2b9d3",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON08": {
+      "kind": "SY",
+      "symbol": "SAFCON08",
+      "cataloguePage": 231,
+      "pdfPage": 237,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON08.svg",
+      "sha256": "88825e87d98efdafedb125f19ea0d3ce95ce5cbee437f7560e9fc1e0f39f0d71",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON09": {
+      "kind": "SY",
+      "symbol": "SAFCON09",
+      "cataloguePage": 232,
+      "pdfPage": 238,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON09.svg",
+      "sha256": "dbeada0655fa13ac29d245413cfb0412ccea45478d97ee3a18913c9b0c26f969",
+      "pivot": [
+        8.692307692307692,
+        13.5
+      ]
+    },
+    "SAFCON10": {
+      "kind": "SY",
+      "symbol": "SAFCON10",
+      "cataloguePage": 233,
+      "pdfPage": 239,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON10.svg",
+      "sha256": "75cc27a927f998f99063784d50509455720a836b3e77fbfb184099c70532dec9",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON11": {
+      "kind": "SY",
+      "symbol": "SAFCON11",
+      "cataloguePage": 234,
+      "pdfPage": 240,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON11.svg",
+      "sha256": "f17664ecc143d5b92e031dd55fd4538055e4ae9f3c3a0e9966be28498c7f4b68",
+      "pivot": [
+        3.707317073170732,
+        13.5
+      ]
+    },
+    "SAFCON12": {
+      "kind": "SY",
+      "symbol": "SAFCON12",
+      "cataloguePage": 235,
+      "pdfPage": 241,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON12.svg",
+      "sha256": "727272e13408691a9e74ab7866e4692f09d489a9bdba0c080021e3e7c4294221",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON13": {
+      "kind": "SY",
+      "symbol": "SAFCON13",
+      "cataloguePage": 236,
+      "pdfPage": 242,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON13.svg",
+      "sha256": "0d319690720a2c43adc9cc8f4e0135c59e83171816c191b80b2ecb0fdef34f92",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON14": {
+      "kind": "SY",
+      "symbol": "SAFCON14",
+      "cataloguePage": 237,
+      "pdfPage": 243,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON14.svg",
+      "sha256": "d01bb1b2636bc361fdfa24a7545381c897cec574a8f4a9a5fa2a7e92e454c0a4",
+      "pivot": [
+        3.6809815950920246,
+        15.076142131979694
+      ]
+    },
+    "SAFCON15": {
+      "kind": "SY",
+      "symbol": "SAFCON15",
+      "cataloguePage": 238,
+      "pdfPage": 244,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON15.svg",
+      "sha256": "9cc78767d7d472542d8d018d5e73d0b39530f60e448d9913a978d57ec65c51a6",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON16": {
+      "kind": "SY",
+      "symbol": "SAFCON16",
+      "cataloguePage": 239,
+      "pdfPage": 245,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON16.svg",
+      "sha256": "71c32c5fcf176680db4688080fa3df6ef731f21f087467213a32e1b4c023874a",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON17": {
+      "kind": "SY",
+      "symbol": "SAFCON17",
+      "cataloguePage": 240,
+      "pdfPage": 246,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON17.svg",
+      "sha256": "bff75b681b38a0fb25ea92095f8a99a96ffa23aa9efca0cf90bfac40debd269d",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON18": {
+      "kind": "SY",
+      "symbol": "SAFCON18",
+      "cataloguePage": 241,
+      "pdfPage": 247,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON18.svg",
+      "sha256": "22dd0ef48ceb0225551079eed8dd32edf6be93907a934e8997ddda9c3cf005ec",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON19": {
+      "kind": "SY",
+      "symbol": "SAFCON19",
+      "cataloguePage": 242,
+      "pdfPage": 248,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON19.svg",
+      "sha256": "e3f89c7c98686cb14e9b38cf1aab81842e49d94e8ae6469a8e7792df55df27a4",
+      "pivot": [
+        3.72972972972973,
+        13.5
+      ]
+    },
+    "SAFCON20": {
+      "kind": "SY",
+      "symbol": "SAFCON20",
+      "cataloguePage": 243,
+      "pdfPage": 249,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON20.svg",
+      "sha256": "8eb0349f3fd3916b88664a342d6132b17e1ce8dc9e3505a4b49c87baa25d33cb",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON21": {
+      "kind": "SY",
+      "symbol": "SAFCON21",
+      "cataloguePage": 244,
+      "pdfPage": 250,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON21.svg",
+      "sha256": "f83063099e90d74a4b986aea7cd07e3f314f97cca3c8edd573e67a588faf94da",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON22": {
+      "kind": "SY",
+      "symbol": "SAFCON22",
+      "cataloguePage": 245,
+      "pdfPage": 251,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON22.svg",
+      "sha256": "233c164e2401b8dd2092078881c9dd2ee3dd24fc12241aa7e41d3546ab85124b",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON23": {
+      "kind": "SY",
+      "symbol": "SAFCON23",
+      "cataloguePage": 246,
+      "pdfPage": 252,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON23.svg",
+      "sha256": "1546e3511f164ab7d8d07a215a2e2b2223adf85bbba846f2e7627b65e472a00d",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON24": {
+      "kind": "SY",
+      "symbol": "SAFCON24",
+      "cataloguePage": 247,
+      "pdfPage": 253,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON24.svg",
+      "sha256": "28574e41cfa6fe12c961297de81592db810f1206e3c97162611eb6a0e31be9bf",
+      "pivot": [
+        19.27027027027027,
+        15.076142131979694
+      ]
+    },
+    "SAFCON25": {
+      "kind": "SY",
+      "symbol": "SAFCON25",
+      "cataloguePage": 248,
+      "pdfPage": 254,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON25.svg",
+      "sha256": "903f334a7a6e2233b508fd4353eba9add92530b58d057bfbd8f0659b930c9149",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON26": {
+      "kind": "SY",
+      "symbol": "SAFCON26",
+      "cataloguePage": 249,
+      "pdfPage": 255,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON26.svg",
+      "sha256": "8f4644d11bdd311869882067614ba16993b2a3a404791bb3630f9d0e559c15bb",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON27": {
+      "kind": "SY",
+      "symbol": "SAFCON27",
+      "cataloguePage": 250,
+      "pdfPage": 256,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON27.svg",
+      "sha256": "bb8fc7379f713d4316efcd05c5af520ea75358e34ede1353b1339704da9195c6",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON28": {
+      "kind": "SY",
+      "symbol": "SAFCON28",
+      "cataloguePage": 251,
+      "pdfPage": 257,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON28.svg",
+      "sha256": "cd74475e0c31b4d83b6d10bae8b47e6d3231445d345d4b4b7f6fb55ab087e327",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON29": {
+      "kind": "SY",
+      "symbol": "SAFCON29",
+      "cataloguePage": 252,
+      "pdfPage": 258,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON29.svg",
+      "sha256": "3c0d14a26c7cd854e96ab2ac141348271d1fcfb83ca63cc10503342bfb17d15f",
+      "pivot": [
+        19.27027027027027,
+        13.5
+      ]
+    },
+    "SAFCON50": {
+      "kind": "SY",
+      "symbol": "SAFCON50",
+      "cataloguePage": 253,
+      "pdfPage": 259,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON50.svg",
+      "sha256": "22d22ca18348964c9a662ed9e377a516b9fd204cdd7ac56b29f1b2ef1c729ce8",
+      "pivot": [
+        0.7662082514734775,
+        0.7806691449814127
+      ]
+    },
+    "SAFCON51": {
+      "kind": "SY",
+      "symbol": "SAFCON51",
+      "cataloguePage": 254,
+      "pdfPage": 260,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON51.svg",
+      "sha256": "a66af721f73b7cfc948fbe6d3862d5251466709a91a2667f6c87af67767d3f90",
+      "pivot": [
+        0.7676348547717842,
+        0.7720588235294118
+      ]
+    },
+    "SAFCON52": {
+      "kind": "SY",
+      "symbol": "SAFCON52",
+      "cataloguePage": 255,
+      "pdfPage": 261,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON52.svg",
+      "sha256": "e691e01e90704a6828fdaf55f33704e1bbaf65be68f55ba0cf1d8bbc23890c5b",
+      "pivot": [
+        0.7662082514734775,
+        0.7806691449814127
+      ]
+    },
+    "SAFCON53": {
+      "kind": "SY",
+      "symbol": "SAFCON53",
+      "cataloguePage": 256,
+      "pdfPage": 262,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON53.svg",
+      "sha256": "c777d22552cfba0bb1e150fb57457fc570705f34867a8f2bd7d1fe51658a2d14",
+      "pivot": [
+        0.7572815533980581,
+        0.7806691449814127
+      ]
+    },
+    "SAFCON54": {
+      "kind": "SY",
+      "symbol": "SAFCON54",
+      "cataloguePage": 257,
+      "pdfPage": 263,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON54.svg",
+      "sha256": "67abdef63a4d9cde31720925cc55a320317f70dccd2f99b16f99b26694f09600",
+      "pivot": [
+        0.7649253731343283,
+        2.574132492113565
+      ]
+    },
+    "SAFCON55": {
+      "kind": "SY",
+      "symbol": "SAFCON55",
+      "cataloguePage": 258,
+      "pdfPage": 264,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON55.svg",
+      "sha256": "87edbede5fb61ac8c31c67064530afa7762c250d8b037248345025f7158606d1",
+      "pivot": [
+        0.76171875,
+        0.7806691449814127
+      ]
+    },
+    "SAFCON56": {
+      "kind": "SY",
+      "symbol": "SAFCON56",
+      "cataloguePage": 259,
+      "pdfPage": 265,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON56.svg",
+      "sha256": "847759b99d0a4509b22658a8d0e9a50dd8316509012322d157b8deca6e076526",
+      "pivot": [
+        0.76171875,
+        0.7636363636363638
+      ]
+    },
+    "SAFCON57": {
+      "kind": "SY",
+      "symbol": "SAFCON57",
+      "cataloguePage": 260,
+      "pdfPage": 266,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON57.svg",
+      "sha256": "4460b06ff9d16593e70819e7789875a8939aebc310217bee2ff94f947afe9bbe",
+      "pivot": [
+        0.76171875,
+        0.7806691449814127
+      ]
+    },
+    "SAFCON58": {
+      "kind": "SY",
+      "symbol": "SAFCON58",
+      "cataloguePage": 261,
+      "pdfPage": 267,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON58.svg",
+      "sha256": "09a450b7bce03e760ce8c418af3473941dffb549ea68926a9771b5ea42d25309",
+      "pivot": [
+        0.7572815533980581,
+        0.7806691449814127
+      ]
+    },
+    "SAFCON59": {
+      "kind": "SY",
+      "symbol": "SAFCON59",
+      "cataloguePage": 262,
+      "pdfPage": 268,
+      "description": "pattern of symbol",
+      "sourcePath": "sprites/svg_unused/SAFCON59.svg",
+      "sha256": "4e8a678096047cf43fdabad42233f25a41d211542b7d09ad1d8d92698a7ce864",
+      "pivot": [
+        0.76171875,
+        0.7913669064748202
+      ]
+    },
+    "SAFCON60": {
+      "kind": "SY",
+      "symbol": "SAFCON60",
+      "cataloguePage": 263,
+      "pdfPage": 269,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON60.svg",
+      "sha256": "9a15c53a9636c6eadadf8c23a7f39d3e0dd3c987b69f5ece87b8856ad36f08da",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON61": {
+      "kind": "SY",
+      "symbol": "SAFCON61",
+      "cataloguePage": 264,
+      "pdfPage": 270,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON61.svg",
+      "sha256": "7c654aa84a493b0dd41ce948112faead4434dfdeaf5943561b858d0533fc6fc3",
+      "pivot": [
+        3.640449438202247,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON62": {
+      "kind": "SY",
+      "symbol": "SAFCON62",
+      "cataloguePage": 265,
+      "pdfPage": 271,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON62.svg",
+      "sha256": "8e3c712393d1b0b4aa76f73875921b5904ed3feeb55750fbfe12ee267458b74f",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON63": {
+      "kind": "SY",
+      "symbol": "SAFCON63",
+      "cataloguePage": 266,
+      "pdfPage": 272,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON63.svg",
+      "sha256": "6678014fe8161bbe23efc5088055579d6b88c953eb7e1f7be683b8b3b1513a31",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON64": {
+      "kind": "SY",
+      "symbol": "SAFCON64",
+      "cataloguePage": 267,
+      "pdfPage": 273,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON64.svg",
+      "sha256": "c0d30cb144f3521571c698e10274f62422bc9cd86710fc618a607dd9d3a8c2af",
+      "pivot": [
+        3.6330275229357794,
+        5.558375634517766
+      ]
+    },
+    "SAFCON65": {
+      "kind": "SY",
+      "symbol": "SAFCON65",
+      "cataloguePage": 268,
+      "pdfPage": 274,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON65.svg",
+      "sha256": "5a918cd8cc06dd0b958caa47c2450dc5add8acebfa913dd755de5090252380be",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON66": {
+      "kind": "SY",
+      "symbol": "SAFCON66",
+      "cataloguePage": 269,
+      "pdfPage": 275,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON66.svg",
+      "sha256": "de38a1750ac1d5da38ce42cdafa0f003aca4d14dd3b0fd282982e77e820cd1ad",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON67": {
+      "kind": "SY",
+      "symbol": "SAFCON67",
+      "cataloguePage": 270,
+      "pdfPage": 276,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON67.svg",
+      "sha256": "a64345726bab63f5fbb97c521e83c1ea9c9bd2465917df481f111e2b25025721",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON68": {
+      "kind": "SY",
+      "symbol": "SAFCON68",
+      "cataloguePage": 271,
+      "pdfPage": 277,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON68.svg",
+      "sha256": "4163439bdcdea4d7632cd8e8dba05f246420ceabbe603aee7344aaa62b141a25",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SAFCON69": {
+      "kind": "SY",
+      "symbol": "SAFCON69",
+      "cataloguePage": 272,
+      "pdfPage": 278,
+      "description": "contour label",
+      "sourcePath": "sprites/svg_unused/SAFCON69.svg",
+      "sha256": "e29e5c5a1b4240fd8561a457f056e9547d462de76552e5c4a3c7cceee1851087",
+      "pivot": [
+        3.6650246305418723,
+        3.7456647398843925
+      ]
+    },
+    "SCALEB10": {
+      "kind": "SY",
+      "symbol": "SCALEB10",
+      "cataloguePage": 273,
+      "pdfPage": 279,
+      "description": "one mile scalebar for display scales larger than 1/80,000",
+      "sourcePath": "sprites/svg_unused/SCALEB10.svg",
+      "sha256": "6c9eed81d40364258b6c6e18f0bd7f1ec8f0e96e419d8c02817caffc4923e11d",
+      "pivot": [
+        4.961240310077519,
+        156.1578947368421
+      ]
+    },
+    "SCALEB11": {
+      "kind": "SY",
+      "symbol": "SCALEB11",
+      "cataloguePage": 274,
+      "pdfPage": 280,
+      "description": "10 mile latitude scale for display scales smaller than 1/80,000",
+      "sourcePath": "sprites/svg_unused/SCALEB11.svg",
+      "sha256": "07263834583a317ee048217a21b9896e8ccca4434c615aabd69ae3d3205700dd",
+      "pivot": [
+        4.961240310077519,
+        156.1578947368421
+      ]
+    },
+    "SOUNDG00": {
+      "kind": "SY",
+      "symbol": "SOUNDG00",
+      "cataloguePage": 280,
+      "pdfPage": 286,
+      "description": "deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG00.svg",
+      "sha256": "b1fcc03a929ecc56058f6de5c1269f2a6bac40055f6b3e81dbe108a3960a7e8b",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG01": {
+      "kind": "SY",
+      "symbol": "SOUNDG01",
+      "cataloguePage": 281,
+      "pdfPage": 287,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG01.svg",
+      "sha256": "c11423bbe0be0a0f3d51594443a7d2f22e00b32c361c4284fbc3190b7b480195",
+      "pivot": [
+        1.2229299363057324,
+        11
+      ]
+    },
+    "SOUNDG02": {
+      "kind": "SY",
+      "symbol": "SOUNDG02",
+      "cataloguePage": 282,
+      "pdfPage": 288,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG02.svg",
+      "sha256": "846536578c39f5a3df2f998f2e6f82163a607c88283cf7b04e6dbafeaf23d3a4",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG03": {
+      "kind": "SY",
+      "symbol": "SOUNDG03",
+      "cataloguePage": 283,
+      "pdfPage": 289,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG03.svg",
+      "sha256": "0686750e26ed5fdd2cbf93eafb66b12995bb55cb51b0c9da5eb1078a89ddf673",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG04": {
+      "kind": "SY",
+      "symbol": "SOUNDG04",
+      "cataloguePage": 284,
+      "pdfPage": 290,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG04.svg",
+      "sha256": "461feeb20016f1a8c22931e26425415f2c5f2ccab12b0d41e730ae10477e99a3",
+      "pivot": [
+        1.2203389830508475,
+        12.575757575757576
+      ]
+    },
+    "SOUNDG05": {
+      "kind": "SY",
+      "symbol": "SOUNDG05",
+      "cataloguePage": 285,
+      "pdfPage": 291,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG05.svg",
+      "sha256": "7c250f62360b648537d16e0f7f96d5d7dc0044c196250cd603a0e13b2aa1c810",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG06": {
+      "kind": "SY",
+      "symbol": "SOUNDG06",
+      "cataloguePage": 286,
+      "pdfPage": 292,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG06.svg",
+      "sha256": "37bed1c30bcd670993edf149f05f9d08b3c5d40fc96e5f288b3c034a536ba4ff",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG07": {
+      "kind": "SY",
+      "symbol": "SOUNDG07",
+      "cataloguePage": 287,
+      "pdfPage": 293,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG07.svg",
+      "sha256": "da38171629a1767301cd311486fbad6a878f7fb7e1ed398de469f824bd773f88",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG08": {
+      "kind": "SY",
+      "symbol": "SOUNDG08",
+      "cataloguePage": 288,
+      "pdfPage": 294,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG08.svg",
+      "sha256": "e9f84538ae13eb3827f1fd8599fe28b4d76321abfbd84d282512b793745b4d4e",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG09": {
+      "kind": "SY",
+      "symbol": "SOUNDG09",
+      "cataloguePage": 289,
+      "pdfPage": 295,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG09.svg",
+      "sha256": "7494df8e8c83e18add5ddd655d6754e37f993aab8d927cb270e7ebf8b07a1068",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDG10": {
+      "kind": "SY",
+      "symbol": "SOUNDG10",
+      "cataloguePage": 290,
+      "pdfPage": 296,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG10.svg",
+      "sha256": "268d19bd00d68984c766d078f71ede77fda87cddfd75a47c34702e149ffb9140",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG11": {
+      "kind": "SY",
+      "symbol": "SOUNDG11",
+      "cataloguePage": 291,
+      "pdfPage": 297,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG11.svg",
+      "sha256": "07566614a5a4dd30f70f518039d323724d922e83bacf5fa6fb46a00895728a2b",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG12": {
+      "kind": "SY",
+      "symbol": "SOUNDG12",
+      "cataloguePage": 292,
+      "pdfPage": 298,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG12.svg",
+      "sha256": "d271fcfc000e388a310796746a07199c1bce30ae00a12a20d1086849b2d181f9",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG13": {
+      "kind": "SY",
+      "symbol": "SOUNDG13",
+      "cataloguePage": 293,
+      "pdfPage": 299,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG13.svg",
+      "sha256": "c27e5a1fd2000841def7980c2650ea21c287655ba0da4e51af43eabade2912ff",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG14": {
+      "kind": "SY",
+      "symbol": "SOUNDG14",
+      "cataloguePage": 294,
+      "pdfPage": 300,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG14.svg",
+      "sha256": "1e346ad70c43005f92b32bd20e14f22117fb41157cf15ba9329fbbe6c5b0e8a9",
+      "pivot": [
+        14.76328502415459,
+        12.575757575757576
+      ]
+    },
+    "SOUNDG15": {
+      "kind": "SY",
+      "symbol": "SOUNDG15",
+      "cataloguePage": 295,
+      "pdfPage": 301,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG15.svg",
+      "sha256": "392f9cdb52b92255c76b2dc45cff6f5d573afeb7d7056faeff4a2a42bc543168",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG16": {
+      "kind": "SY",
+      "symbol": "SOUNDG16",
+      "cataloguePage": 296,
+      "pdfPage": 302,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG16.svg",
+      "sha256": "09f67154d135e9e3a86450bdfbabe6ffa8517bcf7e825ed640429c8cf2b0baa9",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG17": {
+      "kind": "SY",
+      "symbol": "SOUNDG17",
+      "cataloguePage": 297,
+      "pdfPage": 303,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG17.svg",
+      "sha256": "b9b9e64d03f945b32ab3bb553e99dfa172920b7b2c1119d5280d11938478ecd4",
+      "pivot": [
+        14.76328502415459,
+        9.049645390070921
+      ]
+    },
+    "SOUNDG18": {
+      "kind": "SY",
+      "symbol": "SOUNDG18",
+      "cataloguePage": 298,
+      "pdfPage": 304,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG18.svg",
+      "sha256": "5d4b991377a546f9ab1a7d26f1d7cc2d677337eb57acc3b422ad23c4c637af63",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG19": {
+      "kind": "SY",
+      "symbol": "SOUNDG19",
+      "cataloguePage": 299,
+      "pdfPage": 305,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG19.svg",
+      "sha256": "26bce230ec9973e3c767105029742af8d7e9e62cf7187494cd8ca66d4eefc742",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDG20": {
+      "kind": "SY",
+      "symbol": "SOUNDG20",
+      "cataloguePage": 300,
+      "pdfPage": 306,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG20.svg",
+      "sha256": "5e3b0bc78a677f124596f6ee17984834156a3ab55384c9e030e6640c2d730d56",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG21": {
+      "kind": "SY",
+      "symbol": "SOUNDG21",
+      "cataloguePage": 301,
+      "pdfPage": 307,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG21.svg",
+      "sha256": "1b09e0d09b942b32b7be3260f440d70897c46fc004c7a8fa5ac294d32aa8b771",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG22": {
+      "kind": "SY",
+      "symbol": "SOUNDG22",
+      "cataloguePage": 302,
+      "pdfPage": 308,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG22.svg",
+      "sha256": "86168398747d13cc70291eda63aa2227aecf07ce5ccf7dc9aa6fb2472e8fa4d7",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG23": {
+      "kind": "SY",
+      "symbol": "SOUNDG23",
+      "cataloguePage": 303,
+      "pdfPage": 309,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG23.svg",
+      "sha256": "64f8c2f76b80b02508de8e24cb61a6aec4760f06887f3737edb484af39f5cf3c",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG24": {
+      "kind": "SY",
+      "symbol": "SOUNDG24",
+      "cataloguePage": 304,
+      "pdfPage": 310,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG24.svg",
+      "sha256": "c7739e41e55a75b0521c9b9bbae383250db99a26ce6daa0005526cf42ceb7f33",
+      "pivot": [
+        31.777777777777775,
+        12.575757575757576
+      ]
+    },
+    "SOUNDG25": {
+      "kind": "SY",
+      "symbol": "SOUNDG25",
+      "cataloguePage": 305,
+      "pdfPage": 311,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG25.svg",
+      "sha256": "36f804999ad3f57e94ad830b600ef77370288bc5b0e297856a7b4a58d8cf9113",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG26": {
+      "kind": "SY",
+      "symbol": "SOUNDG26",
+      "cataloguePage": 306,
+      "pdfPage": 312,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG26.svg",
+      "sha256": "a60db6b9cf5e1d55ee551f5e085e259447cb66a0c4b6ae06cafff5a15b325226",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG27": {
+      "kind": "SY",
+      "symbol": "SOUNDG27",
+      "cataloguePage": 307,
+      "pdfPage": 313,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG27.svg",
+      "sha256": "0dbee2573dc9ac1590a1402187fbcdf4978969479deaa9ee67c27698c6e98eca",
+      "pivot": [
+        31.777777777777775,
+        9.049645390070921
+      ]
+    },
+    "SOUNDG28": {
+      "kind": "SY",
+      "symbol": "SOUNDG28",
+      "cataloguePage": 308,
+      "pdfPage": 314,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG28.svg",
+      "sha256": "3ba14343e6e8eeb009a6c34e360bc1316fc3aa87caab1461793549b6e247a46c",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG29": {
+      "kind": "SY",
+      "symbol": "SOUNDG29",
+      "cataloguePage": 309,
+      "pdfPage": 315,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG29.svg",
+      "sha256": "52c1fe15e2411d46f3f92a5950f7d44c098741c3fe212f8e4fbfb1db4e0b78b3",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDG30": {
+      "kind": "SY",
+      "symbol": "SOUNDG30",
+      "cataloguePage": 310,
+      "pdfPage": 316,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG30.svg",
+      "sha256": "21c1041979237aa2223ad9aac4a73bc5a5a877d925f3a5f04dad259b4544889e",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG31": {
+      "kind": "SY",
+      "symbol": "SOUNDG31",
+      "cataloguePage": 311,
+      "pdfPage": 317,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG31.svg",
+      "sha256": "b19b06576c97fbd454784c647c31933f3a5df8103e6911aa31189ef67aaec052",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG32": {
+      "kind": "SY",
+      "symbol": "SOUNDG32",
+      "cataloguePage": 312,
+      "pdfPage": 318,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG32.svg",
+      "sha256": "ccedfaccade2c2d106f752564ab8e5ace34cb1f22735160bc8c0d9f86a9220a3",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG33": {
+      "kind": "SY",
+      "symbol": "SOUNDG33",
+      "cataloguePage": 313,
+      "pdfPage": 319,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG33.svg",
+      "sha256": "6a943e16336f7081913a7e0f1edb4b676223c4ebbe2c976d0a8fe7ebb4a749e5",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG34": {
+      "kind": "SY",
+      "symbol": "SOUNDG34",
+      "cataloguePage": 314,
+      "pdfPage": 320,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG34.svg",
+      "sha256": "c51a6300d6179ff03abf876311f2cda292ba438aeef7684745a0713f2312042e",
+      "pivot": [
+        48.778625954198475,
+        12.575757575757576
+      ]
+    },
+    "SOUNDG35": {
+      "kind": "SY",
+      "symbol": "SOUNDG35",
+      "cataloguePage": 315,
+      "pdfPage": 321,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG35.svg",
+      "sha256": "37d751754756a2449e93740ebc40e54fa55798b52f9f0bd4ae1ef80ed95a11d9",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG36": {
+      "kind": "SY",
+      "symbol": "SOUNDG36",
+      "cataloguePage": 316,
+      "pdfPage": 322,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG36.svg",
+      "sha256": "85ee68f5bc4f32a79af2a89c5f49562fd364081deb58606fb7a9c1b7dc02c6d8",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG37": {
+      "kind": "SY",
+      "symbol": "SOUNDG37",
+      "cataloguePage": 317,
+      "pdfPage": 323,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG37.svg",
+      "sha256": "92007440fc33084723cc764550cdb1aa89ce3b3173e5e205fbbf3e2f46447560",
+      "pivot": [
+        48.78234398782344,
+        9.049645390070921
+      ]
+    },
+    "SOUNDG38": {
+      "kind": "SY",
+      "symbol": "SOUNDG38",
+      "cataloguePage": 318,
+      "pdfPage": 324,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG38.svg",
+      "sha256": "6a540e28288c811d3bf1b173d14d9d1bf4e13d7acf2d3ac4ab3058a215d4ff57",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG39": {
+      "kind": "SY",
+      "symbol": "SOUNDG39",
+      "cataloguePage": 319,
+      "pdfPage": 325,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG39.svg",
+      "sha256": "09bc54402426913254d31bf1ceb5e00d6b5d1de8fe05ba059627ce321afdbed4",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDG40": {
+      "kind": "SY",
+      "symbol": "SOUNDG40",
+      "cataloguePage": 320,
+      "pdfPage": 326,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG40.svg",
+      "sha256": "b3cc2653021d737fc61ff847340310ede29b8f6668afd046626ea523233df515",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG41": {
+      "kind": "SY",
+      "symbol": "SOUNDG41",
+      "cataloguePage": 321,
+      "pdfPage": 327,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG41.svg",
+      "sha256": "2c5f7d184d4a0c27591f44d0fe0450826b92daffeeaba25e6e523313f679f57f",
+      "pivot": [
+        1.2146596858638745,
+        11
+      ]
+    },
+    "SOUNDG42": {
+      "kind": "SY",
+      "symbol": "SOUNDG42",
+      "cataloguePage": 322,
+      "pdfPage": 328,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG42.svg",
+      "sha256": "315f129d3f5ba70c467754f9aaa34ee0f0c0b8e973d7424b3f51562f3b567362",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG43": {
+      "kind": "SY",
+      "symbol": "SOUNDG43",
+      "cataloguePage": 323,
+      "pdfPage": 329,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG43.svg",
+      "sha256": "8596b72cc340414366d2d5ac08e35b6b9a4ff98a03aa8012f7e0ecebc99c1cbc",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG44": {
+      "kind": "SY",
+      "symbol": "SOUNDG44",
+      "cataloguePage": 324,
+      "pdfPage": 330,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG44.svg",
+      "sha256": "b097277b68a265e5d58757fcd8bf59f356c7a8cde789c58c975b45c379f250cf",
+      "pivot": [
+        1.2147505422993492,
+        12.575757575757576
+      ]
+    },
+    "SOUNDG45": {
+      "kind": "SY",
+      "symbol": "SOUNDG45",
+      "cataloguePage": 325,
+      "pdfPage": 331,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG45.svg",
+      "sha256": "313cc9f529e1c65b8e564ce347b08ba605ca41b65511b40419364107ea00d6c3",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG46": {
+      "kind": "SY",
+      "symbol": "SOUNDG46",
+      "cataloguePage": 326,
+      "pdfPage": 332,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG46.svg",
+      "sha256": "27f1733870236508b4ef5253eedd3d934ff9f7cc7ed69c9afe5c2387b8452fb2",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG47": {
+      "kind": "SY",
+      "symbol": "SOUNDG47",
+      "cataloguePage": 327,
+      "pdfPage": 333,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG47.svg",
+      "sha256": "7f63f025da3a3d916edd5d3baf52b5ffb9227ff373dcd71bf4fd256c7e15233b",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG48": {
+      "kind": "SY",
+      "symbol": "SOUNDG48",
+      "cataloguePage": 328,
+      "pdfPage": 334,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG48.svg",
+      "sha256": "04840f29a68d516a1b4541dc23d5245852cc624ef4d97977adb882301a55bebc",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG49": {
+      "kind": "SY",
+      "symbol": "SOUNDG49",
+      "cataloguePage": 329,
+      "pdfPage": 335,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG49.svg",
+      "sha256": "e8759b2aa6c5015b6536c17ae239c2fd54fa0086925d4f01d67f53f18c16ab51",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDG50": {
+      "kind": "SY",
+      "symbol": "SOUNDG50",
+      "cataloguePage": 330,
+      "pdfPage": 336,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG50.svg",
+      "sha256": "e002e8600b4e6e7b7323743ef3ba819499a033526fd0ae81ec6faf72b603d45f",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG51": {
+      "kind": "SY",
+      "symbol": "SOUNDG51",
+      "cataloguePage": 331,
+      "pdfPage": 337,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG51.svg",
+      "sha256": "f46ae5ca34d4e7205c0eb36198cb7202b9c8e2948bc75cbe4a12f4a4a4c3ecf8",
+      "pivot": [
+        1.2229299363057324,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG52": {
+      "kind": "SY",
+      "symbol": "SOUNDG52",
+      "cataloguePage": 332,
+      "pdfPage": 338,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG52.svg",
+      "sha256": "b3fc69e87fb239a551ae9d29f88f8a04ab20c4a652122975c8fabd2ef7cb4f61",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG53": {
+      "kind": "SY",
+      "symbol": "SOUNDG53",
+      "cataloguePage": 333,
+      "pdfPage": 339,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG53.svg",
+      "sha256": "5b8ef3bfb734c882cf57fbd373343a48d3bc58b3c1afe4409fffa8081d636d43",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG54": {
+      "kind": "SY",
+      "symbol": "SOUNDG54",
+      "cataloguePage": 334,
+      "pdfPage": 340,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG54.svg",
+      "sha256": "2b36a64e7fc05ed36d1cd8deca50635feaad93c75547966f7f3fbf1df229a47f",
+      "pivot": [
+        1.2151898734177213,
+        3.106060606060606
+      ]
+    },
+    "SOUNDG55": {
+      "kind": "SY",
+      "symbol": "SOUNDG55",
+      "cataloguePage": 335,
+      "pdfPage": 341,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG55.svg",
+      "sha256": "fc6a4b6bcc66bc0c68ab714c7b300996b80106af990898f251e3556cebea02f3",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG56": {
+      "kind": "SY",
+      "symbol": "SOUNDG56",
+      "cataloguePage": 336,
+      "pdfPage": 342,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG56.svg",
+      "sha256": "2a38cd79af042258075d81ad162ad934686231cc6d3bfd348ede84bbe2a7db83",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG57": {
+      "kind": "SY",
+      "symbol": "SOUNDG57",
+      "cataloguePage": 337,
+      "pdfPage": 343,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG57.svg",
+      "sha256": "4b0f91d9d15ef8c9c81c49fc974e57a2a4bf0bbd05b980af2f1df0cbe4e2ef56",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG58": {
+      "kind": "SY",
+      "symbol": "SOUNDG58",
+      "cataloguePage": 338,
+      "pdfPage": 344,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG58.svg",
+      "sha256": "992f7d6078d24ed7dfdc5fd05428380455af566cea16f0dddf0f6c07382b5f7a",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDG59": {
+      "kind": "SY",
+      "symbol": "SOUNDG59",
+      "cataloguePage": 339,
+      "pdfPage": 345,
+      "description": "for deep soundings, greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDG59.svg",
+      "sha256": "0944335d08dcd29f334a2b0c42bd21afbf9fad07d07000b6267ed198da31257d",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDGB1": {
+      "kind": "SY",
+      "symbol": "SOUNDGB1",
+      "cataloguePage": 340,
+      "pdfPage": 346,
+      "description": "symbol for swept sounding, used for deep soundings greater than safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDGB1.svg",
+      "sha256": "b4de8281fe027af3327dad6e9a2ffb5f01fc417ab15f0d055b3e5110b00ca700",
+      "pivot": [
+        32.76923076923077,
+        1.219941348973607
+      ]
+    },
+    "SOUNDGC2": {
+      "kind": "SY",
+      "symbol": "SOUNDGC2",
+      "cataloguePage": 341,
+      "pdfPage": 347,
+      "description": "sounding of low accuracy",
+      "sourcePath": "sprites/svg_unused/SOUNDGC2.svg",
+      "sha256": "0f309ed676b75a4f2f38b0fae0499ba806771d8ef306b4294783283d96988107",
+      "pivot": [
+        33.5,
+        33.5
+      ]
+    },
+    "SOUNDS00": {
+      "kind": "SY",
+      "symbol": "SOUNDS00",
+      "cataloguePage": 342,
+      "pdfPage": 348,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS00.svg",
+      "sha256": "e96c7df5352dc015bc5bb0eb2cfa92f733ddf2f2232c92de9abf788430bb6104",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS01": {
+      "kind": "SY",
+      "symbol": "SOUNDS01",
+      "cataloguePage": 343,
+      "pdfPage": 349,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS01.svg",
+      "sha256": "5e8b1070a49c80642dd910acb3dc45e034da885b0d58fd7500ab283cd884b3fc",
+      "pivot": [
+        1.2229299363057324,
+        11
+      ]
+    },
+    "SOUNDS02": {
+      "kind": "SY",
+      "symbol": "SOUNDS02",
+      "cataloguePage": 344,
+      "pdfPage": 350,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS02.svg",
+      "sha256": "d8dbe6b83ec2120893de12ca6b4f9c77e4473e1487e40c8be33fe9e89561f217",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS03": {
+      "kind": "SY",
+      "symbol": "SOUNDS03",
+      "cataloguePage": 345,
+      "pdfPage": 351,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS03.svg",
+      "sha256": "89c4c94ab76c73784e1876fb1f874afaecaed36ead5304b7a7cfdf865a445eb2",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS04": {
+      "kind": "SY",
+      "symbol": "SOUNDS04",
+      "cataloguePage": 346,
+      "pdfPage": 352,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS04.svg",
+      "sha256": "ae86089cd9682f7b8a012e32d8b463f2c3f8e3d09fb0ff5cc3fb5dc9cf7a919a",
+      "pivot": [
+        1.2203389830508475,
+        12.575757575757576
+      ]
+    },
+    "SOUNDS05": {
+      "kind": "SY",
+      "symbol": "SOUNDS05",
+      "cataloguePage": 347,
+      "pdfPage": 353,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS05.svg",
+      "sha256": "07a747afbab0f958f36067105e8bd038e79568f5fdc986451358fef2aa94de07",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS06": {
+      "kind": "SY",
+      "symbol": "SOUNDS06",
+      "cataloguePage": 348,
+      "pdfPage": 354,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS06.svg",
+      "sha256": "d76ed552a7ce8d5d052d222fcc6feb615d6356df13812be8783a026a151c66ed",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS07": {
+      "kind": "SY",
+      "symbol": "SOUNDS07",
+      "cataloguePage": 349,
+      "pdfPage": 355,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS07.svg",
+      "sha256": "bc97490d19fcbd9e388f8aee0342ad1f2bd555c11eb961d62742b7668724fe8f",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS08": {
+      "kind": "SY",
+      "symbol": "SOUNDS08",
+      "cataloguePage": 350,
+      "pdfPage": 356,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS08.svg",
+      "sha256": "e2750f5b5af07d53af73d7678296bc72d7e6c6bcfa1a904603d5864035e37bad",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS09": {
+      "kind": "SY",
+      "symbol": "SOUNDS09",
+      "cataloguePage": 351,
+      "pdfPage": 357,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS09.svg",
+      "sha256": "36389f32066cf38a9d6fe81030bd1a60220e94b59a7140d795db99baf9b1df3d",
+      "pivot": [
+        1.2367149758454108,
+        11
+      ]
+    },
+    "SOUNDS10": {
+      "kind": "SY",
+      "symbol": "SOUNDS10",
+      "cataloguePage": 352,
+      "pdfPage": 358,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS10.svg",
+      "sha256": "dd701113319e31d4c71b7c809622af86d52bdaeb336da78e7ec8f7c8ed95c9a4",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS11": {
+      "kind": "SY",
+      "symbol": "SOUNDS11",
+      "cataloguePage": 353,
+      "pdfPage": 359,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS11.svg",
+      "sha256": "59f394340b2071916cd2292b60cd7d58f4f8da5f4e1411c2758b85043554f6d6",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS12": {
+      "kind": "SY",
+      "symbol": "SOUNDS12",
+      "cataloguePage": 354,
+      "pdfPage": 360,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS12.svg",
+      "sha256": "9fc25d68c26c5ca3db096ddf1dcf27d78797b4d50c3b6452c597e9065432178f",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS13": {
+      "kind": "SY",
+      "symbol": "SOUNDS13",
+      "cataloguePage": 355,
+      "pdfPage": 361,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS13.svg",
+      "sha256": "f21330a01e3a32b2186b0794f4e413ae36d557911d1490f81fd2dfc47e440315",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS14": {
+      "kind": "SY",
+      "symbol": "SOUNDS14",
+      "cataloguePage": 356,
+      "pdfPage": 362,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS14.svg",
+      "sha256": "df718d50287907a998bd624cd9c5c875e620f3b71ac7400fb035c90d195284ed",
+      "pivot": [
+        14.76328502415459,
+        12.575757575757576
+      ]
+    },
+    "SOUNDS15": {
+      "kind": "SY",
+      "symbol": "SOUNDS15",
+      "cataloguePage": 357,
+      "pdfPage": 363,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS15.svg",
+      "sha256": "233dd381d1eafaed83842f764be6e21dc17802c5400ebeba9ecc698a965b9a4c",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS16": {
+      "kind": "SY",
+      "symbol": "SOUNDS16",
+      "cataloguePage": 358,
+      "pdfPage": 364,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS16.svg",
+      "sha256": "faf40a854f84d9b01ef377b0cffee921d5be4f81458dae615cfe7d5a12fe2b44",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS17": {
+      "kind": "SY",
+      "symbol": "SOUNDS17",
+      "cataloguePage": 359,
+      "pdfPage": 365,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS17.svg",
+      "sha256": "72ae0a304e8ede3136661de6421e4a96ec0fe78e12e60c66ab389e49f488f3fe",
+      "pivot": [
+        14.76328502415459,
+        9.049645390070921
+      ]
+    },
+    "SOUNDS18": {
+      "kind": "SY",
+      "symbol": "SOUNDS18",
+      "cataloguePage": 360,
+      "pdfPage": 366,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS18.svg",
+      "sha256": "d37934eaa765bb771a435b7bffb27e07d13613add615546611e711af9822e1e9",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS19": {
+      "kind": "SY",
+      "symbol": "SOUNDS19",
+      "cataloguePage": 361,
+      "pdfPage": 367,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS19.svg",
+      "sha256": "54653eb88d27e2a65ace4c4f38556fab64ace0ade53177bb43e959a46332344b",
+      "pivot": [
+        14.76328502415459,
+        11
+      ]
+    },
+    "SOUNDS20": {
+      "kind": "SY",
+      "symbol": "SOUNDS20",
+      "cataloguePage": 362,
+      "pdfPage": 368,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS20.svg",
+      "sha256": "90affcfa0c0a2709c70a570f795ed1cf289e47768c16d5b650eb4b9d5f443d2f",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS21": {
+      "kind": "SY",
+      "symbol": "SOUNDS21",
+      "cataloguePage": 363,
+      "pdfPage": 369,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS21.svg",
+      "sha256": "8296306a3119d60603b25fc383a83ebccf826636dceb08ad307b3c5c83ad8fe6",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS22": {
+      "kind": "SY",
+      "symbol": "SOUNDS22",
+      "cataloguePage": 364,
+      "pdfPage": 370,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS22.svg",
+      "sha256": "2a4795de693f020f4e7cb175aa618893561604b4ef77a3ca0ce26db97eee37b8",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS23": {
+      "kind": "SY",
+      "symbol": "SOUNDS23",
+      "cataloguePage": 365,
+      "pdfPage": 371,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS23.svg",
+      "sha256": "b286a0369461c698fc097c84a31be71bb5e786325180493164b8e27145b7e144",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS24": {
+      "kind": "SY",
+      "symbol": "SOUNDS24",
+      "cataloguePage": 366,
+      "pdfPage": 372,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS24.svg",
+      "sha256": "12c53c56378f7ad2ad399ea3ffab302b5015b1dd855ff7583fb07d590863110a",
+      "pivot": [
+        31.777777777777775,
+        12.575757575757576
+      ]
+    },
+    "SOUNDS25": {
+      "kind": "SY",
+      "symbol": "SOUNDS25",
+      "cataloguePage": 367,
+      "pdfPage": 373,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS25.svg",
+      "sha256": "fb9297a91e9ec3626aeeaf60853737b5059473e660b3e1c7f597db300172472c",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS26": {
+      "kind": "SY",
+      "symbol": "SOUNDS26",
+      "cataloguePage": 368,
+      "pdfPage": 374,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS26.svg",
+      "sha256": "9c55e00d666a7980bda329eabfa6bb975dcf0651e13d25b655397343b9aa1bf1",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS27": {
+      "kind": "SY",
+      "symbol": "SOUNDS27",
+      "cataloguePage": 369,
+      "pdfPage": 375,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS27.svg",
+      "sha256": "254412e1d5159e61c3c0beb3f3599e7c0655ad76dd514d70a85e2057664ae3b8",
+      "pivot": [
+        31.777777777777775,
+        9.049645390070921
+      ]
+    },
+    "SOUNDS28": {
+      "kind": "SY",
+      "symbol": "SOUNDS28",
+      "cataloguePage": 370,
+      "pdfPage": 376,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS28.svg",
+      "sha256": "9dbc3715dde1b8a79d1f45ddf0a52638d3a1f073f388bdf3804e51d172ff6fcf",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS29": {
+      "kind": "SY",
+      "symbol": "SOUNDS29",
+      "cataloguePage": 371,
+      "pdfPage": 377,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS29.svg",
+      "sha256": "2a6072eb9c9673c983ae3e270dc8cca8d940ab72dbcd9b75d9a9d66f17d309df",
+      "pivot": [
+        31.777777777777775,
+        11
+      ]
+    },
+    "SOUNDS30": {
+      "kind": "SY",
+      "symbol": "SOUNDS30",
+      "cataloguePage": 372,
+      "pdfPage": 378,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS30.svg",
+      "sha256": "54dcb5f2e541e504f0dfb17c08292fcf0993d5babe33026ab998ecb302b51396",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS31": {
+      "kind": "SY",
+      "symbol": "SOUNDS31",
+      "cataloguePage": 373,
+      "pdfPage": 379,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS31.svg",
+      "sha256": "cffe6dae218eeb4879672dd825bf33774e0d09504755fe2206df49a232daea9d",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS32": {
+      "kind": "SY",
+      "symbol": "SOUNDS32",
+      "cataloguePage": 374,
+      "pdfPage": 380,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS32.svg",
+      "sha256": "49d7c8e00127e76e440b13ececd45abeca29347ac042b3af7f4fed17929e706a",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS33": {
+      "kind": "SY",
+      "symbol": "SOUNDS33",
+      "cataloguePage": 375,
+      "pdfPage": 381,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS33.svg",
+      "sha256": "00dca28c12ef89448eb31e1e09967d8f89bc66884a55e42f1e1458c92ca66b32",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS34": {
+      "kind": "SY",
+      "symbol": "SOUNDS34",
+      "cataloguePage": 376,
+      "pdfPage": 382,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS34.svg",
+      "sha256": "42bd62d5027e839052de992f85c168094479a449948a3c0f537fe483694c5c4a",
+      "pivot": [
+        48.778625954198475,
+        12.575757575757576
+      ]
+    },
+    "SOUNDS35": {
+      "kind": "SY",
+      "symbol": "SOUNDS35",
+      "cataloguePage": 377,
+      "pdfPage": 383,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS35.svg",
+      "sha256": "64f9f6604e9789b563268e198ec14179a78904a30ae3c794f63dd1202ea92f42",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS36": {
+      "kind": "SY",
+      "symbol": "SOUNDS36",
+      "cataloguePage": 378,
+      "pdfPage": 384,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS36.svg",
+      "sha256": "406fb37285951092f02724a7dcadbba1adaf3ac4acbd09d39eca4f731b2c4f5c",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS37": {
+      "kind": "SY",
+      "symbol": "SOUNDS37",
+      "cataloguePage": 379,
+      "pdfPage": 385,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS37.svg",
+      "sha256": "5cae30cdb66581ce97c2c325ffb6a298ded911b1b3e357eeb2a0ab2a2b833791",
+      "pivot": [
+        48.78234398782344,
+        9.049645390070921
+      ]
+    },
+    "SOUNDS38": {
+      "kind": "SY",
+      "symbol": "SOUNDS38",
+      "cataloguePage": 380,
+      "pdfPage": 386,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS38.svg",
+      "sha256": "488ddc9daf320d323b054c528cc6ea7885639a0402b473747eb2dce3fde3a6e6",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS39": {
+      "kind": "SY",
+      "symbol": "SOUNDS39",
+      "cataloguePage": 381,
+      "pdfPage": 387,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS39.svg",
+      "sha256": "5ae615a39f373cdb09475d91f41a863e158abe0daff96ed90e12c548e013d908",
+      "pivot": [
+        48.78234398782344,
+        11
+      ]
+    },
+    "SOUNDS40": {
+      "kind": "SY",
+      "symbol": "SOUNDS40",
+      "cataloguePage": 382,
+      "pdfPage": 388,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS40.svg",
+      "sha256": "11dfdede95425d4cf8ccf2563bd2616d403e28f0c13a8e5845194cca2e5f6a36",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS41": {
+      "kind": "SY",
+      "symbol": "SOUNDS41",
+      "cataloguePage": 383,
+      "pdfPage": 389,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS41.svg",
+      "sha256": "6fd7afaad8235aefbd140e97cc37980fa1376af967549bf5d629e612615f4016",
+      "pivot": [
+        1.2146596858638745,
+        11
+      ]
+    },
+    "SOUNDS42": {
+      "kind": "SY",
+      "symbol": "SOUNDS42",
+      "cataloguePage": 384,
+      "pdfPage": 390,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS42.svg",
+      "sha256": "1ea7a3b0043abd889167aae0155402f09aa8eb3c20b899c0a1d61921f7d44222",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS43": {
+      "kind": "SY",
+      "symbol": "SOUNDS43",
+      "cataloguePage": 385,
+      "pdfPage": 391,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS43.svg",
+      "sha256": "1ee7b7688672a5dc8ed5227ecd848a2d3169e5b0e9255cfe5bbaa17083974518",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS44": {
+      "kind": "SY",
+      "symbol": "SOUNDS44",
+      "cataloguePage": 386,
+      "pdfPage": 392,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS44.svg",
+      "sha256": "2b466476ecd27e5215769cd9668b91d2fe025a60e59d1a5fa5064c9c49903289",
+      "pivot": [
+        1.2147505422993492,
+        12.575757575757576
+      ]
+    },
+    "SOUNDS45": {
+      "kind": "SY",
+      "symbol": "SOUNDS45",
+      "cataloguePage": 387,
+      "pdfPage": 393,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS45.svg",
+      "sha256": "5a614959e56db461aa23aa2cbc3ff93a02e9b64b23bf6212fef5ba785ebec0d6",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS46": {
+      "kind": "SY",
+      "symbol": "SOUNDS46",
+      "cataloguePage": 388,
+      "pdfPage": 394,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS46.svg",
+      "sha256": "11483a103944dd18fd3ca1ea67a83fd5ef47bcbfa8653f24cba0b8c79ae0491b",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS47": {
+      "kind": "SY",
+      "symbol": "SOUNDS47",
+      "cataloguePage": 389,
+      "pdfPage": 395,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS47.svg",
+      "sha256": "77afcae33199333c278ba7cf765f28cfc99f980cc8b940fc511fab439fc701a5",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS48": {
+      "kind": "SY",
+      "symbol": "SOUNDS48",
+      "cataloguePage": 390,
+      "pdfPage": 396,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS48.svg",
+      "sha256": "a21a25e6bd58a5e9a5326c97c38ca4b5a14536d91b67bbbcc3fdb2d8572dba17",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS49": {
+      "kind": "SY",
+      "symbol": "SOUNDS49",
+      "cataloguePage": 391,
+      "pdfPage": 397,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS49.svg",
+      "sha256": "52cbb2085c4a06730ba58f9a520e2e812f3c1204a33fac02b98c33dffb28c1f6",
+      "pivot": [
+        1.222222222222222,
+        11
+      ]
+    },
+    "SOUNDS50": {
+      "kind": "SY",
+      "symbol": "SOUNDS50",
+      "cataloguePage": 392,
+      "pdfPage": 398,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS50.svg",
+      "sha256": "2490358079cf29f7f38993dcc3333c2461666f53465a5a7d214a4f63384f337e",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS51": {
+      "kind": "SY",
+      "symbol": "SOUNDS51",
+      "cataloguePage": 393,
+      "pdfPage": 399,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS51.svg",
+      "sha256": "6f737037721a7a91be939e8876d07f3902f49453a758c67d19e247006cdf94ba",
+      "pivot": [
+        1.2229299363057324,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS52": {
+      "kind": "SY",
+      "symbol": "SOUNDS52",
+      "cataloguePage": 394,
+      "pdfPage": 400,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS52.svg",
+      "sha256": "a939390b9f71441654d8ef16028d24c6f0fa78a1f09b7bd28f10f8f91a401e98",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS53": {
+      "kind": "SY",
+      "symbol": "SOUNDS53",
+      "cataloguePage": 395,
+      "pdfPage": 401,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS53.svg",
+      "sha256": "e3a719f9a87c755033aa4d3c4528baceeb880998346d1159e868ad69902e21f7",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS54": {
+      "kind": "SY",
+      "symbol": "SOUNDS54",
+      "cataloguePage": 396,
+      "pdfPage": 402,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS54.svg",
+      "sha256": "a693737243075a4136b97e3afa0d6914a93f960be7754a4f2666e79e2a53cb9d",
+      "pivot": [
+        1.2151898734177213,
+        3.106060606060606
+      ]
+    },
+    "SOUNDS55": {
+      "kind": "SY",
+      "symbol": "SOUNDS55",
+      "cataloguePage": 397,
+      "pdfPage": 403,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS55.svg",
+      "sha256": "714ecbed5d28e0a809c8029355551c284138f473cbc85292ca981b4e46850037",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS56": {
+      "kind": "SY",
+      "symbol": "SOUNDS56",
+      "cataloguePage": 398,
+      "pdfPage": 404,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS56.svg",
+      "sha256": "682f8528650a2c0d06a6802d8453c0456ec63238e92241d9e65742233ae8b85e",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS57": {
+      "kind": "SY",
+      "symbol": "SOUNDS57",
+      "cataloguePage": 399,
+      "pdfPage": 405,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS57.svg",
+      "sha256": "4233af7ce07b6ef3ea50898dad436f8b369cc8b4028e577ba96bbd8b322324e6",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS58": {
+      "kind": "SY",
+      "symbol": "SOUNDS58",
+      "cataloguePage": 400,
+      "pdfPage": 406,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS58.svg",
+      "sha256": "d6ff0023a232d163f8690a5cfd57383c1d287f0894e582d94f09c595fdaa28ca",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDS59": {
+      "kind": "SY",
+      "symbol": "SOUNDS59",
+      "cataloguePage": 401,
+      "pdfPage": 407,
+      "description": "shallow soundings, less than or equal to the safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDS59.svg",
+      "sha256": "d59e03201016451b2584f4b044bc3ae7fcfe46b0e5fb6b9fe580a6e4f603ed88",
+      "pivot": [
+        1.2367149758454108,
+        1.24822695035461
+      ]
+    },
+    "SOUNDSB1": {
+      "kind": "SY",
+      "symbol": "SOUNDSB1",
+      "cataloguePage": 403,
+      "pdfPage": 409,
+      "description": "symbol for swept sounding, used for shallow soundings, less than or equal to safety depth",
+      "sourcePath": "sprites/svg_unused/SOUNDSB1.svg",
+      "sha256": "10be280832da40feb1b39238af9fa79b06040e6107e11a699cfb2f8e1ea31c6b",
+      "pivot": [
+        32.76923076923077,
+        1.219941348973607
+      ]
+    },
+    "SOUNDSC2": {
+      "kind": "SY",
+      "symbol": "SOUNDSC2",
+      "cataloguePage": 404,
+      "pdfPage": 410,
+      "description": "sounding of low accuracy",
+      "sourcePath": "sprites/svg_unused/SOUNDSC2.svg",
+      "sha256": "491d633cea91943cb212d2d486b97812e6a90fe91d696a65c953233a3f49a872",
+      "pivot": [
+        33.5,
+        33.5
+      ]
+    },
+    "SWPARE51": {
+      "kind": "SY",
+      "symbol": "SWPARE51",
+      "cataloguePage": 406,
+      "pdfPage": 412,
+      "description": "swept area",
+      "sourcePath": "sprites/svg_unused/SWPARE51.svg",
+      "sha256": "4c20497cebd6ae2970ebab7ffb54a83a4a937988a03f79d18c8c1002833fc01f",
+      "pivot": [
+        46.22222222222222,
+        27.316831683168317
+      ]
+    },
+    "TNKFRM01": {
+      "kind": "SY",
+      "symbol": "TNKFRM01",
+      "cataloguePage": 414,
+      "pdfPage": 420,
+      "description": "tank farm",
+      "sourcePath": "sprites/svg_unused/TNKFRM01.svg",
+      "sha256": "e5a6f16504ea92af60da82489be2ad0f3d794aa101ebad827e5dd0f3b8ec9fa9",
+      "pivot": [
+        31.03508771929824,
+        31.799498746867165
+      ]
+    },
+    "TOWERS05": {
+      "kind": "SY",
+      "symbol": "TOWERS05",
+      "cataloguePage": 449,
+      "pdfPage": 455,
+      "description": "radio, television tower",
+      "sourcePath": "sprites/svg_unused/TOWERS05.svg",
+      "sha256": "1bd00cfea3522276192c3bf1c95a1eef3fce12fe3c042ef219d95beb1c426e3e",
+      "pivot": [
+        13,
+        54.93606138107417
+      ]
+    },
+    "TOWERS15": {
+      "kind": "SY",
+      "symbol": "TOWERS15",
+      "cataloguePage": 451,
+      "pdfPage": 457,
+      "description": "conspicuous radio, television tower",
+      "sourcePath": "sprites/svg_unused/TOWERS15.svg",
+      "sha256": "53f63c4dd383fc9df9425fcdca5dcaf8e8e3229e6e3fbc40da072d4484fd3d22",
+      "pivot": [
+        13,
+        54.93606138107417
+      ]
+    },
+    "TREPNT04": {
+      "kind": "SY",
+      "symbol": "TREPNT04",
+      "cataloguePage": 452,
+      "pdfPage": 458,
+      "description": "general symbol for a tree",
+      "sourcePath": "sprites/svg_unused/TREPNT04.svg",
+      "sha256": "d4a7ca2b6b513dc00f733096bde5cb852255ebb2a89557c8adcbdf21b875a658",
+      "pivot": [
+        14.619289340101522,
+        31.780600461893762
+      ]
+    },
+    "TREPNT05": {
+      "kind": "SY",
+      "symbol": "TREPNT05",
+      "cataloguePage": 453,
+      "pdfPage": 459,
+      "description": "mangrove",
+      "sourcePath": "sprites/svg_unused/TREPNT05.svg",
+      "sha256": "87eef033f686f57eba586782cced59ba69b67b6a4e2b0518dc0b1ed6b9d232ba",
+      "pivot": [
+        16.5,
+        24.74698795180723
+      ]
+    },
+    "TSLDEF51": {
+      "kind": "SY",
+      "symbol": "TSLDEF51",
+      "cataloguePage": 454,
+      "pdfPage": 460,
+      "description": "one way lane of a traffic separation scheme, with the direction not defined in the data",
+      "sourcePath": "sprites/svg_unused/TSLDEF51.svg",
+      "sha256": "66dbe2355442d1a03002a6a93e8942404676f4e4aa17f93b149b105daf4fa86c",
+      "pivot": [
+        46.886381950040295,
+        58.198263386396526
+      ]
+    },
+    "TSSCRS51": {
+      "kind": "SY",
+      "symbol": "TSSCRS51",
+      "cataloguePage": 455,
+      "pdfPage": 461,
+      "description": "traffic crossing area",
+      "sourcePath": "sprites/svg_unused/TSSCRS51.svg",
+      "sha256": "a42cce4326faac3493c4de1ed4b019d362929c08e07250e17d0a49bc0d5f8992",
+      "pivot": [
+        140.35635213494993,
+        3.6312056737588647
+      ]
+    },
+    "TSSJCT02P": {
+      "kind": "AP",
+      "symbol": "TSSJCT02",
+      "cataloguePage": 555,
+      "pdfPage": 561,
+      "description": "precautionary area or a traffic separation scheme crossing or roundabout",
+      "sourcePath": "sprites/svg_unused/TSSJCT02P.svg",
+      "sha256": "a79bff766211b155795ea7d7fba56ddfc4f10a0d39f8cbcaa69713f0b74eec93",
+      "pivot": [
+        1.2330827067669172,
+        39.766917293233085
+      ]
+    },
+    "TSSRON51": {
+      "kind": "SY",
+      "symbol": "TSSRON51",
+      "cataloguePage": 457,
+      "pdfPage": 463,
+      "description": "traffic roundabout",
+      "sourcePath": "sprites/svg_unused/TSSRON51.svg",
+      "sha256": "97a10f9a68eca876e723e4da7d21188784c8dee2384d2973cdf5cadf7d2f41ac",
+      "pivot": [
+        36.46193952033368,
+        37.46169560776302
+      ]
+    },
+    "WNDFRM51": {
+      "kind": "SY",
+      "symbol": "WNDFRM51",
+      "cataloguePage": 467,
+      "pdfPage": 473,
+      "description": "wind generator farm",
+      "sourcePath": "sprites/svg_unused/WNDFRM51.svg",
+      "sha256": "6721d46844bc0820bc80dd5ad3ee55b2769f737d35f49099b63d7e0ee94a22dd",
+      "pivot": [
+        31,
+        31.076543209876544
+      ]
+    },
+    "WNDMIL02": {
+      "kind": "SY",
+      "symbol": "WNDMIL02",
+      "cataloguePage": 469,
+      "pdfPage": 475,
+      "description": "windmill",
+      "sourcePath": "sprites/svg_unused/WNDMIL02.svg",
+      "sha256": "f4beae6f80ea1ddb4ad19a6833e9b1ced1b93abc00b6e427f0539fda1778ec38",
+      "pivot": [
+        13,
+        24.307692307692307
+      ]
+    },
+    "LC_CBLSUB06": {
+      "kind": "LC",
+      "symbol": "CBLSUB06",
+      "cataloguePage": 482,
+      "description": "Đường cáp ngầm.",
+      "sourceLibrary": "Viewer SVG texture; not a complete LC interpreter"
+    },
+    "LC_PIPSOL05": {
+      "kind": "LC",
+      "symbol": "PIPSOL05",
+      "cataloguePage": 513,
+      "description": "Đường ống dầu, khí hoặc chưa rõ loại.",
+      "sourceLibrary": "Viewer SVG texture; not a complete LC interpreter"
+    },
+    "LC_PIPSOL06": {
+      "kind": "LC",
+      "symbol": "PIPSOL06",
+      "cataloguePage": 514,
+      "description": "Đường ống nước, xả thải hoặc hút nước.",
+      "sourceLibrary": "Viewer SVG texture; not a complete LC interpreter"
+    },
+    "LC_LOWACC21": {
+      "kind": "LC",
+      "symbol": "LOWACC21",
+      "cataloguePage": 504,
+      "description": "Đường bờ hoặc công trình bờ có vị trí chưa chắc chắn.",
+      "sourceLibrary": "Viewer SVG texture; not a complete LC interpreter"
+    }
+  }
+}

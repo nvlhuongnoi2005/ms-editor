@@ -13,6 +13,21 @@
 
 ## Mô hình
 
+### Mã revision dễ đọc
+
+Migration `09-enc-readable-revisions.sql` đổi khóa `cell_revision.id` và hai
+khóa ngoại `import_item.revision_id`, `active_cell.revision_id` từ UUID sang
+text, ví dụ `US5WI32M-E8-U4-R65`: mã cell, edition 8, update 4 và số revision
+duy nhất. Số sau R lấy từ sequence toàn kho để phân biệt cả các bản xung đột.
+DB tự cấp mã khi importer tạo revision; mã không đổi khi sửa metadata.
+
+UUID cũ được giữ tại `cell_revision.legacy_id` có unique index. Có thể tra cứu
+bằng `SELECT id FROM enc.cell_revision WHERE legacy_id='<UUID cũ>'`.
+Migration cập nhật đồng thời toàn bộ tham chiếu, giữ nguyên dữ liệu feature và
+phiên bản active; có thể chạy lại mà không đánh số lại. API/tile tiếp tục trả
+`revisionId`/`revision_id` nhưng giá trị là mã mới. Các UUID của lần nhập/dataset
+vẫn dùng mô hình hiện có.
+
 ```mermaid
 flowchart LR
     B[dataset: lần nhập / ZIP] --> I[import_item: kết quả từng cell]

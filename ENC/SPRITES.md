@@ -15,9 +15,12 @@ ký hiệu vẫn xét thuộc tính, geometry và ngữ cảnh.
 
 ## Phạm vi atlas
 
-- 232 ảnh/theme, cùng bộ key trong day/dusk/night; 226 ảnh có tham chiếu runtime.
-- `FSHFAC03` có ô ảnh lỗi (`y=-140`) ở cả ba theme; key tồn tại nhưng không
-  thể coi là ảnh hợp lệ. Chưa gặp CATFIF=1 trong FSHFAC active. Chi tiết trong audit.
+- 499 ảnh/theme, cùng bộ key trong day/dusk/night; 231 ảnh có tham chiếu runtime.
+  Gồm 232 ảnh gốc, 263 SVG bổ sung và 4 texture đường từ SVG của viewer.
+  Atlas mới có kích thước 2048×961; JSON và PNG phải được thay cùng nhau.
+- Đã sửa `FSHFAC03`: dùng hình cọc đăng đầu tiên trong FSHFAC03P tại
+  `(2754,280,48,14)` trong bản gốc lưu tại `sprites/base/`, thay tọa độ lỗi `y=-140`.
+  Atlas mới đã đóng gói lại các ô ảnh, giữ nguyên pixel và kích thước ảnh gốc.
 - 6 ảnh giữ riêng: CHINFO08/09 là ghi chú của mariner; CHINFO10/11 là ghi chú
   của nhà sản xuất; DNGHILIT là highlight nguy hiểm của mariner; OBSTRN02
   thuộc thủ tục OBSTRN cũ (catalogue p.182).
@@ -53,6 +56,7 @@ Toàn bộ ảnh, trạng thái và trang tham chiếu: [SPRITE-INVENTORY.md](SP
 | PRDARE | CATPRA, CONVIS, geometry: refinery/tank farm/wind farm vùng khác công trình điểm |
 | ACHARE | Điểm → ACHARE02; tâm vùng → ACHARE51 (p.3–4) |
 | Vùng công trình | BUISGL/LNDMRK/SILTNK hiển thị footprint/outline, không gắn icon điểm vào mọi polygon |
+| Hạ tầng và nước nội địa | `infrastructure.ts` vẽ cáp/ống, pontoon, công trình bờ, sông/kênh/hồ; SLCONS điểm dùng MORFAC03, đường/vùng xét CONDTN/CATSLC/WATLEV/QUAPOS. Chi tiết trong INFRASTRUCTURE-PORTRAYAL.md |
 | Pattern | CATFIF/CATLND/CATOBS; wood/mangrove theo CATVEG; DEPARE thiếu DRVAL1/2 → PRTSUR01P; unknown NEWOBJ → pattern dấu hỏi |
 | Drying sounding | DEPTH âm dùng trị tuyệt đối và gạch chân SOUNDSA1 (p.402) |
 
@@ -70,7 +74,7 @@ Giữ attributes gốc, bổ sung trường nội bộ:
 - `topmark_floating`: nền nổi ở đúng tọa độ, cell và revision.
 
 `enc_symbols` dùng điểm neo từ geometry gốc, không tạo tâm mới ở mỗi mảnh tile.
-Trường nội bộ không xuất hiện trong properties UI. Tile URL dùng `portrayal=12`.
+Trường nội bộ không xuất hiện trong properties UI. Tile URL và sprite dùng phiên bản `14`.
 Không cần migration hay import lại ENC.
 
 Rà soát theo dữ liệu đang công bố: [PORTRAYAL-AUDIT.md](PORTRAYAL-AUDIT.md).
@@ -127,12 +131,17 @@ python ENC/tools/audit_sprites.py --catalogue 'path/to/S-52 Part I Addendum.pdf'
 
 ## Phần chưa có trong bộ tài sản/catalogue này
 
-226 tham chiếu không có nghĩa là toàn bộ Presentation Library đã được triển
-khai. Atlas thiếu nhiều biến thể, bộ chữ số SOUNDG và toàn bộ LC/AP. Các thủ
-tục suy luận LEAST_DEPTH/SEABED_DEPTH khi thiếu VALSOU, mọi nhánh CSP đầy đủ,
-dynamic SYMINS, display category và tham số an toàn theo người dùng chưa
-được triển khai trọn vẹn. Cần Part I chứa LUT/CSP và tài sản tương ứng để
-đối chiếu đầy đủ. Zoom/SCAMIN, chọn cell, thinning và collision vẫn là profile viewer.
+231 tham chiếu không có nghĩa là toàn bộ Presentation Library đã được triển
+khai. Atlas đã bổ sung bộ chữ số SOUNDG/SOUNDS, SAFCON và nhiều SY/AP, nhưng có
+ảnh trong atlas chưa đồng nghĩa đã có quy tắc chọn ảnh tương ứng. Bốn texture LC
+chỉ phục vụ các lớp hiện tại, chưa phải bộ giải mã LC đầy đủ. Pivot, kích thước
+nominal và line weight hiện lấy theo catalogue; Safety Depth/Contour có thể cấu hình
+theo người dùng. Display category dùng phân nhóm theo object class làm profile;
+feature chưa có phân loại được đưa vào OTHER. Đây chưa phải cách chạy đầy đủ LUT/CSP:
+phân loại thực tế có thể phụ thuộc geometry, thuộc tính và nhánh điều kiện. Dynamic
+SYMINS cùng thủ tục LEAST_DEPTH/SEABED_DEPTH khi thiếu VALSOU vẫn chưa triển khai.
+Cần LUT/CSP chính thức và tài sản tương ứng để đối chiếu đủ. Zoom/SCAMIN, chọn cell,
+thinning và collision vẫn là profile viewer.
 
 ## Hiển thị theo tỷ lệ
 
@@ -150,3 +159,6 @@ sao chép PDF vào repo. Quy tắc trước đây chuyển thể từ
 [Njord symbology](https://github.com/manimaul/njord/tree/master/crates/njord-symbology/src/layers)
 giữ giấy phép Apache-2.0 tại `NJORD-LICENSE.txt`. Atlas vẫn là tài sản người
 dùng cung cấp; giấy phép mã nguồn không thay giấy phép của ảnh.
+
+263 SVG bổ sung lấy từ Njord/OpenS100 tại commit cố định, giữ giấy phép MPL-2.0.
+Nguồn, manifest và cách tạo lại JSON/PNG: [sprites/README.md](sprites/README.md).

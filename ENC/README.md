@@ -8,12 +8,14 @@ Nó không dùng model node/way/relation, importer hoặc renderer của OSM.
 ### Import từ giao diện
 
 Nút **Dữ liệu / Import ENC** mở dialog quản lý giống luồng OSM: danh sách đã xử
-lý, chọn ZIP, tên lần nhập, tiến độ upload và tác vụ gần đây. File được kiểm tra
-trước upload: ZIP thường không mật khẩu, tối đa 100 MiB, tối đa 2 GiB giải nén,
-có `.000`, không trùng cell/đường dẫn và update phải liên tiếp, cùng thư mục base.
-Client kiểm tra thư mục ZIP; API kiểm tra lại cấu trúc và header ISO 8211; worker
-GDAL kiểm tra nội dung S-57 trước công bố. Kết quả kiểm tra ZIP không đồng nghĩa
-với việc hải đồ đã được công bố. Tên lần nhập kiểm tra trùng ở cả client và API.
+lý, chọn ZIP hoặc trực tiếp một file cell `.000`, tên lần nhập, tiến độ upload và
+tác vụ gần đây. ZIP thường không mật khẩu, tối đa 100 MiB và 2 GiB giải nén; cell
+`.000` trực tiếp tối đa 100 MiB. ZIP được kiểm tra có cell gốc, không trùng đường
+dẫn/cell và chuỗi update liên tiếp trong cùng thư mục. Cell `.000` lẻ được nhập
+không kèm update; muốn áp dụng update hãy tải ZIP chứa cả chuỗi. Client và API
+kiểm tra cấu trúc cùng header ISO 8211, sau đó worker GDAL xác thực S-57 trước
+khi công bố. Tiếp nhận file không đồng nghĩa với việc hải đồ đã được công bố.
+Tên lần nhập kiểm tra trùng ở cả client và API.
 
 Upload có phần trăm và có thể hủy. Tác vụ worker hiển thị trạng thái riêng, không
 giả lập phần trăm import. Có thể xem lần nhập trên bản đồ hoặc xóa lần nhập lỗi.
@@ -23,7 +25,7 @@ giả lập phần trăm import. Có thể xem lần nhập trên bản đồ ho
 `GET /api/enc/regions?dataset=<uuid tùy chọn>` trả vùng phủ và điểm đặt nhãn
 của chính các cell local đang được xem. Tên vùng lấy từ mô tả `CATALOG.031`,
 ví dụ `Lake Michigan - Manitowoc, WI`; thiếu mô tả thì dùng mã cell.
-Metadata gồm file ZIP nguồn, mã cell, producer, edition/update và tỷ lệ biên tập.
+Metadata gồm file nguồn, mã cell, producer, edition/update và tỷ lệ biên tập.
 Đường biên dùng `M_COVR` trừ vùng không có dữ liệu, dự phòng bằng bounds.
 Không dùng 9 vùng định sẵn của OpenENC. Migration `08-enc-regions.sql` gỡ các
 định nghĩa tham khảo đã cài trước đó; endpoint được suy ra từ kho ENC local.
@@ -84,9 +86,10 @@ vùng phủ, dùng bounds của cell làm phương án dự phòng. Chế độ 
 bỏ lọc tỷ lệ để xem dữ liệu nguồn. Đây là quy tắc viewer với tỷ lệ xấp xỉ theo zoom,
 chưa phải bộ quy tắc trình bày S-52 đầy đủ. Không cần import lại dataset cũ.
 
-Giao diện nhận ZIP S-57 (tối đa 100 MiB), tạo job và theo dõi trạng thái. Worker
-GDAL riêng kiểm tra archive, cell trùng, update thiếu và checksum trước khi
-ghi dữ liệu. Dataset chỉ được mở để đọc khi toàn bộ import đã commit.
+Giao diện nhận ZIP S-57 hoặc một file cell `.000` (mỗi file tối đa 100 MiB),
+tạo job và theo dõi trạng thái. Worker GDAL kiểm tra archive, cell trùng, update
+thiếu và checksum trước khi ghi dữ liệu; với `.000` lẻ, GDAL đọc cell gốc không
+có update. Dataset chỉ được mở để đọc khi toàn bộ import đã commit.
 Các đường đọc hiện tại dành cho viewer, chưa cung cấp Save hay export S-57.
 
 Chạy queue worker từ thư mục gốc:
@@ -97,12 +100,18 @@ docker compose -f infra/compose.yaml --profile enc up -d --build --no-deps enc-i
 
 Upload và xóa dataset không yêu cầu token quản trị.
 
-## Import ZIP thủ công
+## Import thủ công
 
 Đặt archive tại `data/enc/` rồi chạy từ `infra/`:
 
 ```powershell
 docker compose --profile tools run --rm enc-importer --zip /data/enc/OneWeek_ENCs.zip --dataset noaa-one-week
+```
+
+Có thể truyền trực tiếp một cell `.000`; hãy dùng ZIP nếu cần áp dụng chuỗi update:
+
+```powershell
+docker compose --profile tools run --rm enc-importer --source /data/enc/US5WI32M.000 --dataset us5wi32m-base
 ```
 
 Lệnh chỉ chạy sau khi PostGIS đã có `enc_canonical`. Với volume hiện có, chạy

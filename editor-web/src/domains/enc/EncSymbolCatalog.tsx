@@ -4,7 +4,7 @@ import { Search, X } from 'lucide-react';
 import { encSymbols, normalizeSymbolSearch } from './symbolCatalog';
 
 type Props = { onClose: () => void };
-const atlasUrl = '/enc/assets/sprites/day_simplified@2x.png';
+const atlasUrl = '/enc/assets/sprites/day_simplified@2x.png?v=14';
 
 export function EncSymbolCatalog({ onClose }: Props) {
   const [query, setQuery] = useState('');

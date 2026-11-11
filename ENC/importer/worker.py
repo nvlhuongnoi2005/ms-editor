@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -90,7 +91,7 @@ def extract_archive(source: Path, destination: Path) -> list[Path]:
                 raise ValueError("ENC archive contains duplicate paths")
             paths.add(normalized)
         archive.extractall(destination)
-    bases = sorted(path for path in destination.rglob("*") if path.suffix == ".000")
+    bases = sorted(path for path in destination.rglob("*") if path.suffix.lower() == ".000")
     cells = set()
     for base in bases:
         if base.stem.upper() in cells:
@@ -190,9 +191,13 @@ def insert_cell(conn, dataset_id: uuid.UUID, base: Path, description: str = '') 
     return inserted
 
 
-def import_zip(source: Path, dataset_name: str, queued_id=None):
-    if not source.is_file() or source.suffix.lower() != ".zip":
-        raise ValueError("source must be an existing .zip archive")
+def import_source(source: Path, dataset_name: str, queued_id=None, source_filename: str | None = None):
+    source_kind = source.suffix.lower()
+    if not source.is_file() or source_kind not in (".zip", ".000"):
+        raise ValueError("source must be an existing .zip archive or .000 S-57 cell")
+    source_filename = PurePosixPath((source_filename or source.name).replace("\\", "/")).name
+    if source_kind == ".000" and not source_filename.lower().endswith(".000"):
+        raise ValueError("uploaded .000 cell must retain its original filename")
     checksum = digest(source)
     dataset_id = queued_id or uuid.uuid4()
     with db_connection() as conn:
@@ -218,17 +223,26 @@ def import_zip(source: Path, dataset_name: str, queued_id=None):
                 conn.execute("INSERT INTO enc.import_job(id,source_path,state,started_at) VALUES(%s,%s,'extracting',now())", (dataset_id, str(source)))
         try:
             with tempfile.TemporaryDirectory(prefix="enc-import-") as temporary:
-                bases = extract_archive(source, Path(temporary))
+                root = Path(temporary)
+                descriptions = {}
+                if source_kind == ".zip":
+                    bases = extract_archive(source, root)
+                    for catalog in root.rglob('*'):
+                        if catalog.name.upper() == 'CATALOG.031':
+                            descriptions.update(catalog_descriptions(catalog.read_bytes()))
+                else:
+                    # GDAL derives the cell identifier from the filename. Copy it
+                    # to an isolated directory so unrelated uploads cannot supply
+                    # accidental update files with the same cell stem.
+                    base = root / source_filename
+                    shutil.copyfile(source, base)
+                    bases = [base]
                 if not bases:
                     raise ValueError("ENC archive has no .000 base cells")
                 with conn.transaction():
                     conn.execute("UPDATE enc.import_job SET state='reading' WHERE id=%s", (dataset_id,))
                 with conn.transaction():
                     conn.execute("SELECT pg_advisory_xact_lock(713480192)")
-                    descriptions = {}
-                    for catalog in Path(temporary).rglob('*'):
-                        if catalog.name.upper() == 'CATALOG.031':
-                            descriptions.update(catalog_descriptions(catalog.read_bytes()))
                     total = sum(insert_cell(conn, dataset_id, base, descriptions.get(base.stem.upper(),'')) for base in bases)
                     conn.execute(
                         "UPDATE enc.dataset SET feature_count=%s,bounds=(SELECT ST_SetSRID(ST_Extent(c.bounds)::geometry,4326) FROM enc.import_item i JOIN enc.cell_revision r ON r.id=i.revision_id JOIN enc.cell c ON c.dataset_id=r.storage_dataset_id AND c.name=r.cell_name WHERE i.batch_id=%s),state='ready',ready_at=now() WHERE id=%s",
@@ -255,10 +269,13 @@ def backfill_catalog():
                 if not source.is_absolute():
                     source = Path(os.environ.get('ENC_IMPORT_DIR','/data/enc/uploads')) / source
                 if not source.is_file():
-                    LOG.warning('Backfill skipped %s: source ZIP unavailable',batch_id)
+                    LOG.warning('Backfill skipped %s: source file unavailable',batch_id)
                     continue
                 if digest(source) != expected:
                     raise ValueError(f'Backfill source checksum mismatch: {batch_id}')
+                if source.suffix.lower() != '.zip':
+                    # A direct .000 upload has no CATALOG.031 metadata to backfill.
+                    continue
                 with zipfile.ZipFile(source) as archive:
                     descriptions = {}
                     members = {}
@@ -303,7 +320,7 @@ def watch():
                 conn.execute("UPDATE enc.dataset SET state='failed' WHERE id=%s", (job_id,))
         while True:
             with conn.transaction():
-                job = conn.execute("SELECT j.id,d.name FROM enc.import_job j JOIN enc.dataset d ON d.id=j.id WHERE j.state='queued' ORDER BY j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1").fetchone()
+                job = conn.execute("SELECT j.id,d.name,j.source_path,d.source_filename FROM enc.import_job j JOIN enc.dataset d ON d.id=j.id WHERE j.state='queued' ORDER BY j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1").fetchone()
                 if job:
                     conn.execute("UPDATE enc.import_job SET state='extracting',started_at=now() WHERE id=%s", (job[0],))
             if not job:
@@ -312,8 +329,8 @@ def watch():
             try:
                 root = Path(os.environ.get("ENC_IMPORT_DIR", "/data/enc/uploads"))
                 with tempfile.TemporaryFile() as output:
-                    result = subprocess.run([sys.executable, __file__, "--zip", str(root / (str(job[0]) + ".zip")),
-                                             "--dataset", job[1], "--queued-id", str(job[0])],
+                    result = subprocess.run([sys.executable, __file__, "--source", str(root / job[2]),
+                                             "--source-filename", job[3], "--dataset", job[1], "--queued-id", str(job[0])],
                                             stdout=output, stderr=output, timeout=3600)
                     output.seek(0, os.SEEK_END)
                     output.seek(max(0,output.tell()-1800))
@@ -331,7 +348,8 @@ def watch():
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--zip", type=Path, dest="source")
+    parser.add_argument("--source", "--zip", type=Path, dest="source")
+    parser.add_argument("--source-filename", help=argparse.SUPPRESS)
     parser.add_argument("--dataset")
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--backfill-catalog", action="store_true")
@@ -344,11 +362,11 @@ def main():
         watch()
         return
     if not args.source or not args.dataset:
-        parser.error("use --watch or supply --zip and --dataset")
+        parser.error("use --watch or supply --source and --dataset")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,79}", args.dataset):
         parser.error("dataset must be 1-80 ASCII letters, digits or hyphens")
     try:
-        import_zip(args.source, args.dataset, args.queued_id)
+        import_source(args.source, args.dataset, args.queued_id, args.source_filename)
     except Exception as error:
         print(f"ENC import failed: {error}", file=os.sys.stderr)
         raise

@@ -6,6 +6,19 @@
 Atlas có đủ ảnh cho các nhánh hiện được gọi; vẫn có lớp nguồn chưa được vẽ,
 nhánh dùng ký hiệu chung và các thủ tục CSP chưa triển khai đầy đủ.
 
+**Cập nhật sau bổ sung hạ tầng:** các lớp cáp/ống, công trình bờ, cầu phao,
+sông/kênh/hồ đã có biểu diễn; 44 SLCONS điểm dùng MORFAC03. FSHFAC03 đã sửa
+tọa độ bằng hình có sẵn trong atlas. Số đối tượng không có layer phù hợp còn
+2140, fallback còn 0 trong audit hình học nguồn. Xem
+[INFRASTRUCTURE-PORTRAYAL.md](INFRASTRUCTURE-PORTRAYAL.md) và bảng coverage mới.
+Các con số và danh sách thiếu ở những mục bên dưới ghi lại lần rà soát ban đầu.
+
+**Cập nhật atlas:** đã thay JSON/PNG của cả ba theme bằng bộ 499 ảnh/theme
+(232 gốc, 263 SVG đối chiếu catalogue, 4 texture đường của viewer).
+Audit dữ liệu không ghi nhận ảnh thiếu hoặc ô sprite ngoài giới hạn.
+Build frontend thành công; xem bản đồ ở ba theme và bảng ký hiệu không ghi nhận
+lỗi runtime trong phiên xem. Nguồn và cách đóng gói: [sprites/README.md](sprites/README.md).
+
 ## Đối tượng LIGHTS trong ảnh
 
 - Cell `US5WI32M`, LNAM `0226A7C7C7A43039`, RCID 30.
@@ -25,7 +38,7 @@ nhánh dùng ký hiệu chung và các thủ tục CSP chưa triển khai đầy
   10.4 hải lý. Bán kính hiện tại 80 CSS px là profile viewer, chưa hiệu chuẩn
   kích thước vật lý 26 mm của sơ đồ LIGHTS06.
 
-## Phạm vi đã kiểm tra
+## Phạm vi đã kiểm tra ở lần rà soát ban đầu
 
 - 70 revision/cell active; 130252 bản ghi feature kể cả metadata.
 - Sau khi bỏ M_* và primitive: 128615 đối tượng địa lý, 106 lớp.
@@ -58,7 +71,7 @@ không được diễn giải tất cả 6221 trường hợp là thiếu icon c
 - Truyền LITVIS qua tile và vẽ sector bị che/kém nhìn thấy bằng cung đen
   nét đứt cho LITVIS 3/7/8; dữ liệu có 7 sector liên quan.
 
-## Khoảng trống còn lại
+## Khoảng trống ghi nhận ở lần rà soát ban đầu
 
 - CBLOHD, CBLSUB, PIPSOL: chưa có đường cáp/ống; PIPOHD/CONVYR hiện chỉ có
   nhánh radar nổi bật, không có đường cơ sở khi nhánh đó không áp dụng.

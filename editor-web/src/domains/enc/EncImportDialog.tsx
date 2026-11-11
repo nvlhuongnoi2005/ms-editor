@@ -2,7 +2,7 @@ import { DataManagerTabs, type DataManagerSection } from '../../shared/DataManag
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { Trash2, Upload } from 'lucide-react';
-import { inspectEncArchive, uploadEnc, validateImportName, type ArchiveSummary, type EncImport } from './imports';
+import { inspectEncFile, uploadEnc, validateImportName, type ImportFileSummary, type EncImport } from './imports';
 
 type Props = { datasets: EncImport[]; error: string; onClose: () => void; onRefresh: () => void; onImported: (id: string) => void; onView: (id: string) => void; onDelete: (item: EncImport) => void };
 const stages: Record<string, string> = { queued: 'Chờ worker', extracting: 'Đang giải nén', reading: 'Đang đọc S-57', ready: 'Đã xử lý', failed: 'Thất bại' };
@@ -10,7 +10,7 @@ const stages: Record<string, string> = { queued: 'Chờ worker', extracting: 'Đ
 export function EncImportDialog({ datasets, error: catalogError, onClose, onRefresh, onImported, onView, onDelete }: Props) {
   const [section, setSection] = useState<DataManagerSection>('datasets');
   const [file, setFile] = useState<File | null>(null), [name, setName] = useState('');
-  const [summary, setSummary] = useState<ArchiveSummary | null>(null);
+  const [summary, setSummary] = useState<ImportFileSummary | null>(null);
   const [checking, setChecking] = useState(false), [busy, setBusy] = useState(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
@@ -21,10 +21,10 @@ export function EncImportDialog({ datasets, error: catalogError, onClose, onRefr
     const current = ++generation.current;
     setFile(next); setSummary(null); setError(''); setNotice('');
     if (!next) { setChecking(false); return; }
-    setName(next.name.replace(/\.zip$/i, '').replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-+/, '').slice(0, 80));
+    setName(next.name.replace(/\.(?:zip|000)$/i, '').replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-+/, '').slice(0, 80));
     setChecking(true);
     try {
-      const result = await inspectEncArchive(next);
+      const result = await inspectEncFile(next);
       if (mounted.current && current === generation.current) setSummary(result);
     } catch (reason) { if (mounted.current && current === generation.current) setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { if (mounted.current && current === generation.current) setChecking(false); }
@@ -39,7 +39,7 @@ export function EncImportDialog({ datasets, error: catalogError, onClose, onRefr
       const id = await uploadEnc(file, name, setProgress, controller.current.signal);
       if (!mounted.current) return;
       setFile(null); setName(''); setSummary(null);
-      setNotice('Đã tiếp nhận ZIP. Worker xử lý nền; bạn có thể đóng bảng và tiếp tục xem hải đồ.');
+      setNotice('Đã tiếp nhận file ENC. Worker xử lý nền; bạn có thể đóng bảng và tiếp tục xem hải đồ.');
       onImported(id); onRefresh();
     } catch (reason) { if (mounted.current) { setError(reason instanceof Error ? reason.message : String(reason)); onRefresh(); } }
     finally { if (mounted.current) { setBusy(false); setProgress(null); } controller.current = null; }
@@ -49,7 +49,7 @@ export function EncImportDialog({ datasets, error: catalogError, onClose, onRefr
     <DataManagerTabs value={section} onChange={setSection} prefix="enc-data" datasets={datasets.filter(item => item.state === 'ready').length} jobs={datasets.length} />
     <DialogContent dividers>
       <Stack spacing={2}>
-        <Alert severity="info">Mỗi ZIP tạo một lần nhập. Cell hợp lệ được ghép vào kho ENC chung; bản trùng được dùng lại, bản xung đột không tự công bố.</Alert>
+        <Alert severity="info">Có thể tải ZIP chứa cell .000 và các update, hoặc tải trực tiếp một cell .000 (không kèm update). Cell hợp lệ được ghép vào kho ENC chung; bản trùng được dùng lại, bản xung đột không tự công bố.</Alert>
         {catalogError && <Alert severity="error" action={<Button color="inherit" onClick={onRefresh}>Tải lại</Button>}>{catalogError}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
@@ -65,12 +65,13 @@ export function EncImportDialog({ datasets, error: catalogError, onClose, onRefr
 
         <Typography component="h3" variant="subtitle2">Upload hải đồ S-57</Typography>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-          <Button component="label" variant="outlined" disabled={busy} startIcon={<Upload size={16} />}>Chọn ZIP ENC<input hidden type="file" accept=".zip,application/zip" onChange={event => { const next = event.target.files?.[0] ?? null; event.target.value = ''; void selectFile(next); }} /></Button>
+          <Button component="label" variant="outlined" disabled={busy} startIcon={<Upload size={16} />}>Chọn ZIP hoặc cell .000<input hidden type="file" accept=".zip,application/zip,.000" onChange={event => { const next = event.target.files?.[0] ?? null; event.target.value = ''; void selectFile(next); }} /></Button>
           <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{file ? `${file.name} · ${(file.size / 1048576).toFixed(1)} MiB` : 'Chưa chọn file'}</Typography>
         </Stack>
         <TextField label="Tên lần nhập mới" fullWidth value={name} disabled={busy} onChange={event => setName(event.target.value)} error={Boolean(nameError)} helperText={nameError || 'Tối đa 100 MiB. Tên duy nhất, 1–80 chữ ASCII, số hoặc gạch ngang.'} slotProps={{ htmlInput: { maxLength: 80 } }} />
-        {checking && <Box role="status"><LinearProgress /><Typography variant="caption">Đang kiểm tra cấu trúc ZIP và chuỗi update…</Typography></Box>}
-        {summary && <Alert severity="success">Đã kiểm tra cấu trúc: {summary.cells} cell gốc, {summary.updates} update. Server sẽ kiểm tra nội dung S-57 trước khi công bố.</Alert>}
+        {checking && <Box role="status"><LinearProgress /><Typography variant="caption">Đang kiểm tra cấu trúc file…</Typography></Box>}
+        {summary?.kind === 'zip' && <Alert severity="success">ZIP có {summary.cells} cell gốc và {summary.updates} update. Server sẽ kiểm tra nội dung S-57 trước khi công bố.</Alert>}
+        {summary?.kind === 'cell' && <Alert severity="success">Đã nhận dạng một cell S-57 .000. File này không kèm chuỗi update; server sẽ kiểm tra nội dung bằng GDAL.</Alert>}
         {progress !== null && <Box role="status"><LinearProgress variant="determinate" value={progress} /><Typography variant="caption">Upload {progress}% · Worker xử lý sau khi server tiếp nhận xong file.</Typography></Box>}
         <Button variant="contained" disabled={!file || !summary || !name || Boolean(nameError) || checking || busy || Boolean(catalogError)} onClick={() => void upload()}>{busy ? 'Đang tải lên…' : 'Upload và nhập hải đồ'}</Button>
         </Stack></Box>
@@ -80,7 +81,7 @@ export function EncImportDialog({ datasets, error: catalogError, onClose, onRefr
         {!datasets.length && <Typography variant="body2">Chưa có tác vụ import.</Typography>}
         {datasets.map(item => <Box key={item.id} sx={{ borderBottom: '1px solid #d4d3c8', pb: 2 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.name}</Typography><Chip size="small" color={item.state === 'failed' ? 'error' : item.state === 'ready' ? 'success' : 'default'} label={stages[item.jobState] || item.jobState} /></Stack>
-          <Typography variant="caption">{item.sourceFilename || 'ZIP ENC'}{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}` : ''}</Typography>
+          <Typography variant="caption">{item.sourceFilename || 'File ENC'}{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}` : ''}</Typography>
           {item.state === 'importing' && <LinearProgress sx={{ my: 1 }} />}
           {item.state === 'ready' && <Typography variant="body2">{item.outcomes?.imported ?? 0} đã nhập · {item.outcomes?.duplicate ?? 0} trùng · {item.outcomes?.older ?? 0} cũ · {item.outcomes?.conflict ?? 0} xung đột</Typography>}
           {item.error && <Alert severity="error" sx={{ mt: 1, overflowWrap: 'anywhere' }}>{item.error}</Alert>}

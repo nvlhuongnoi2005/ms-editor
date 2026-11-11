@@ -8,7 +8,8 @@ import { loadSource } from './test-source.mjs';
 
 const sectorURL = await loadSource('../src/domains/enc/lightSectors.ts');
 const spriteURL = await loadSource('../src/domains/enc/sprites.ts', {'./lightSectors':sectorURL});
-const { localEncStyle } = await import(await loadSource('../src/domains/enc/style.ts', {'./sprites':spriteURL}));
+const infrastructureURL = await loadSource('../src/domains/enc/infrastructure.ts');
+const { localEncStyle } = await import(await loadSource('../src/domains/enc/style.ts', {'./sprites':spriteURL,'./infrastructure':infrastructureURL}));
 const { isSectorLight } = await import(sectorURL);
 globalThis.window = {location:{origin:'http://localhost'}};
 const style = localEncStyle('','','day');
@@ -22,7 +23,7 @@ for (const theme of ['day','dusk','night']) {
     invalidSprites.set(name,[...(invalidSprites.get(name)??[]),theme]);
   }
 }
-const sources = await Promise.all(['sprites.ts','style.ts','lightSectors.ts'].map(file =>
+const sources = await Promise.all(['sprites.ts','style.ts','lightSectors.ts','infrastructure.ts'].map(file =>
   readFile(new URL('../src/domains/enc/'+file,import.meta.url),'utf8')));
 const fields = [...new Set(sources.join('\n').match(/'([A-Z][A-Z_0-9]+)'/g).map(value => value.slice(1,-1)))];
 // Group by portrayal attributes to avoid transferring repeated source metadata.
@@ -62,7 +63,7 @@ const candidates = style.layers.filter(layer => layer.source==='enc' && ['enc','
   && !layer.id.startsWith('enc-position-quality'))
   .map(layer => ({layer,filter:expression(layer.filter??true),
     icon:expression(layer.layout?.['icon-image']??''),text:expression(layer.layout?.['text-field']??''),
-    pattern:expression(layer.paint?.['fill-pattern']??'')}));
+    pattern:expression(layer.paint?.['fill-pattern']??layer.paint?.['line-pattern']??'')}));
 const sectors = expression(isSectorLight);
 const summary = new Map(), missingImages = new Set();
 const lights = {total:0,arcs:0,flares:0,special:0};
@@ -86,9 +87,9 @@ for (const row of rows) {
     if (!candidate.filter(feature)) continue;
     if (layer.id==='enc-unmapped-points') { fallback = true; continue; }
     let visible = layer.type!=='symbol';
-    const image = layer.type==='fill'?candidate.pattern(feature):candidate.icon(feature);
+    const image = layer.type==='symbol'?candidate.icon(feature):candidate.pattern(feature);
     if (image) {
-      if (!image.startsWith('s52-sector:') && (!atlas[image]||invalidSprites.has(image))) missingImages.add(image);
+      if (!/^s52-(sector|line):/.test(image) && (!atlas[image]||invalidSprites.has(image))) missingImages.add(image);
       else visible = true;
     }
     if (layer.type==='symbol' && String(candidate.text(feature)??'').length) visible = true;

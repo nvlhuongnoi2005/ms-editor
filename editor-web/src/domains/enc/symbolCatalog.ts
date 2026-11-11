@@ -1,4 +1,5 @@
 import spriteAtlas from '../../../../ENC/sprites/day_simplified@2x.json';
+import spriteAdditions from '../../../../ENC/sprites/additions.json';
 
 // Ý nghĩa đối chiếu S-52 PresLib 4.0(.3) Symbol Catalogue và inventory của atlas.
 // Khóa là mã ảnh, không phải mã lớp S-57: một lớp có thể dùng nhiều biến thể.
@@ -223,9 +224,17 @@ for (const [code, shape] of Object.entries(topmarkShapes)) {
   descriptions[code] = `Dấu đỉnh của ${floating ? 'phao' : 'mốc cố định'}, ${shape}.`;
 }
 
-export const encSymbols = Object.entries(spriteAtlas).sort(([a], [b]) => a.localeCompare(b)).map(([code, sprite]) => ({
-  code, description: descriptions[code] ?? 'Chưa có giải thích cho ký hiệu này.', sprite,
-}));
+const addedDescriptions = spriteAdditions.entries as Record<string,{description:string}>;
+export const encSymbols = Object.entries(spriteAtlas).sort(([a], [b]) => a.localeCompare(b)).map(([code, sprite]) => {
+  const digit = /^(SOUNDG|SOUNDS)([0-5])([0-9])$/.exec(code);
+  const safetyDigit = /^SAFCON[0-9]([0-9])$/.exec(code);
+  const description = descriptions[code]
+    ?? (digit ? `Chữ số ${digit[3]} trong ký hiệu độ sâu (${digit[1]}).` : undefined)
+    ?? (safetyDigit ? `Chữ số ${safetyDigit[1]} của đường đồng sâu an toàn.` : undefined)
+    ?? addedDescriptions[code]?.description
+    ?? 'Chưa có giải thích cho ký hiệu này.';
+  return {code,description,sprite};
+});
 
 // Tìm tiếng Việt không phân biệt dấu để có thể gõ nhanh, ví dụ "phao" hay "do sau".
 export function normalizeSymbolSearch(value: string) {

@@ -8,7 +8,8 @@ const sectorsURL = await loadSource('../src/domains/enc/lightSectors.ts');
 const spriteURL = await loadSource('../src/domains/enc/sprites.ts', { './lightSectors':sectorsURL });
 const sprites = await import(spriteURL);
 const sectors = await import(sectorsURL);
-const { localEncStyle } = await import(await loadSource('../src/domains/enc/style.ts', { './sprites':spriteURL }));
+const infrastructureURL = await loadSource('../src/domains/enc/infrastructure.ts');
+const { localEncStyle } = await import(await loadSource('../src/domains/enc/style.ts', { './sprites':spriteURL,'./infrastructure':infrastructureURL }));
 
 function properties(object_class, attributes = {}, dimension = 0) {
   const result = { object_class, s52_geometry:dimension, ...attributes };
@@ -224,7 +225,7 @@ test('every possible symbol output exists in each shipped theme', async () => {
     .flatMap(registry => Object.values(registry).flatMap(outputs)))];
   for (const theme of ['day','dusk','night']) {
     const atlas = JSON.parse(await readFile(new URL(`../../ENC/sprites/${theme}_simplified@2x.json`,import.meta.url),'utf8'));
-    assert.equal(Object.keys(atlas).length,232);
+    assert.equal(Object.keys(atlas).length,499);
     for (const name of names) assert.ok(atlas[name],`${theme}: ${name}`);
   }
 });

@@ -48,12 +48,12 @@ WITH tile AS (
  SELECT *, CASE WHEN $1<11 THEN 64 WHEN $1<14 THEN 32 ELSE 16 END AS sounding_spacing
  FROM viewport
 ), cell_safety AS MATERIALIZED (
- -- If the configured 6 m contour is absent, use the next deeper chart contour.
+ -- Use the configured contour; if it is absent, use the next deeper chart contour.
  -- Keep this cell-wide so the effective contour does not change at tile edges.
  SELECT c.dataset_id,c.name,min((f.attributes->>'VALDCO')::double precision) AS contour
  FROM candidates c JOIN enc.feature f ON f.dataset_id=c.dataset_id AND f.cell_name=c.name
  WHERE f.object_class='DEPCNT' AND CASE WHEN jsonb_typeof(f.attributes->'VALDCO')='number'
- THEN (f.attributes->>'VALDCO')::double precision>=6 ELSE false END
+ THEN (f.attributes->>'VALDCO')::double precision>=$6::double precision ELSE false END
  GROUP BY c.dataset_id,c.name
 ), position_quality AS MATERIALIZED (
  -- QUAPOS is a spatial attribute in S-57; GDAL keeps it on the linked primitive,
@@ -69,7 +69,26 @@ WITH tile AS (
  f.attributes || COALESCE(normalized.properties,'{}'::jsonb) ||
  jsonb_build_object('s52_geometry',ST_Dimension(f.geometry),
    's52_quapos',COALESCE(f.attributes->>'QUAPOS',linked_quality.quapos),
-   's52_surrounding_depth',depth_context.deepest_lower_bound,'s52_safety_contour',safety.contour) ||
+    's52_surrounding_depth',depth_context.deepest_lower_bound,
+    's52_safety_contour',COALESCE(safety.contour,$6::double precision),
+    's52_safety_depth',$7::double precision,
+    -- Class-level viewer profile: the supplied Symbol Catalogue describes
+    -- symbols and measurements, while the full S-52 lookup/CSP tables are not
+    -- part of this repo. Unlisted classes stay available under OTHER.
+    's52_display_category',CASE
+      WHEN f.object_class IN ('DEPARE','DRGARE','LNDARE','COALNE','DEPCNT') THEN 'BASE'
+      WHEN f.object_class IN (
+        'ACHARE','ACHBRT','ADMARE','AIRARE','BCNLAT','BCNSPP','BERTHS','BOYCAR','BOYLAT','BOYSAW','BOYSPP',
+        'BRIDGE','BUAARE','BUISGL','CANALS','CBLARE','CBLOHD','CBLSUB','CGUSTA','CONVYR','CONZNE','COSARE',
+        'CRANES','CTNARE','CTSARE','CURENT','DAMCON','DAYMAR','DISMAR','DMPGRD','DRYDOC','DYKCON','EXEZNE',
+        'FAIRWY','FERYRT','FLODOC','FNCLNE','FOGSIG','FORSTC','FSHFAC','FSHGRD','FSHZNE','GATCON','HRBFAC',
+        'HULKES','ICEARE','LAKARE','LIGHTS','LNDELV','LNDRGN','LNDMRK','LOCMAG','MAGVAR','MARCUL','MIPARE',
+        'MORFAC','NAVLNE','NEWOBJ','OBSTRN','OFSPLF','OSPARE','PILBOP','PILPNT','PIPARE','PIPOHD','PIPSOL',
+        'PONTON','PRCARE','PRDARE','PYLONS','RAPIDS','RDOCAL','RDOSTA','RECTRC','RESARE','RETRFL','RIVERS',
+        'ROADWY','RTPBCN','RUNWAY','SBDARE','SEAARE','SILTNK','SISTAW','SLCONS','SLOGRD','SLOTOP','SMCFAC',
+        'SNDWAV','SOUNDG','TESARE','TOPMAR','TSEZNE','TSSBND','TSSLPT','TIDSTR','TIDEHT','WATTUR','WEDKLP'
+      ) THEN 'STANDARD'
+      ELSE 'OTHER' END) ||
  CASE WHEN f.object_class='TOPMAR' THEN jsonb_build_object('topmark_floating',EXISTS(
    SELECT 1 FROM enc.feature platform WHERE platform.dataset_id=f.dataset_id AND platform.cell_name=f.cell_name
    AND platform.object_class IN ('BOYLAT','BOYCAR','BOYISD','BOYSAW','BOYSPP','BOYINB','LITFLT','LITVES')
@@ -118,7 +137,8 @@ WITH tile AS (
    WHERE key IN ('COLOUR','CATCAM','CATLAM','CATSPM','BOYSHP','BCNSHP','CONVIS','CATLMK','FUNCTN',
      'TOPSHP','CATWRK','WATLEV','CATOBS','CATSIL','CATMOR','CATFIF','CATGAT','CATROS','CATTRK',
      'TRAFIC','RESTRN','CATVEG','QUASOU','QUAPOS','NATSUR','NATQUA','CATREA','CATPRA','CATLND','CONRAD',
-     'CATLIT','LITVIS','CATHAF','CATCHP','CATSLO','CATBRG','CATSCF','CAT_TS')
+     'CATLIT','LITVIS','CATHAF','CATCHP','CATSLO','CATBRG','CATSCF','CAT_TS',
+     'CATSLC','CONDTN','CATCBL','CATPIP','PRODCT','CATCON','CATDAM','STATUS')
  ) normalized ON true
  WHERE $1>=9 AND NOT ST_IsEmpty(m.visible) AND f.geometry && m.visible
  AND f.object_class NOT IN ('IsolatedNode','ConnectedNode','Edge','Face')

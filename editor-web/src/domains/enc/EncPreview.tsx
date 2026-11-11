@@ -6,7 +6,7 @@ import type { StyleSpecification } from 'maplibre-gl';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './enc-workspace.css';
-import { localEncStyle, type EncTheme } from './style';
+import { localEncStyle, type EncDisplayCategory, type EncTheme } from './style';
 import { EncImportDialog } from './EncImportDialog';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
 import { EncSymbolCatalog } from './EncSymbolCatalog';
@@ -29,10 +29,29 @@ async function readJSON<T>(response: Response): Promise<T> {
   return data as T;
 }
 
+function readDepthPreference(key: string): number {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored == null) return 6;
+    const value = Number(stored);
+    return Number.isFinite(value) && value >= 0 && value <= 12000 ? value : 6;
+  } catch { return 6; }
+}
+
+function readCategoryPreference(): EncDisplayCategory {
+  try {
+    const value = localStorage.getItem('enc.displayCategory');
+    return value === 'base' || value === 'other' ? value : 'standard';
+  } catch { return 'standard'; }
+}
+
 export function EncPreview() {
   const container = useRef<HTMLDivElement | null>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [theme, setTheme] = useState<EncTheme>('day');
+  const [safetyContourValue, setSafetyContourValue] = useState(() => readDepthPreference('enc.safetyContour'));
+  const [safetyDepthValue, setSafetyDepthValue] = useState(() => readDepthPreference('enc.safetyDepth'));
+  const [displayCategory, setDisplayCategory] = useState<EncDisplayCategory>(readCategoryPreference);
   const [source, setSource] = useState('local');
   const [importOpen, setImportOpen] = useState(false);
   const [symbolsOpen, setSymbolsOpen] = useState(false);
@@ -62,6 +81,14 @@ export function EncPreview() {
   const cell = cells.find(item => item.name === cellName);
   const visibleCell = cell ?? cells.filter(item => item.bounds && camera.longitude >= item.bounds[0] && camera.longitude <= item.bounds[2] && camera.latitude >= item.bounds[1] && camera.latitude <= item.bounds[3]).reduce<Cell | undefined>((best, item) => !best || (item.bounds![2]-item.bounds![0])*(item.bounds![3]-item.bounds![1]) < (best.bounds![2]-best.bounds![0])*(best.bounds![3]-best.bounds![1]) ? item : best, undefined);
   const position = (value: number, positive: string, negative: string) => `${Math.floor(Math.abs(value))}°${((Math.abs(value) % 1) * 60).toFixed(2).padStart(5,'0')}′${value < 0 ? negative : positive}`;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('enc.safetyContour', String(safetyContourValue));
+      localStorage.setItem('enc.safetyDepth', String(safetyDepthValue));
+      localStorage.setItem('enc.displayCategory', displayCategory);
+    } catch { /* Keep the current session settings when storage is unavailable. */ }
+  }, [safetyContourValue, safetyDepthValue, displayCategory]);
 
   useEffect(() => {
     if (!selected || importOpen || deleteTarget || symbolsOpen) return;
@@ -151,12 +178,12 @@ export function EncPreview() {
     instance.on('error', failure);
     if (source === 'local' && ((datasetId && dataset?.state !== 'ready') || !cells.length)) {
       setState('empty');
-      instance.setStyle(localEncStyle('', '', theme, catalogRevision, true));
+      instance.setStyle(localEncStyle('', '', theme, catalogRevision, true, safetyContourValue, safetyDepthValue, displayCategory));
     } else {
       setState('loading');
       const load = async () => {
         try {
-          const style = source === 'local' ? localEncStyle(datasetId, cellName, theme, catalogRevision) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
+          const style = source === 'local' ? localEncStyle(datasetId, cellName, theme, catalogRevision, false, safetyContourValue, safetyDepthValue, displayCategory) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
           if (controller.signal.aborted) return;
           if (typeof style.sprite === 'string') style.sprite = new URL(style.sprite, location.origin).href;
           instance.once('idle', idle);
@@ -166,7 +193,7 @@ export function EncPreview() {
       void load();
     }
     return () => { controller.abort(); instance.off('idle', idle); instance.off('error', failure); };
-  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload, catalogRevision]);
+  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload, catalogRevision, safetyContourValue, safetyDepthValue, displayCategory]);
 
   const fit = () => {
     const allBounds = cells.reduce<Bounds | null>((bounds, item) => !item.bounds ? bounds : !bounds ? [...item.bounds] : [Math.min(bounds[0],item.bounds[0]),Math.min(bounds[1],item.bounds[1]),Math.max(bounds[2],item.bounds[2]),Math.max(bounds[3],item.bounds[3])], null);
@@ -228,7 +255,7 @@ export function EncPreview() {
       <Dialog open={deleteTarget !== null} onClose={() => { if (!deleting) setDeleteTarget(null); }} aria-labelledby="enc-delete-title" aria-describedby="enc-delete-description" fullWidth maxWidth="xs">
         <DialogTitle id="enc-delete-title">Xóa dataset ENC?</DialogTitle>
         <DialogContent>
-          <DialogContentText id="enc-delete-description">Xóa lần nhập “{deleteTarget?.name}” và ZIP upload. Phiên bản cell còn được lần nhập khác sử dụng sẽ được giữ lại. Bản đồ chung sẽ tự chọn lại phiên bản còn hợp lệ.</DialogContentText>
+          <DialogContentText id="enc-delete-description">Xóa lần nhập “{deleteTarget?.name}” và file đã upload. Phiên bản cell còn được lần nhập khác sử dụng sẽ được giữ lại. Bản đồ chung sẽ tự chọn lại phiên bản còn hợp lệ.</DialogContentText>
           {deleteError && <Alert severity="error">{deleteError}</Alert>}
         </DialogContent>
         <DialogActions>
@@ -273,20 +300,36 @@ export function EncPreview() {
               </TextField>
               {dataset && <Button color="error" variant="outlined" startIcon={<Trash2 size={16} />} disabled={dataset.state === 'importing' || deleting} onClick={() => { setDeleteTarget(dataset); setDeleteError(''); setDeleteNotice(''); }}>Xóa dataset{dataset.state === 'failed' ? ' import lỗi' : ''}</Button>}
               {deleteNotice && <Alert severity="info" onClose={() => setDeleteNotice('')}>{deleteNotice}</Alert>}
-              {dataset?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Worker đang xử lý ZIP. Dữ liệu sẽ xuất hiện khi import hoàn tất. Có thể xóa dataset sau khi xử lý xong.</Alert>}
+              {dataset?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Worker đang xử lý ENC. Dữ liệu sẽ xuất hiện khi import hoàn tất. Có thể xóa dataset sau khi xử lý xong.</Alert>}
               {dataset?.state === 'failed' && <Alert severity="error">{dataset.error || 'Import thất bại.'}</Alert>}
               {!datasetId && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{cells.length} cell đang công bố · tự động ghép từ các lần nhập</Typography>}
               {importSummary?.state === 'ready' && importSummary.outcomes && <Alert severity={importSummary.outcomes.conflict ? 'warning' : 'success'}>{importSummary.name}: {importSummary.outcomes.imported ?? 0} cell đã nhập, {importSummary.outcomes.duplicate ?? 0} cell trùng, {importSummary.outcomes.older ?? 0} bản cũ, {importSummary.outcomes.conflict ?? 0} xung đột. Cell xung đột không tự công bố.</Alert>}
-              {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Đang nhập ZIP mới. Bản đồ chung vẫn hiển thị hải đồ đã công bố.</Alert>}
+              {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Đang nhập ENC mới. Bản đồ chung vẫn hiển thị hải đồ đã công bố.</Alert>}
               {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'failed' && <Alert severity="error">{datasets.find(item => item.id === lastImportId)?.error || 'Lần nhập mới thất bại.'}</Alert>}
               {cells.length > 0 && <TextField select label="Phạm vi hiển thị" size="small" slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} value={cellName} onChange={event => setCellName(event.target.value)}><MenuItem value="">Tất cả cell · tự động</MenuItem>{cells.map(item => <MenuItem key={item.revisionId ?? item.name} value={item.name}>{item.description || item.name} · {item.name}</MenuItem>)}</TextField>}
               {dataset?.state === 'ready' && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{cells.length} cell · {dataset.featureCount.toLocaleString('vi-VN')} feature</Typography>}
-              {!datasets.length && !catalogError && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Chưa có ENC. Tải lên ZIP gồm cell .000 và các update đi kèm, hoặc chọn OpenENC demo.</Typography>}
+              {!datasets.length && !catalogError && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Chưa có ENC. Tải lên ZIP gồm cell .000 và các update, tải trực tiếp một cell .000, hoặc chọn OpenENC demo.</Typography>}
             </>}
             {source === 'demo' && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Dữ liệu mẫu trực tuyến từ OpenENC. Chọn “ENC đã import” để xem dữ liệu của bạn.</Typography>}
             <ToggleButtonGroup exclusive value={theme} size="small" onChange={(_, value: EncTheme | null) => value && setTheme(value)} aria-label="Chế độ màu ENC" sx={{ '& .MuiToggleButton-root': { flex: 1, gap: 0.6, fontSize: 11.5, textTransform: 'none' } }}>
               {themes.map(item => { const Icon = item.icon; return <ToggleButton key={item.value} value={item.value}><Icon size={15} />{item.label}</ToggleButton>; })}
             </ToggleButtonGroup>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Danh mục hiển thị · Display Base luôn bật</Typography>
+            <ToggleButtonGroup exclusive value={displayCategory} size="small" disabled={source !== 'local'}
+              onChange={(_, value: EncDisplayCategory | null) => value && setDisplayCategory(value)} aria-label="Danh mục đối tượng ENC"
+              sx={{ '& .MuiToggleButton-root': { flex: 1, fontSize: 11.5, textTransform: 'none' } }}>
+              <ToggleButton value="base">Cơ bản</ToggleButton><ToggleButton value="standard">Chuẩn</ToggleButton><ToggleButton value="other">Tất cả</ToggleButton>
+            </ToggleButtonGroup>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Ngưỡng an toàn · mét</Typography>
+            <Stack direction="row" spacing={1}>
+              <TextField fullWidth size="small" type="number" label="Safety depth" value={safetyDepthValue}
+                disabled={source !== 'local'} slotProps={{ htmlInput: { min: 0, max: 12000, step: 0.1 } }}
+                onChange={event => { const value = Number(event.target.value); if (event.target.value !== '' && Number.isFinite(value) && value >= 0 && value <= 12000) setSafetyDepthValue(value); }} />
+              <TextField fullWidth size="small" type="number" label="Safety contour" value={safetyContourValue}
+                disabled={source !== 'local'} slotProps={{ htmlInput: { min: 0, max: 12000, step: 0.1 } }}
+                onChange={event => { const value = Number(event.target.value); if (event.target.value !== '' && Number.isFinite(value) && value >= 0 && value <= 12000) setSafetyContourValue(value); }} />
+            </Stack>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Safety depth tô màu số đo độ sâu. Safety contour tô vùng nông và làm nổi đường đồng sâu khả dụng tiếp theo.</Typography>
             <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Độ sâu: mét · Mật độ chi tiết tự điều chỉnh theo mức zoom</Typography>
             <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography role="status" aria-live="polite" sx={{ fontSize: 12, color: state === 'error' ? 'error.main' : 'text.secondary' }}>{state === 'loading' ? 'Đang tải hải đồ…' : state === 'ready' ? 'Hải đồ sẵn sàng' : state === 'empty' ? 'Chọn dữ liệu để xem' : 'Không tải được hải đồ'}</Typography>

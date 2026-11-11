@@ -5,11 +5,25 @@ export type EncImport = {
   bounds: [number, number, number, number] | null; outcomes?: Record<string, number>;
 };
 export type ArchiveSummary = { cells: number; updates: number };
+export type ImportFileSummary = ArchiveSummary & { kind: 'zip' | 'cell' };
 
 export function validateImportName(name: string, existing: readonly EncImport[]): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9-]{0,79}$/.test(name)) return 'Dùng 1–80 chữ cái ASCII, số hoặc dấu gạch ngang; bắt đầu bằng chữ hoặc số.';
   if (existing.some(item => item.name === name)) return 'Tên lần nhập đã tồn tại. Hãy chọn tên khác.';
   return '';
+}
+
+// Inspect the selected source locally; GDAL remains authoritative for S-57 content.
+export async function inspectEncFile(file: File): Promise<ImportFileSummary> {
+  if (!/\.(?:zip|000)$/i.test(file.name)) throw new Error('Chọn ZIP ENC hoặc file cell S-57 .000.');
+  if (!file.size) throw new Error('File ENC trống.');
+  if (file.size > maxEncUploadBytes) throw new Error('File vượt giới hạn 100 MiB.');
+  if (/\.000$/i.test(file.name)) {
+    const header = new Uint8Array(await file.slice(0, 24).arrayBuffer());
+    if (header.length < 24 || header[6] !== 76) throw new Error('File .000 không có header ISO 8211 hợp lệ.');
+    return { kind: 'cell', cells: 1, updates: 0 };
+  }
+  return { kind: 'zip', ...await inspectEncArchive(file) };
 }
 
 // Inspect only the ZIP directory; decompression and ISO 8211 validation remain on the server.
