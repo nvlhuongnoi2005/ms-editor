@@ -88,7 +88,7 @@ export function GeometryToolsDialog({ group, count, polygonCount, circularizable
   const field = { size: 'small' as const, fullWidth: true };
   return (
     <Paper component="section" ref={panel} tabIndex={-1} role="dialog" aria-modal={false} aria-labelledby={titleId} aria-describedby={descriptionId}
-      sx={{ position: 'fixed', zIndex: 1300, right: { xs: 8, md: 20 }, bottom: { xs: 40, md: 'auto' }, top: { md: 72 }, width: { xs: 'calc(100% - 16px)', sm: 400 }, maxHeight: { xs: '56dvh', md: 'calc(100dvh - 120px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, boxShadow: '0 8px 28px rgba(15,23,42,.22)', '&:focus': { outline: 'none' } }}>
+      sx={{ position: 'fixed', zIndex: 1300, right: { xs: 8, md: 20 }, bottom: { xs: 52, md: 'auto' }, top: { md: 72 }, width: { xs: 'calc(100% - 16px)', sm: 400 }, maxHeight: { xs: '56dvh', md: 'calc(100dvh - 120px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '4px', border: '1px solid', borderColor: 'divider', '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 } }}>
       <DialogTitle id={titleId} sx={{ px: 2.5, pt: 2, pb: 1.5, pr: 7, fontSize: 18, fontWeight: 800 }}>
         {geometryToolGroups.find(item => item.id === group)!.label}
         <Typography component="span" sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontSize: 12, fontWeight: 400 }}>{count} đối tượng đang chọn{group !== 'lock' && group !== 'area' && impact?.complete ? ` · ${impact.nodes} node` : ''}</Typography>

@@ -25,7 +25,8 @@ yêu cầu viết design và implement của người dùng.
 
 ## Signature
 
-- Dấu **ENC** đỏ đặc nằm cạnh tên Hải đồ; nhận diện bằng chữ thay huy hiệu trang trí.
+- Nhận diện và menu ENC dùng `WorkspaceNavigation` chung của GEODATA; trạng thái
+  **Chỉ xem** hiện cạnh menu, tác vụ dữ liệu ở cuối header.
 - Lề danh mục màu giấy ngà, ghép sát mép bản đồ, không bóng nổi hay thẻ lồng thẻ.
 - Tên vùng hiện hành là nội dung nổi bật nhất trong lề; mã cell và edition/update
   là dấu nhận diện dữ liệu, chỉ hiện khi có dữ liệu thực.
@@ -48,10 +49,13 @@ yêu cầu viết design và implement của người dùng.
 | Type | IBM Plex Sans Regular / SemiBold, self-hosted |
 | Radius | 2–4 px controls; không dùng pill |
 
-Font lưu tại `editor-web/src/domains/enc/assets/`; nguồn IBM/plex, giấy phép
+Font lưu tại `editor-web/src/shared/assets/`; nguồn IBM/plex, giấy phép
 SIL Open Font License đi kèm trong `PLEX-LICENSE.txt`. Không tải font bên ngoài
-khi người dùng mở ứng dụng. `DESIGN.md` ở gốc đã khai báo font ENC riêng để
-kiểm tra design system nhận biết phạm vi thay đổi.
+khi người dùng mở ứng dụng. `DESIGN.md` ở gốc khai báo font dùng chung để
+kiểm tra design system nhận biết phạm vi thay đổi. Tên font là
+`GeodataSans`; palette và typography cấp hệ thống theo `../DESIGN.md`.
+Bảng thuộc tính đưa OBJNAM, độ sâu, màu và đặc tính đèn lên trước mã nguồn;
+các trường đo độ sâu/chiều cao ghi đơn vị mét cạnh tên trường.
 
 ## Bố cục
 

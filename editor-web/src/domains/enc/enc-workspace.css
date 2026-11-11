@@ -1,6 +1,4 @@
-@font-face{font-family:EncPlex;src:url('./assets/plex-sans.woff2') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:EncPlex;src:url('./assets/plex-sans-semibold.woff2') format('woff2');font-weight:600 900;font-display:swap}
-.enc-workspace{--enc-paper:#f5f2e9;--enc-surface:#fcfbf7;--enc-ink:#252c2b;--enc-muted:#626a63;--enc-rule:#d4d3c8;--enc-red:#8b2235;color:var(--enc-ink);font-family:EncPlex,sans-serif!important}
+.enc-workspace{--enc-paper:#f5f2e9;--enc-surface:#fcfbf7;--enc-ink:#252c2b;--enc-muted:#626a63;--enc-rule:#d4d3c8;--enc-red:#8b2235;color:var(--enc-ink);font-family:GeodataSans,sans-serif!important}
 .enc-workspace ::selection{background:#ead3d6;color:#501625}
 .enc-workspace :focus-visible{outline:2px solid var(--enc-red);outline-offset:3px}
 .enc-workspace .MuiTypography-root,.enc-workspace .MuiButton-root,.enc-workspace .MuiInputBase-root,.enc-workspace .MuiFormLabel-root{font-family:inherit}
@@ -40,7 +38,7 @@
 .enc-footline .enc-foot-status{margin-left:auto;color:var(--enc-muted)}
 .enc-workspace .maplibregl-ctrl-group{border:1px solid var(--enc-rule);border-radius:3px;background:var(--enc-surface);box-shadow:none}
 .enc-workspace .maplibregl-ctrl-group button{width:34px;height:34px}
-.enc-workspace .maplibregl-ctrl-scale{background:var(--enc-paper);border-color:var(--enc-muted);font-family:EncPlex,sans-serif}
+.enc-workspace .maplibregl-ctrl-scale{background:var(--enc-paper);border-color:var(--enc-muted);font-family:GeodataSans,sans-serif}
 .enc-workspace .maplibregl-ctrl-attrib{background:var(--enc-surface);font-size:10px;border-radius:0}
 @media(max-width:700px){.enc-sidebar{width:min(340px,calc(100% - 56px))!important;padding:16px!important}.enc-masthead{gap:10px!important;padding-left:12px!important;padding-right:8px!important}.enc-masthead .MuiButton-root{font-size:11px}.enc-footline{padding:0 10px;gap:12px;font-size:10px}.enc-footline .enc-foot-extra{display:none}.enc-chart-title{font-size:22px!important}.enc-tabs .MuiButton-root{min-height:44px}.enc-workspace .maplibregl-ctrl-group button{width:40px;height:40px}}
 @media(prefers-reduced-motion:reduce){.enc-workspace *{transition:none!important;animation:none!important}}

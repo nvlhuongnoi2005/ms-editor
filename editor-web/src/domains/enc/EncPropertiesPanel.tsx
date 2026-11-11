@@ -12,6 +12,9 @@ const displayValue = (value: unknown): string => {
   return typeof value === 'object' ? JSON.stringify(value) : String(value);
 };
 
+// Lead with chart information; source identifiers stay available afterwards.
+const propertyOrder = ['OBJNAM','DEPTH','VALSOU','DRVAL1','DRVAL2','VALDCO','COLOUR','LITCHR','SIGPER','VALNMR','HEIGHT','WATLEV','CATLAM','CATCAM','cell_name'];
+
 export function EncPropertiesPanel({ properties, onClose, onFitBounds }: Props) {
   const region = properties.kind === 'region' || properties.kind === 'label';
   const title = displayValue(properties.object_class ?? properties.name ?? 'Đối tượng ENC');
@@ -25,7 +28,12 @@ export function EncPropertiesPanel({ properties, onClose, onFitBounds }: Props) 
       ['Nhà sản xuất', properties.producer],
       ['Revision', properties.revisionId],
     ]
-    : Object.entries(properties).filter(([key]) => !['feature_id', 'object_class', 'topmark_floating'].includes(key) && !key.startsWith('sym_') && !key.startsWith('list_'));
+    : Object.entries(properties)
+      .filter(([key]) => !['feature_id', 'object_class', 'topmark_floating'].includes(key) && !key.startsWith('sym_') && !key.startsWith('list_'))
+      .sort(([left], [right]) => {
+        const rank = (key: string) => propertyOrder.includes(key) ? propertyOrder.indexOf(key) : propertyOrder.length;
+        return rank(left) - rank(right);
+      });
   let bounds: [number, number, number, number] | undefined;
   if (region) {
     try {
@@ -48,7 +56,7 @@ export function EncPropertiesPanel({ properties, onClose, onFitBounds }: Props) 
     <Box className="enc-properties-body">
       <Box component="dl" className="enc-properties-list">
         {entries.map(([key, value]) => <Box component="div" key={String(key)} className="enc-properties-row">
-          <Box component="dt">{String(key)}</Box>
+          <Box component="dt">{String(key)}{['DEPTH','VALSOU','DRVAL1','DRVAL2','VALDCO','HEIGHT'].includes(String(key)) ? ' · m' : ''}</Box>
           <Box component="dd">{displayValue(value)}</Box>
         </Box>)}
       </Box>

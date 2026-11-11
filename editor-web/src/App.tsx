@@ -8,7 +8,6 @@ import {
   Collapse,
   CssBaseline,
   Divider,
-  GlobalStyles,
   IconButton,
   InputBase,
   ListSubheader,
@@ -68,9 +67,10 @@ import { MapCanvas, type MapPointerStatus, type MapViewport } from './features/m
 import { ViewportGraphLoader } from './features/map/ViewportGraphLoader';
 import { GRAPH_MIN_ZOOM } from './features/map/graphRendering';
 import { resolvePointIcon, type PointIconName } from './features/map/styleRules';
+import { WorkspaceNavigation } from './shared/WorkspaceNavigation';
 import type { Coordinate, EntityType, GraphFeature, RelationMember, SelectedEntity, Tags } from './types/osm';
 
-const propertiesWidth = 400;
+const propertiesWidth = 360;
 const CHANGESET_COMMENT = 'Chỉnh sửa từ Geodata WebGIS';
 const EMPTY_GRAPH: GraphFeature[] = [];
 
@@ -138,8 +138,8 @@ function FeatureTypeGlyph({ preset }: { preset?: Preset }) {
   const palette = featureTypePalette(preset);
   const Icon = featureTypeIcon(preset);
   return (
-    <Box sx={{ width: 76, alignSelf: 'stretch', display: 'grid', placeItems: 'center', borderRight: '1px solid #e2e6eb', bgcolor: '#f8fafc' }} aria-hidden="true">
-      <Icon size={42} color={palette.icon} strokeWidth={1.8} />
+    <Box sx={{ width: 76, alignSelf: 'stretch', display: 'grid', placeItems: 'center', borderRight: '1px solid #e2e6eb', bgcolor: '#f5f2e9' }} aria-hidden="true">
+      <Icon size={42} color={palette.background} strokeWidth={1.8} />
     </Box>
   );
 }
@@ -262,7 +262,7 @@ function RelationMembersEditor({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography sx={{ color: '#7a1426', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+        <Typography sx={{ color: '#681626', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>
           Thành viên quan hệ
         </Typography>
         <Chip label={`${members.length} thành viên`} size="small" sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#f1edff', color: '#5b21b6' }} />
@@ -317,7 +317,7 @@ function RelationMembersEditor({
 
       {(selected.parents?.length ?? 0) > 0 && (
         <Box>
-          <Typography sx={{ mt: 0.5, mb: 0.65, color: '#7a1426', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>Quan hệ cha</Typography>
+          <Typography sx={{ mt: 0.5, mb: 0.65, color: '#681626', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>Quan hệ cha</Typography>
           <Stack direction="row" sx={{ gap: 0.5, flexWrap: 'wrap' }}>
             {selected.parents?.map(parent => (
               <Chip key={parent.id} label={parent.tags.name || 'Quan hệ cha chưa đặt tên'} size="small" sx={{ bgcolor: '#f1edff', color: '#5b21b6', fontWeight: 600 }} />
@@ -450,7 +450,7 @@ function PropertiesEditor({
     <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
       {/* Feature type / OSM preset */}
       <Box>
-        <Typography sx={{ color: '#7a1426', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', mb: 0.8 }}>
+        <Typography sx={{ color: '#681626', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', mb: 0.8 }}>
           Thể loại đối tượng
         </Typography>
         <Paper
@@ -467,30 +467,30 @@ function PropertiesEditor({
             display: 'flex',
             overflow: 'hidden',
             textAlign: 'left',
-            color: '#1e293b',
+            color: '#252c2b',
             bgcolor: '#ffffff',
             border: '1px solid #dce1e7',
             borderRadius: 1.5,
             cursor: availablePresets.length ? 'pointer' : 'not-allowed',
             transition: 'border-color .15s ease, transform .15s ease',
-            '&:hover': availablePresets.length ? { borderColor: presetPalette.border, transform: 'translateY(-1px)', bgcolor: '#f8fafc' } : {},
+            '&:hover': availablePresets.length ? { borderColor: presetPalette.border, transform: 'translateY(-1px)', bgcolor: '#f5f2e9' } : {},
             '&:focus-visible': { outline: `2px solid ${presetPalette.border}`, outlineOffset: 2 }
           }}
         >
           <FeatureTypeGlyph preset={activePreset} />
           <Box sx={{ minWidth: 0, flex: 1, px: 1.5, py: 1.1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography sx={{ color: '#1e293b', fontSize: 14, fontWeight: 800 }}>
+            <Typography sx={{ color: '#252c2b', fontSize: 14, fontWeight: 800 }}>
               {activePreset?.label ?? (availablePresets.length ? 'Chọn thể loại' : 'Không có thể loại phù hợp')}
             </Typography>
             {activePreset && (
-              <Typography noWrap sx={{ mt: 0.35, color: '#64748b', fontSize: 11 }}>
+              <Typography noWrap sx={{ mt: 0.35, color: '#626a63', fontSize: 11 }}>
                 {presetGroupLabel}
               </Typography>
             )}
           </Box>
-          <Box sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#64748b' }} aria-hidden="true"><ChevronDown size={18} /></Box>
+          <Box sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#626a63' }} aria-hidden="true"><ChevronDown size={18} /></Box>
           <Tooltip title={activePreset ? 'Nhấn để thay đổi thể loại' : 'Chọn thể loại cho đối tượng'}>
-            <Box component="span" sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#64748b' }} aria-hidden="true"><Info size={16} /></Box>
+            <Box component="span" sx={{ width: 39, display: 'grid', placeItems: 'center', borderLeft: '1px solid #e2e6eb', color: '#626a63' }} aria-hidden="true"><Info size={16} /></Box>
           </Tooltip>
         </Paper>
         <Collapse in={presetPickerOpen} timeout={160} unmountOnExit>
@@ -534,7 +534,7 @@ function PropertiesEditor({
                 const groupPresets = menuPresets.filter(preset => preset.group === group.id);
                 return groupPresets.length
                   ? [
-                      <ListSubheader key={`${group.id}-header`} disableSticky sx={{ bgcolor: 'transparent', color: '#64748b', fontSize: 11, fontWeight: 800, lineHeight: '28px' }}>
+                      <ListSubheader key={`${group.id}-header`} disableSticky sx={{ bgcolor: 'transparent', color: '#626a63', fontSize: 11, fontWeight: 800, lineHeight: '28px' }}>
                         {group.label}
                       </ListSubheader>,
                       ...groupPresets.map(preset => {
@@ -551,14 +551,14 @@ function PropertiesEditor({
                               width: 'calc(100% - 8px)',
                               justifyContent: 'flex-start',
                               borderRadius: 1,
-                              color: isActive ? '#7d172a' : '#1e293b',
+                              color: isActive ? '#7d172a' : '#252c2b',
                               bgcolor: isActive ? '#f7e9ec' : 'transparent',
                               fontSize: 13,
                               fontWeight: isActive ? 800 : 500,
                               textAlign: 'left',
                               textTransform: 'none',
-                              '&:hover': { bgcolor: isActive ? '#f3d8de' : '#f8fafc' },
-                              '&:focus-visible': { outline: '2px solid #9b192e', outlineOffset: -2 }
+                              '&:hover': { bgcolor: isActive ? '#f3d8de' : '#f5f2e9' },
+                              '&:focus-visible': { outline: '2px solid #8b2235', outlineOffset: -2 }
                             }}
                           >
                             {preset.label}
@@ -569,7 +569,7 @@ function PropertiesEditor({
                   : [];
               })}
               {menuPresets.length === 0 && (
-                <Typography sx={{ px: 1.5, py: 1.25, color: '#64748b', fontSize: 12 }}>
+                <Typography sx={{ px: 1.5, py: 1.25, color: '#626a63', fontSize: 12 }}>
                   Không tìm thấy thể loại phù hợp.
                 </Typography>
               )}
@@ -590,13 +590,13 @@ function PropertiesEditor({
       {/* Fields supplied by the selected preset. */}
       <Box>
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-          <Typography sx={{ color: '#7a1426', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+          <Typography sx={{ color: '#681626', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>
             Thuộc tính
           </Typography>
           <Chip
             label={activePreset ? activePreset.label : 'Thuộc tính chung'}
             size="small"
-            sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#f4f6f8' }}
+            sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#fcfbf7' }}
           />
         </Stack>
 
@@ -618,15 +618,15 @@ function PropertiesEditor({
                     borderColor: value ? '#d9c3c8' : '#dbe3ea',
                     bgcolor: '#ffffff',
                     transition: 'border-color 160ms ease, box-shadow 160ms ease',
-                    '&:focus-within': { borderColor: '#9b192e', boxShadow: '0 0 0 3px rgba(155, 25, 46, 0.12)' }
+                    '&:focus-within': { borderColor: '#8b2235', boxShadow: '0 0 0 3px rgba(155, 25, 46, 0.12)' }
                   }}
                 >
                   <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 1 }}>
                     <Box>
-                      <Typography sx={{ color: '#1e293b', fontSize: 13, fontWeight: 800 }}>
+                      <Typography sx={{ color: '#252c2b', fontSize: 13, fontWeight: 800 }}>
                         {field.label}{field.required ? ' *' : ''}
                       </Typography>
-                      <Typography sx={{ mt: 0.2, color: '#64748b', fontSize: 10.5 }}>
+                      <Typography sx={{ mt: 0.2, color: '#626a63', fontSize: 10.5 }}>
                         {field.type === 'yesno' ? 'Chọn trạng thái của đối tượng' : `${options.length} lựa chọn`}
                       </Typography>
                     </Box>
@@ -649,7 +649,7 @@ function PropertiesEditor({
                           textTransform: 'none',
                           borderColor: '#d8e0e7'
                         },
-                        '& .Mui-selected': { bgcolor: '#fff1f2 !important', color: '#9b192e !important', borderColor: '#d49aa4 !important' }
+                        '& .Mui-selected': { bgcolor: '#fff1f2 !important', color: '#8b2235 !important', borderColor: '#d49aa4 !important' }
                       }}
                     >
                       {choiceOptions.map(option => <ToggleButton key={option.value || 'unknown'} value={option.value}>{option.label}</ToggleButton>)}
@@ -698,7 +698,7 @@ function PropertiesEditor({
                   bgcolor: '#ffffff',
                   cursor: 'text',
                   transition: 'border-color 160ms ease, box-shadow 160ms ease',
-                  '&:focus-within': { borderColor: '#9b192e', boxShadow: '0 0 0 3px rgba(155, 25, 46, 0.12)' }
+                  '&:focus-within': { borderColor: '#8b2235', boxShadow: '0 0 0 3px rgba(155, 25, 46, 0.12)' }
                 }}
               >
                 <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
@@ -715,7 +715,7 @@ function PropertiesEditor({
                   onChange={event => updateValue(field.key, event.target.value)}
                   onBlur={() => commit(`Cập nhật ${field.label}`)}
                   inputProps={{ min: field.type === 'number' ? 0 : undefined, 'aria-label': field.label }}
-                  sx={{ mt: 0.25, color: '#1e293b', fontSize: 16, fontWeight: 650, '& input': { py: 0.15 } }}
+                  sx={{ mt: 0.25, color: '#252c2b', fontSize: 16, fontWeight: 650, '& input': { py: 0.15 } }}
                 />
               </Paper>
             );
@@ -726,13 +726,13 @@ function PropertiesEditor({
       {/* Tags not represented by the selected preset stay fully editable. */}
       <Box>
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.2 }}>
-          <Typography sx={{ color: '#7a1426', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+          <Typography sx={{ color: '#681626', fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase' }}>
             Thẻ nâng cao
           </Typography>
           <Chip
             label={`${advancedTagEntries.length} thẻ`}
             size="small"
-            sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#f4f6f8' }}
+            sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#fcfbf7' }}
           />
         </Stack>
 
@@ -815,8 +815,8 @@ function PropertiesEditor({
           renderOption={(props, option) => (
             <li {...props} key={option.key}>
               <Box sx={{ py: 0.5 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{option.label}</Typography>
-                <Typography sx={{ color: '#64748b', fontFamily: 'monospace', fontSize: 11 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#252c2b' }}>{option.label}</Typography>
+                <Typography sx={{ color: '#626a63', fontFamily: 'monospace', fontSize: 11 }}>
                   {option.key} · {option.description}
                 </Typography>
               </Box>
@@ -859,7 +859,7 @@ function PropertiesEditor({
         >
           Xóa đối tượng này
         </Button>
-        <Typography sx={{ mt: 1, color: '#64748b', fontSize: 11, textAlign: 'center' }}>
+        <Typography sx={{ mt: 1, color: '#626a63', fontSize: 11, textAlign: 'center' }}>
           Các thay đổi sẽ được áp dụng khi nhấn nút Lưu trên thanh công cụ.
         </Typography>
       </Box>
@@ -1786,83 +1786,27 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   }, [pendingMutation, draft.blocked, activateDrawMode, canRedo, canUndo, changeCount, conflictSession, datasetManagerOpen, drawMode, geometryToolGroup, locksOpen, handleCancelDrawing, handleCopySelection, handlePasteSelection, handleDeleteSelected, handleDuplicateSelected, handleFinishDrawing, handleSave, historyOpen, redo, saving, selectFeature, selected, selectedKey, undo]);
 
   return (
-    <Box inert={draft.blocked} sx={{ height: '100dvh', width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '56px minmax(0, 1fr) 32px', overflow: 'hidden', bgcolor: '#edf0f3' }}>
+    <Box className="osm-workspace" inert={draft.blocked} sx={{ height: '100dvh', width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '56px minmax(0, 1fr) 32px', overflow: 'hidden', bgcolor: '#f5f2e9' }}>
       {draft.dialog}
       <CssBaseline />
-      <GlobalStyles styles={{
-        ':root': {
-          '--editor-red-950': '#4c0f1b',
-          '--editor-red-800': '#7a1426',
-          '--editor-red-700': '#9b192e',
-          '--editor-red-50': '#fff6f7',
-          '--editor-surface': '#ffffff',
-          '--editor-border': '#e2e8f0',
-          '--editor-ink': '#1e293b',
-          '--editor-muted': '#64748b',
-          '--editor-focus': 'rgba(155, 25, 46, 0.12)'
-        },
-        'html, body, #root': { minHeight: '100%', backgroundColor: '#edf0f3' },
-        '*': { boxSizing: 'border-box' },
-        '::selection': { backgroundColor: '#f3d8de', color: '#4c0f1b' },
-        'input, textarea': { caretColor: '#9b192e' },
-        'button, [role="button"]': { transition: 'background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease' },
-        'button:focus-visible, [role="button"]:focus-visible, input:focus-visible, [role="tab"]:focus-visible': { outline: '2px solid #9b192e', outlineOffset: 2 },
-        '.MuiMenu-paper, .MuiPopover-paper': { border: '1px solid #e2e8f0', boxShadow: '0 10px 28px rgba(15, 23, 42, 0.14)' },
-        '.maplibregl-ctrl-group': { borderRadius: '10px !important', boxShadow: '0 8px 24px rgba(70, 12, 26, 0.14) !important', overflow: 'hidden', border: '1px solid rgba(155, 25, 46, 0.22)' },
-        '.maplibregl-ctrl button': { width: '38px !important', height: '38px !important' },
-        '.maplibregl-ctrl button:hover': { backgroundColor: '#fff1f2 !important' },
-        '.maplibregl-canvas-container, .maplibregl-canvas': { borderRadius: '14px' },
-        '*::-webkit-scrollbar': { width: 8, height: 8 },
-        '*::-webkit-scrollbar-thumb': { backgroundColor: '#c98a97', borderRadius: 8, border: '2px solid transparent', backgroundClip: 'content-box' },
-        '@media (prefers-reduced-motion: reduce)': { '*, *::before, *::after': { scrollBehavior: 'auto !important', transitionDuration: '0.01ms !important', animationDuration: '0.01ms !important' } }
-      }} />
-
       {/* Top Header / App Bar */}
-      <AppBar
+      <AppBar className="osm-masthead"
         inert={Boolean(geometryToolGroup)}
         position="static"
         elevation={0}
         sx={{
-          backgroundColor: '#7a1426',
+          backgroundColor: '#681626',
           color: '#ffffff',
           borderBottom: '1px solid rgba(0, 0, 0, 0.25)',
           zIndex: 10
         }}
       >
         <Toolbar variant="dense" sx={{ minHeight: '56px !important', px: { xs: 1, sm: 2 }, gap: { xs: 0.75, sm: 1.5 }, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
-          {/* Logo & Application Title */}
-          <Stack direction="row" sx={{ alignItems: 'center', gap: 1.25, flexShrink: 0 }}>
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                display: 'grid',
-                placeItems: 'center',
-                bgcolor: '#ffffff',
-                color: '#9b192e',
-                borderRadius: 2,
-                fontWeight: 900,
-                fontSize: 16,
-                border: '1px solid rgba(255,255,255,0.72)'
-              }}
-            >
-              <Crosshair size={17} aria-hidden="true" />
-            </Box>
-            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 14, letterSpacing: 0.5, lineHeight: 1.15, whiteSpace: 'nowrap' }}>
-                GEODATA WEBGIS
-              </Typography>
-              <Typography sx={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.75)', letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
-                Biên tập & Quản lý bản đồ
-              </Typography>
-            </Box>
-          </Stack>
-
-          <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255, 255, 255, 0.2)', mx: 0.5 }} />
+          <WorkspaceNavigation mode="osm" disabled={saving || Boolean(pendingCloseId) || Boolean(geometryToolGroup)} />
 
           {/* Sync Status Badge */}
           <Tooltip title="Trạng thái đồng bộ dữ liệu bản đồ">
-            <Stack
+            <Stack className="workspace-sync"
               direction="row"
               sx={{
                 alignItems: 'center',
@@ -1874,7 +1818,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 borderRadius: 4
               }}
             >
-              <Box
+              <Box className="workspace-sync-dot"
                 sx={{
                   width: 8,
                   height: 8,
@@ -1889,45 +1833,16 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             </Stack>
           </Tooltip>
 
-          <Box sx={{ flex: 1 }} />
+          <Box className="workspace-toolbar-spacer" sx={{ flex: 1 }} />
 
           {/* Feature count & actions */}
-          <Stack direction="row" sx={{ alignItems: 'center', gap: { xs: 0.75, sm: 1.5 }, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <Stack className="workspace-header-actions" direction="row" sx={{ alignItems: 'center', gap: { xs: 0.75, sm: 1.5 }, flexShrink: 0, whiteSpace: 'nowrap' }}>
             {graphVisible && (
               <Typography sx={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.85)', display: { xs: 'none', lg: 'block' } }}>
                 {features.length > 0 ? `${features.length.toLocaleString('vi-VN')} đối tượng` : 'Chưa có đối tượng'}
                 {changeCount > 0 && ` · ${changeCount} chỉnh sửa`}
               </Typography>
             )}
-
-            <Tooltip title="Quay về bảng chọn chế độ OSM / ENC">
-              <Button href={window.location.pathname} size="small" color="inherit" aria-label="Chọn chế độ" sx={{ minWidth: 32, px: 0.75 }}>
-                <Layers size={17} aria-hidden="true" />
-              </Button>
-            </Tooltip>
-
-            <Tooltip title="Mở chế độ xem hải đồ ENC">
-              <Button
-                href="?mode=enc"
-                size="small"
-                aria-label="Hải đồ ENC"
-                disabled={saving || Boolean(pendingCloseId)}
-                startIcon={<Waves size={17} aria-hidden="true" />}
-                sx={{
-                  color: '#ffffff',
-                  bgcolor: 'rgba(255, 255, 255, 0.12)',
-                  borderRadius: 1.5,
-                  px: 1.25,
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.22)' },
-                  '&.Mui-disabled': { color: 'rgba(255,255,255,0.5)' }
-                }}
-              >
-                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Hải đồ ENC</Box>
-                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>ENC</Box>
-              </Button>
-            </Tooltip>
 
             <Tooltip title="Đi tới vị trí theo tọa độ">
               <Button
@@ -1957,8 +1872,8 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               onClose={() => { setCoordinateAnchor(null); setCoordinateError(null); }}
               slotProps={{ paper: { sx: { width: 330, mt: 0.75, p: 1.5, borderRadius: 2, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' } } }}
             >
-              <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#1e293b', mb: 0.5 }}>Đi tới tọa độ</Typography>
-              <Typography sx={{ fontSize: 11, color: '#64748b', mb: 1.25 }}>Nhập theo thứ tự vĩ độ, kinh độ.</Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#252c2b', mb: 0.5 }}>Đi tới tọa độ</Typography>
+              <Typography sx={{ fontSize: 11, color: '#626a63', mb: 1.25 }}>Nhập theo thứ tự vĩ độ, kinh độ.</Typography>
               <TextField
                 autoFocus
                 fullWidth
@@ -1972,7 +1887,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               />
               <Stack direction="row" sx={{ mt: 1.25, gap: 1, justifyContent: 'flex-end' }}>
                 <Button size="small" onClick={() => setCoordinateAnchor(null)} sx={{ textTransform: 'none' }}>Hủy</Button>
-                <Button size="small" variant="contained" onClick={handleLocateCoordinate} sx={{ textTransform: 'none', bgcolor: '#9b192e', '&:hover': { bgcolor: '#851224' } }}>Định vị</Button>
+                <Button size="small" variant="contained" onClick={handleLocateCoordinate} sx={{ textTransform: 'none', bgcolor: '#8b2235', '&:hover': { bgcolor: '#851224' } }}>Định vị</Button>
               </Stack>
             </Menu>
 
@@ -2005,20 +1920,20 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             >
               <MenuItem onClick={() => handleExport('osm')}>
                 <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Xuất tệp dữ liệu (.osm)</Typography>
-                  <Typography sx={{ fontSize: 11, color: '#64748b' }}>Toàn bộ đối tượng trong vùng đang xem</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#252c2b' }}>Xuất tệp dữ liệu (.osm)</Typography>
+                  <Typography sx={{ fontSize: 11, color: '#626a63' }}>Toàn bộ đối tượng trong vùng đang xem</Typography>
                 </Box>
               </MenuItem>
               <MenuItem onClick={() => handleExport('osc')}>
                 <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Xuất tập thay đổi (.osc)</Typography>
-                  <Typography sx={{ fontSize: 11, color: '#64748b' }}>Các chỉnh sửa đã lưu gần nhất</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#252c2b' }}>Xuất tập thay đổi (.osc)</Typography>
+                  <Typography sx={{ fontSize: 11, color: '#626a63' }}>Các chỉnh sửa đã lưu gần nhất</Typography>
                 </Box>
               </MenuItem>
               <MenuItem disabled={saving || drawMode !== 'select'} onClick={() => { setExportAnchor(null); setHistoryOpen(true); }}>
                 <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#9b192e' }}>Lịch sử / Revert changeset</Typography>
-                  <Typography sx={{ fontSize: 11, color: '#64748b' }}>Chọn một trong 3 changeset gần nhất</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#8b2235' }}>Lịch sử / Revert changeset</Typography>
+                  <Typography sx={{ fontSize: 11, color: '#626a63' }}>Chọn một trong 3 changeset gần nhất</Typography>
                 </Box>
               </MenuItem>
             </Menu>
@@ -2028,7 +1943,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
             {/* Prominent Save Button */}
             <Tooltip title={drawVertices.length ? 'Hoàn tất hoặc hủy bản vẽ dở trước khi lưu vào hệ thống' : changeCount > 0 ? `Lưu ${changeCount} thay đổi vào hệ thống (Ctrl+S)` : 'Không có thay đổi nào cần lưu'}>
               <span>
-                <Button
+                <Button className="workspace-save"
                   size="small"
                   variant="contained"
                   disabled={saving || Boolean(geometryToolGroup) || Boolean(pendingMutation) || drawVertices.length > 0 || (!changeCount && !pendingCloseId)}
@@ -2038,7 +1953,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                     height: 32,
                     borderRadius: 1.5,
                     bgcolor: changeCount > 0 ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
-                    color: changeCount > 0 ? '#7a1426' : 'rgba(255, 255, 255, 0.65)',
+                    color: changeCount > 0 ? '#681626' : 'rgba(255, 255, 255, 0.65)',
                     fontSize: 12,
                     fontWeight: 800,
                     textTransform: 'none',
@@ -2077,26 +1992,26 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           <Box sx={{ px: 1.25, py: 1 }}>
             <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Typography noWrap sx={{ color: '#1e293b', fontSize: 12.5, fontWeight: 800 }}>{selectedName || 'Công cụ biên tập'}</Typography>
-                <Typography sx={{ mt: 0.15, color: '#64748b', fontFamily: 'monospace', fontSize: 10 }}>
+                <Typography noWrap sx={{ color: '#252c2b', fontSize: 12.5, fontWeight: 800 }}>{selectedName || 'Công cụ biên tập'}</Typography>
+                <Typography sx={{ mt: 0.15, color: '#626a63', fontFamily: 'monospace', fontSize: 10 }}>
                   {selectedKeys.length > 1 ? `${selectedKeys.length} đối tượng đang chọn` : selected ? `${selected.type}/${selected.id}` : lockedKeys.length + lockedLayers.length > 0 ? `${lockedKeys.length} đối tượng · ${lockedLayers.length} layer đang khóa` : 'Dán đối tượng từ bộ nhớ tạm'}
                 </Typography>
               </Box>
             </Stack>
           </Box>
           <Divider />
-          <MenuItem disabled={saving || !selected} onClick={() => handleCopySelection()} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#64748b' } }}>
+          <MenuItem disabled={saving || !selected} onClick={() => handleCopySelection()} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#626a63' } }}>
             <Copy size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Sao chép</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+C</Typography>
           </MenuItem>
-          <MenuItem disabled={saving || !geometryClipboard} onClick={() => handlePasteSelection()} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#64748b' } }}>
+          <MenuItem disabled={saving || !geometryClipboard} onClick={() => handlePasteSelection()} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#626a63' } }}>
             <Clipboard size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Dán</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+V</Typography>
           </MenuItem>
           <MenuItem
             disabled={saving || !selected || (selected.type === 'relation' && selected.tags.type !== 'collection')}
             onClick={() => handleDuplicateSelected()}
-            sx={{ minHeight: 34, gap: 1, color: '#64748b', '&.Mui-disabled': { opacity: 0.55, color: '#64748b' } }}
+            sx={{ minHeight: 34, gap: 1, color: '#626a63', '&.Mui-disabled': { opacity: 0.55, color: '#626a63' } }}
           >
             <Files size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Nhân bản</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+D</Typography>
@@ -2104,7 +2019,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           <MenuItem
             disabled={saving || !selected}
             onClick={collectionGroups.length ? handleUngroupSelected : handleGroupSelected}
-            sx={{ minHeight: 34, gap: 1, color: '#64748b', '&:hover': { bgcolor: '#f8fafc' }, '&.Mui-disabled': { opacity: 0.55, color: '#64748b' } }}
+            sx={{ minHeight: 34, gap: 1, color: '#626a63', '&:hover': { bgcolor: '#f5f2e9' }, '&.Mui-disabled': { opacity: 0.55, color: '#626a63' } }}
           >
             <Network size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>{collectionGroups.length ? 'Bỏ nhóm' : 'Nhóm'}</Typography>
@@ -2120,7 +2035,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
           ))}
           <Divider sx={{ my: 0.25 }} />
           {(lockedKeys.length > 0 || lockedLayers.length > 0) && <MenuItem disabled={saving} onClick={() => { setSelectionMenuPosition(null); setLocksOpen(true); }} sx={{ gap: 1 }}><LockKeyhole size={15} aria-hidden="true" /><Typography sx={{ fontSize: 12, fontWeight: 750 }}>Quản lý khóa ({lockedKeys.length + lockedLayers.length})</Typography></MenuItem>}
-          <MenuItem disabled={saving || !selected} onClick={() => handleCopySelection(true)} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#64748b' } }}>
+          <MenuItem disabled={saving || !selected} onClick={() => handleCopySelection(true)} sx={{ minHeight: 34, gap: 1, '&.Mui-disabled': { opacity: 0.5, color: '#626a63' } }}>
             <Scissors size={15} aria-hidden="true" />
             <Typography sx={{ fontSize: 12, fontWeight: 750 }}>Cắt</Typography><Typography sx={{ ml: 'auto', fontSize: 10, color: '#94a3b8' }}>Ctrl+X</Typography>
           </MenuItem>
@@ -2160,15 +2075,15 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       )}
 
       {/* Main Workspace Body */}
-      <Box component="main" inert={saving || undefined} sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, position: 'relative', overflow: 'hidden', gap: { xs: 0.75, sm: 1 }, p: { xs: 0.75, sm: 1 }, bgcolor: '#edf0f3' }}>
+      <Box className="osm-main" component="main" inert={saving || undefined} sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 0, position: 'relative', overflow: 'hidden', gap: { xs: 0.75, sm: 1 }, p: { xs: 0.75, sm: 1 }, bgcolor: '#f5f2e9' }}>
         {/* Map Canvas Area */}
-        <Box sx={{ position: 'relative', minWidth: 0, minHeight: 0, flex: 1, overflow: 'hidden', bgcolor: '#e2e8f0', borderRadius: { xs: 2, sm: 3 }, border: '1px solid #d7dee6' }}>
+        <Box className="osm-map" sx={{ position: 'relative', minWidth: 0, minHeight: 0, flex: 1, overflow: 'hidden', bgcolor: '#d4d3c8', borderRadius: { xs: 2, sm: 3 }, border: '1px solid #d7dee6' }}>
           {(lockedKeys.length > 0 || lockedLayers.length > 0) && <Button size="small" variant="outlined" disabled={saving} onClick={() => setLocksOpen(true)} startIcon={<LockKeyhole size={14} aria-hidden="true" />} aria-label="Xem đối tượng và layer đang khóa" sx={{ position: 'absolute', zIndex: 10, right: 76, top: 16, bgcolor: 'background.paper', borderColor: 'divider', color: 'primary.dark', '&:hover': { bgcolor: 'primary.light' } }}>Đang khóa · {lockedKeys.length + lockedLayers.length}</Button>}
           {/* Primary editing rail */}
           <Paper
             elevation={4}
             inert={Boolean(geometryToolGroup)}
-            aria-label="Công cụ biên tập bản đồ"
+            className="osm-tool-rail" aria-label="Công cụ biên tập bản đồ"
             sx={{
               position: 'absolute',
               zIndex: 10,
@@ -2195,10 +2110,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   minWidth: 44, width: 44, height: 44, p: 0,
                   justifyContent: 'center',
                   borderRadius: 1.5,
-                  bgcolor: drawMode === 'select' ? '#9b192e' : 'transparent',
+                  bgcolor: drawMode === 'select' ? '#8b2235' : 'transparent',
                   color: drawMode === 'select' ? '#ffffff' : '#334155',
                   '&:hover': {
-                    bgcolor: drawMode === 'select' ? '#7a1426' : '#fff1f2'
+                    bgcolor: drawMode === 'select' ? '#681626' : '#fff1f2'
                   }
                 }}
               >
@@ -2217,10 +2132,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   minWidth: 44, width: 44, height: 44, p: 0,
                   justifyContent: 'center',
                   borderRadius: 1.5,
-                  bgcolor: drawMode === 'point' ? '#9b192e' : 'transparent',
+                  bgcolor: drawMode === 'point' ? '#8b2235' : 'transparent',
                   color: drawMode === 'point' ? '#ffffff' : '#334155',
                   '&:hover': {
-                    bgcolor: drawMode === 'point' ? '#7a1426' : '#fff1f2'
+                    bgcolor: drawMode === 'point' ? '#681626' : '#fff1f2'
                   }
                 }}
               >
@@ -2237,10 +2152,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   minWidth: 44, width: 44, height: 44, p: 0,
                   justifyContent: 'center',
                   borderRadius: 1.5,
-                  bgcolor: drawMode === 'line' ? '#9b192e' : 'transparent',
+                  bgcolor: drawMode === 'line' ? '#8b2235' : 'transparent',
                   color: drawMode === 'line' ? '#ffffff' : '#334155',
                   '&:hover': {
-                    bgcolor: drawMode === 'line' ? '#7a1426' : '#fff1f2'
+                    bgcolor: drawMode === 'line' ? '#681626' : '#fff1f2'
                   }
                 }}
               >
@@ -2257,10 +2172,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   minWidth: 44, width: 44, height: 44, p: 0,
                   justifyContent: 'center',
                   borderRadius: 1.5,
-                  bgcolor: drawMode === 'area' ? '#9b192e' : 'transparent',
+                  bgcolor: drawMode === 'area' ? '#8b2235' : 'transparent',
                   color: drawMode === 'area' ? '#ffffff' : '#334155',
                   '&:hover': {
-                    bgcolor: drawMode === 'area' ? '#7a1426' : '#fff1f2'
+                    bgcolor: drawMode === 'area' ? '#681626' : '#fff1f2'
                   }
                 }}
               >
@@ -2277,7 +2192,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   minWidth: 44, width: 44, height: 44, p: 0,
                   justifyContent: 'center',
                   borderRadius: 1.5,
-                  color: '#7a1426',
+                  color: '#681626',
                   '&:hover': { bgcolor: '#fff1f2' }
                 }}
               >
@@ -2363,12 +2278,12 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   onClick={handleFinishDrawing}
                   sx={{
                     borderRadius: 1.5,
-                    bgcolor: '#9b192e',
+                    bgcolor: '#8b2235',
                     fontSize: 11,
                     fontWeight: 700,
                     textTransform: 'none',
                     py: 0.3,
-                    '&:hover': { bgcolor: '#7a1426' }
+                    '&:hover': { bgcolor: '#681626' }
                   }}
                 >
                   Hoàn tất (Enter)
@@ -2385,7 +2300,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                   textTransform: 'none',
                   py: 0.3,
                   borderColor: '#cbd5e1',
-                  color: '#64748b'
+                  color: '#626a63'
                 }}
               >
                 Hủy (Esc)
@@ -2407,7 +2322,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 px: 2,
                 py: 1,
                 borderRadius: 2,
-                bgcolor: '#1e293b',
+                bgcolor: '#252c2b',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
@@ -2429,18 +2344,18 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 // with the tool rail, drawing guide, or map controls.
                 position: 'absolute', zIndex: 10, bottom: { xs: 10, sm: 16 }, left: { xs: 10, sm: 16 }, width: { xs: 'calc(100% - 20px)', sm: 320 },
                 maxHeight: 'calc(100% - 32px)', overflowY: 'auto', borderRadius: 2,
-                border: '1px solid #e2e8f0', bgcolor: '#ffffff', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.14)'
+                border: '1px solid #d4d3c8', bgcolor: '#ffffff', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.14)'
               }}
             >
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1.4, py: 1, borderBottom: '1px solid #e2e8f0', bgcolor: blockingIssues.length ? '#fff1f2' : '#f0fdf4' }}>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1.4, py: 1, borderBottom: '1px solid #d4d3c8', bgcolor: blockingIssues.length ? '#fff1f2' : '#f0fdf4' }}>
                 <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Kiểm tra dữ liệu</Typography>
-                  <Typography sx={{ fontSize: 10.5, color: '#64748b' }}>Chỉ kiểm tra đối tượng đang sửa</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#252c2b' }}>Kiểm tra dữ liệu</Typography>
+                  <Typography sx={{ fontSize: 10.5, color: '#626a63' }}>Chỉ kiểm tra đối tượng đang sửa</Typography>
                 </Box>
                 <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
                   {blockingIssues.length > 0 && <Chip label={`${blockingIssues.length} lỗi`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#fee2e2', color: '#b4233c' }} />}
                   {issues.length > blockingIssues.length && <Chip label={`${issues.length - blockingIssues.length} lưu ý`} size="small" sx={{ height: 20, fontSize: 10, fontWeight: 800, bgcolor: '#fef3c7', color: '#92400e' }} />}
-                  <Tooltip title="Thu gọn kiểm tra dữ liệu"><IconButton size="small" aria-label="Thu gọn kiểm tra dữ liệu" onClick={() => setIssuesOpen(false)} sx={{ color: '#64748b' }}><X size={16} aria-hidden="true" /></IconButton></Tooltip>
+                  <Tooltip title="Thu gọn kiểm tra dữ liệu"><IconButton size="small" aria-label="Thu gọn kiểm tra dữ liệu" onClick={() => setIssuesOpen(false)} sx={{ color: '#626a63' }}><X size={16} aria-hidden="true" /></IconButton></Tooltip>
                 </Stack>
               </Stack>
               {issues.length === 0 ? (
@@ -2452,7 +2367,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                       key={issue.id}
                       variant="text"
                       onClick={() => handleSelectIssue(issue)}
-                      sx={{ alignItems: 'flex-start', justifyContent: 'flex-start', textAlign: 'left', borderRadius: 1.25, px: 0.9, py: 0.75, textTransform: 'none', color: '#1e293b', bgcolor: issue.severity === 'error' ? '#fff7f7' : '#fffbeb', '&:hover': { bgcolor: issue.severity === 'error' ? '#fee2e2' : '#fef3c7' } }}
+                      sx={{ alignItems: 'flex-start', justifyContent: 'flex-start', textAlign: 'left', borderRadius: 1.25, px: 0.9, py: 0.75, textTransform: 'none', color: '#252c2b', bgcolor: issue.severity === 'error' ? '#fff7f7' : '#fffbeb', '&:hover': { bgcolor: issue.severity === 'error' ? '#fee2e2' : '#fef3c7' } }}
                     >
                       <Box>
                         <Typography sx={{ fontSize: 11.5, fontWeight: 800, color: issue.severity === 'error' ? '#b4233c' : '#92400e' }}>{issue.title}</Typography>
@@ -2460,7 +2375,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                       </Box>
                     </Button>
                   ))}
-                  {issues.length > 12 && <Typography sx={{ px: 0.75, color: '#64748b', fontSize: 11 }}>Và {issues.length - 12} vấn đề khác.</Typography>}
+                  {issues.length > 12 && <Typography sx={{ px: 0.75, color: '#626a63', fontSize: 11 }}>Và {issues.length - 12} vấn đề khác.</Typography>}
                 </Stack>
               )}
             </Paper>
@@ -2492,7 +2407,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 boxShadow: '0 8px 20px rgba(15,23,42,0.14)'
               }}
             >
-              <Typography role="status" aria-live="polite" sx={{ fontSize: 12.5, fontWeight: 600, color: '#1e293b', overflowWrap: 'anywhere' }}>
+              <Typography role="status" aria-live="polite" sx={{ fontSize: 12.5, fontWeight: 600, color: '#252c2b', overflowWrap: 'anywhere' }}>
                 {saveStatus}
                 {canUndo && undoOfferId !== null && undoOfferId === getDraftState().undoStack.at(-1)?.id && <Button size="small" disabled={saving || Boolean(geometryToolGroup)} onClick={() => { if (acceptCommand(undo())) { setUndoOfferId(null); setSaveStatus('Đã hoàn tác thao tác vừa áp dụng.'); } }} sx={{ ml: 1 }}>Hoàn tác</Button>}
               </Typography>
@@ -2538,7 +2453,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         {/* Feature Inspector */}
         {selected && propertiesOpen && (
           <Paper
-            component="aside"
+            className="osm-inspector" component="aside"
             inert={Boolean(geometryToolGroup)}
             aria-label="Bảng chi tiết đối tượng đang chọn"
             sx={{
@@ -2548,7 +2463,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               maxHeight: { xs: '46%', md: 'none' },
               border: '1px solid #d9c3c8',
               borderRadius: { xs: 2, md: 3 },
-              bgcolor: '#f4f6f8',
+              bgcolor: '#fcfbf7',
               display: 'flex',
               flexDirection: 'column',
               zIndex: 9,
@@ -2556,79 +2471,21 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               overflow: 'hidden'
             }}
           >
-            <Box
-              component="header"
-              sx={{
-                p: 2,
-                pb: selectedWay ? 1.25 : 1.75,
-                color: '#ffffff',
-                backgroundColor: '#9b192e',
-                borderBottom: '1px solid #5f1020'
-              }}
-            >
-              <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+            <Box component="header" className="osm-inspector-header">
+              <Box className="osm-inspector-heading">
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.70)', fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', mb: 0.75 }}>
-                    Đối tượng đang chọn
-                  </Typography>
-                  <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, mb: 0.7 }}>
-                    <Chip
-                      label={selected.type === 'node' ? 'Điểm' : selected.type === 'way' ? (selected.geometry.type === 'Polygon' ? 'Vùng' : 'Đường') : 'Quan hệ'}
-                      size="small"
-                      sx={{
-                        bgcolor: 'rgba(255,255,255,0.15)',
-                        color: '#ffffff',
-                        fontWeight: 800,
-                        fontSize: 10,
-                        height: 22,
-                        border: '1px solid rgba(255,255,255,0.30)'
-                      }}
-                    />
-                    {selectedKeys.length > 1 && (
-                      <Chip
-                        label={`${selectedKeys.length} đang chọn`}
-                        size="small"
-                        sx={{
-                          bgcolor: 'rgba(255,255,255,0.15)',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                          fontSize: 10,
-                          height: 22,
-                          border: '1px solid rgba(255,255,255,0.30)'
-                        }}
-                      />
-                    )}
-                    <Typography sx={{ color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', fontSize: 11 }}>#{selected.id}</Typography>
-                  </Stack>
-                  <Typography noWrap sx={{ fontSize: 18, fontWeight: 800, color: '#ffffff', lineHeight: 1.25, letterSpacing: -0.2 }}>
-                    {selectedName}
+                  <Typography component="h2">{selectedName}</Typography>
+                  <Typography className="osm-inspector-meta">
+                    {selected.type === 'node' ? 'Điểm' : selected.type === 'way' ? (selected.geometry.type === 'Polygon' ? 'Vùng' : 'Đường') : 'Quan hệ'} · #{selected.id}
+                    {selectedKeys.length > 1 && ` · ${selectedKeys.length} đang chọn`}
                   </Typography>
                 </Box>
-                <Tooltip title="Đóng bảng thuộc tính (Esc)">
-                  <IconButton
-                    size="small"
-                    aria-label="Đóng bảng thuộc tính"
-                    onClick={() => setPropertiesOpen(false)}
-                    sx={{ color: '#ffffff', bgcolor: 'rgba(255,255,255,0.10)', '&:hover': { bgcolor: 'rgba(255,255,255,0.20)' }, '&:focus-visible': { outline: '2px solid #ffffff', outlineOffset: 2 } }}
-                  >
-                    <X size={18} aria-hidden="true" />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-              <Stack direction="row" sx={{ mt: 1.75, gap: 0.75 }}>
-                <Box sx={{ minWidth: 82, flex: 1, px: 1, py: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.66)', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase' }}>Tags</Typography>
-                  <Typography sx={{ mt: 0.2, color: '#ffffff', fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{Object.keys(selected.tags).length}</Typography>
-                </Box>
-                <Box sx={{ minWidth: 82, flex: 1, px: 1, py: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.66)', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase' }}>{selectedWay ? 'Đỉnh' : 'Geometry'}</Typography>
-                  <Typography sx={{ mt: 0.2, color: '#ffffff', fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{selectedWay ? (selectedWay.properties.nodeIds?.length ?? 0) : selected.geometry.type}</Typography>
-                </Box>
-                <Box sx={{ minWidth: 82, flex: 1, px: 1, py: 0.75, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.16)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.66)', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase' }}>Trạng thái</Typography>
-                  <Typography noWrap sx={{ mt: 0.2, color: '#ffffff', fontSize: 11, fontWeight: 800, lineHeight: 1.45 }}>{changes.some(change => change.key === selectedKey) ? 'Đã sửa' : 'Gốc'}</Typography>
-                </Box>
-              </Stack>
+                <IconButton aria-label="Đóng bảng thuộc tính" onClick={() => setPropertiesOpen(false)}><X size={20} /></IconButton>
+              </Box>
+              <Typography className="osm-inspector-meta">
+                {Object.keys(selected.tags).length} tags · {selectedWay ? `${selectedWay.properties.nodeIds?.length ?? 0} đỉnh` : selected.geometry.type}
+                {' · '}{changes.some(change => change.key === selectedKey) ? 'Có thay đổi chưa lưu' : 'Dữ liệu gốc'}
+              </Typography>
             </Box>
 
             {selectedWay && (
@@ -2637,10 +2494,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 onChange={(_, value: 'properties' | 'topology') => setInspectorTab(value)}
                 aria-label="Khu vực chỉnh sửa đối tượng"
                 variant="fullWidth"
-                sx={{ minHeight: 48, px: 1.25, bgcolor: '#ffffff', borderBottom: '1px solid #cbd5e1', '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', bgcolor: '#9b192e' } }}
+                sx={{ minHeight: 48, px: 1.25, bgcolor: '#ffffff', borderBottom: '1px solid #cbd5e1', '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', bgcolor: '#8b2235' } }}
               >
-                <Tab value="properties" label="Thuộc tính" id="inspector-tab-properties" aria-controls="inspector-panel-properties" sx={{ minHeight: 48, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#9b192e' } }} />
-                <Tab value="topology" label="Topology" id="inspector-tab-topology" aria-controls="inspector-panel-topology" sx={{ minHeight: 48, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#9b192e' } }} />
+                <Tab value="properties" label="Thuộc tính" id="inspector-tab-properties" aria-controls="inspector-panel-properties" sx={{ minHeight: 48, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#626a63', '&.Mui-selected': { color: '#8b2235' } }} />
+                <Tab value="topology" label="Topology" id="inspector-tab-topology" aria-controls="inspector-panel-topology" sx={{ minHeight: 48, py: 0, fontSize: 12, fontWeight: 800, textTransform: 'none', color: '#626a63', '&.Mui-selected': { color: '#8b2235' } }} />
               </Tabs>
             )}
 
@@ -2692,7 +2549,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
                 top: 14,
                 right: 14,
                 bgcolor: '#ffffff',
-                color: '#9b192e',
+                color: '#8b2235',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 '&:hover': { bgcolor: '#fceef0' }
               }}
@@ -2704,14 +2561,14 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
       </Box>
 
       {/* Modern Status Footer Bar (JOSM / iD style) */}
-      <Box
+      <Box className="osm-footline" component="footer"
         sx={{
           display: 'flex',
           alignItems: 'center',
           minWidth: 0,
           px: { xs: 1, sm: 2 },
           bgcolor: '#321019',
-          color: '#e2e8f0',
+          color: '#d4d3c8',
           borderTop: '1px solid #5f1020',
           fontSize: 11,
           userSelect: 'none',
@@ -2735,7 +2592,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
 
         <Box sx={{ flex: 1 }} />
 
-        <Button size="small" aria-label="Quản lý bản nháp" onClick={draft.open} disabled={saving} title={draft.error ?? 'Bản nháp chỉ nằm trên trình duyệt này; vẫn cần Lưu thay đổi để ghi vào hệ thống.'} sx={{ flexShrink: 1, minWidth: 0, maxWidth: { xs: 140, sm: 330 }, color: draft.error ? '#fca5a5' : '#e2e8f0', fontSize: 11, textTransform: 'none' }}><Box component="span" role="status" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{draft.error ? 'Lỗi lưu nháp · Xem chi tiết' : draft.status}</Box></Button>
+        <Button size="small" aria-label="Quản lý bản nháp" onClick={draft.open} disabled={saving} title={draft.error ?? 'Bản nháp chỉ nằm trên trình duyệt này; vẫn cần Lưu thay đổi để ghi vào hệ thống.'} sx={{ flexShrink: 1, minWidth: 0, maxWidth: { xs: 140, sm: 330 }, color: draft.error ? 'error.main' : 'text.secondary', fontSize: 11, textTransform: 'none' }}><Box component="span" role="status" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{draft.error ? 'Lỗi lưu nháp · Xem chi tiết' : draft.status}</Box></Button>
         {/* Pointer Position & Zoom HUD */}
         <Stack direction="row" sx={{ alignItems: 'center', gap: 2, mr: { xs: 0, sm: 2 }, display: { xs: 'none', sm: 'flex' } }}>
           <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8' }}>
@@ -2754,7 +2611,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               size="small"
               disabled={saving || Boolean(geometryToolGroup)}
               onClick={() => { if (!saving && window.confirm('Hủy các thay đổi chưa lưu và xóa bản nháp tương ứng? Không thể khôi phục bằng Undo.')) discardChanges(); }}
-              sx={{ minWidth: 0, px: 1, py: 0, color: '#fca5a5', fontSize: 10.5, textTransform: 'none', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.15)' } }}
+              sx={{ minWidth: 0, px: 1, py: 0, color: 'error.main', fontSize: 10.5, textTransform: 'none', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.15)' } }}
             >
               Hủy thay đổi
             </Button>

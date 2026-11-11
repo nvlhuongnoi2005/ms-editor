@@ -12,7 +12,7 @@ Người quản trị dữ liệu bản đồ biên tập, hiệu chỉnh và ki
 
 ## Product Purpose
 
-Map Service Editor cho phép biên tập dữ liệu bản đồ từ dataset OSM PBF, xem thay đổi trực tiếp trên bản đồ và lưu thay đổi theo changeset. Thành công được đo bằng độ chính xác của dữ liệu và tọa độ, tốc độ hiển thị, cùng phản hồi ổn định trong các thao tác biên tập.
+Map Service Editor có hai không gian: biên tập dữ liệu OSM PBF và xem hải đồ ENC S-57. OSM cho phép xem thay đổi trực tiếp và lưu theo changeset; ENC ghép các cell đã import để tra cứu độ sâu, ký hiệu và thuộc tính. Thành công được đo bằng độ chính xác của dữ liệu và tọa độ, tốc độ hiển thị, cùng phản hồi ổn định khi thao tác.
 
 ## Positioning
 
@@ -29,6 +29,8 @@ Người dùng làm việc trên bản đồ tương tác để chọn, tạo, s
 - Canonical PostGIS là nguồn dữ liệu biên tập; Render DB chỉ là read model do pipeline xuất bản quản lý.
 - Phải giữ nguyên logic nghiệp vụ hiện tại trong các thay đổi giao diện.
 - Tốc độ hiển thị và phản hồi phải ổn định, không làm giảm độ chính xác dữ liệu hoặc tọa độ.
+- ENC hiện chỉ xem; không trình bày như đã có chức năng biên tập hoặc xuất ngược S-57.
+- Hai domain có model, worker và API riêng; dùng chung hệ giao diện và hạ tầng.
 
 ## Brand Commitments
 

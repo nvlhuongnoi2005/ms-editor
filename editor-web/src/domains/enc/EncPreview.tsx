@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, CssBaseline, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { Layers3, Map, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
+import { Layers3, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
 import type { StyleSpecification } from 'maplibre-gl';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -9,6 +9,7 @@ import './enc-workspace.css';
 import { localEncStyle, type EncTheme } from './style';
 import { EncImportDialog } from './EncImportDialog';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
+import { WorkspaceNavigation } from '../../shared/WorkspaceNavigation';
 import type { EncImport } from './imports';
 
 type Bounds = [number, number, number, number];
@@ -229,12 +230,11 @@ export function EncPreview() {
           <Button color="error" variant="contained" disabled={deleting} onClick={() => void deleteDataset()} startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Trash2 size={16} />}>{deleting ? 'Đang xóa…' : 'Xóa vĩnh viễn'}</Button>
         </DialogActions>
       </Dialog>
-      <Box component="header" className="enc-masthead" sx={{ px: 2, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: '#7d172a', color: '#fff' }}>
-        <Box className="enc-mark" aria-hidden="true">ENC</Box><Typography component="h1" sx={{ fontSize: 17, fontWeight: 800 }}>Hải đồ</Typography>
-        <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: 11, color: '#626a63', borderLeft: '1px solid #d4d3c8', pl: 1.5 }}>Chỉ xem</Typography><Box sx={{ flex: 1 }} />
-        <Button onClick={() => setImportOpen(true)} startIcon={<Upload size={16} />}><Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Dữ liệu / Import ENC</Box><Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Import</Box></Button>
-        <Button href={location.pathname} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Chọn chế độ</Button>
-        <Button href="?mode=osm" color="inherit" startIcon={<Map size={16} />}>OSM Editor</Button>
+      <Box component="header" className="workspace-header enc-masthead">
+        <WorkspaceNavigation mode="enc" />
+        <Typography className="workspace-domain-status" sx={{ color: 'text.secondary', fontSize: 12 }}>Chỉ xem</Typography>
+        <Box sx={{ flex: 1 }} />
+        <Button variant="outlined" aria-label="Dữ liệu / Import ENC" onClick={() => setImportOpen(true)} startIcon={<Upload size={16} />}><Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Dữ liệu / Import</Box><Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Dữ liệu</Box></Button>
       </Box>
       <Box sx={{ minHeight: 0, position: 'relative' }}>
         <Box ref={container} sx={{ position: 'absolute', inset: 0 }} />
