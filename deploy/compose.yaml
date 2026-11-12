@@ -1,0 +1,121 @@
+name: ms-editor
+
+# End-user runtime: application binaries and GIS dependencies live in images.
+# Only the browser port is published. Data survives Stop.cmd and image upgrades.
+services:
+  postgres:
+    image: ${POSTGIS_IMAGE:-postgis/postgis@sha256:8d6a1acd2a491f8c1db758cf6515e7b2ac3d04269eb0aefe6fa497c6971102b7}
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run Setup.cmd first}
+      CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD:?Run Setup.cmd first}
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD:?Run Setup.cmd first}
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD:?Run Setup.cmd first}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ../infra/init:/docker-entrypoint-initdb.d:ro
+      - ../infra/ops:/ops:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    restart: unless-stopped
+
+  editor-api:
+    image: ${APP_IMAGE:-ms-editor/app:local}
+    environment:
+      EDITOR_API_ADDR: 0.0.0.0:4173
+      CANONICAL_DB_HOST: postgres
+      CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      RENDER_DB_HOST: postgres
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
+      ENC_DB_HOST: postgres
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD}
+      EDITOR_IMPORT_DIR: /var/lib/map-service/imports
+      ENC_IMPORT_DIR: /data/enc/uploads
+      ENC_BASEMAP_TILE_SERVER_URL: http://tile-server:8080
+      ENC_BASEMAP_ENABLED: ${ENC_BASEMAP_ENABLED:-false}
+    volumes:
+      - ../data/imports:/var/lib/map-service/imports
+      - ../data/enc/uploads:/data/enc/uploads
+    ports:
+      - "127.0.0.1:${EDITOR_API_PORT:-4173}:4173"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4173/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  import-worker:
+    image: ${OSM_WORKER_IMAGE:-ms-editor/osm-worker:local}
+    environment:
+      DB_HOST: postgres
+      DB_NAME: canonical
+      DB_USER: canonical_owner
+      DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      RENDER_DB_HOST: postgres
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
+      EDITOR_IMPORT_DIR: /var/lib/map-service/imports
+    volumes:
+      - ../data/imports:/var/lib/map-service/imports
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  render-sync-worker:
+    image: ${RENDER_WORKER_IMAGE:-ms-editor/render-worker:local}
+    environment:
+      CANONICAL_DB_HOST: postgres
+      CANONICAL_DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      RENDER_DB_HOST: postgres
+      RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
+      RENDER_DB_SCHEMA: render
+      RENDER_OSC_DIR: /var/lib/map-service/osc
+    volumes:
+      - render-osc:/var/lib/map-service/osc
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  enc-import-worker:
+    image: ${ENC_WORKER_IMAGE:-ms-editor/enc-worker:local}
+    environment:
+      ENC_DB_HOST: postgres
+      ENC_DB_PASSWORD: ${ENC_DB_PASSWORD}
+      ENC_IMPORT_DIR: /data/enc/uploads
+    command: ["--watch"]
+    volumes:
+      - ../data/enc/uploads:/data/enc/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tile-server:
+    image: ${TILE_SERVER_IMAGE:-ghcr.io/nvlhuongnoi2005/webgis/tile-server@sha256:7540d6ae6016efb35cecf33d30343236fd6d76ec02ff5afdc8a9dbd49f2ff7d5}
+    environment:
+      DATA_DIR: /tile-server/data
+      LISTEN_PORT: 8080
+      NUM_OF_PROCESS: 1
+      NUM_OF_THREAD: 2
+      RESTART_AFTER_CONFIG_CHANGE: "false"
+    volumes:
+      - ../data/runtime/tiles:/tile-server/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/datas/satellite2.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  database:
+  render-osc:

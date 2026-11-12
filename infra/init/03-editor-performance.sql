@@ -1,3 +1,5 @@
+\connect canonical
+
 -- Graph viewport reads are bounded by an envelope and use KNN ordering.
 -- The global GiST index is retained for all entity geometry; partial GiST
 -- indexes reduce index size and heap work for the two hot editor queries.

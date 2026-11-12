@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+data
+backups
+releases
+infra/tile-server-data
+*.log
+*.exe

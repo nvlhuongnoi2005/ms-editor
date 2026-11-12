@@ -1,5 +1,12 @@
 # Map Service Editor
 
+## Bộ cài cho máy mới
+
+Nhấp đúp **`Setup.cmd`** để dựng toàn bộ hệ thống OSM/ENC bằng Docker, tự tạo
+cấu hình và database trống. Sau đó upload dữ liệu qua giao diện. Dùng
+`Package.cmd` trên máy phát triển để tạo gói cài có sẵn images, không kèm data.
+Hướng dẫn đầy đủ: [Cài đặt và đóng gói](docs/setup-new-machine.md).
+
 ## ENC viewer
 
 Mở `/?mode=enc` để upload ZIP S-57 và xem ENC local theo dataset/cell, với ba

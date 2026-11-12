@@ -54,17 +54,25 @@ func serveEditorAPI(handler http.Handler) error {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch {
-	case strings.HasPrefix(r.URL.Path, "/enc/basemap/"):
+	case strings.HasPrefix(r.URL.Path, "/enc/basemap/") || strings.HasPrefix(r.URL.Path, "/datas/"):
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			err = fail(405, "Method not allowed.")
 			break
+		}
+		// System-only installations have no optional world MBTiles. An empty
+		// vector tile lets ENC cells render without retrying a missing basemap.
+		if strings.HasPrefix(r.URL.Path, "/enc/basemap/") && os.Getenv("ENC_BASEMAP_ENABLED") == "false" {
+			w.WriteHeader(http.StatusNoContent)
+			return
 		}
 		target, parseErr := url.Parse(getenv("ENC_BASEMAP_TILE_SERVER_URL", "http://127.0.0.1:8081"))
 		if parseErr != nil || target.Host == "" || (target.Scheme != "http" && target.Scheme != "https") {
 			err = fail(503, "ENC basemap tile server is not configured.")
 			break
 		}
-		r.URL.Path = "/datas/world-baselayer/" + strings.TrimPrefix(r.URL.Path, "/enc/basemap/")
+		if strings.HasPrefix(r.URL.Path, "/enc/basemap/") {
+			r.URL.Path = "/datas/world-baselayer/" + strings.TrimPrefix(r.URL.Path, "/enc/basemap/")
+		}
 		r.URL.RawPath = ""
 		proxy := httputil.NewSingleHostReverseProxy(target)
 		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {

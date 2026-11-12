@@ -1,0 +1,5 @@
+{
+  "options": {"listenPort": 8080, "serveFrontPage": false, "serveSwagger": false, "RestartOnConfigChange": false, "process": 1, "thread": 2},
+  "styles": {}, "geojsons": {}, "sprites": {}, "fonts": {},
+  "datas": {"satellite2": {"xyz": "satellite2", "cache": {"forward": true, "store": false}}}
+}

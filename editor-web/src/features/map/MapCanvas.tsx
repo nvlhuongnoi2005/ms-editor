@@ -58,7 +58,7 @@ export interface MapPointerStatus {
 const tileStyle = (dataset: string): StyleSpecification => ({
   version: 8,
   sources: {
-    satellite2: { type: 'raster', url: "http://localhost:8081/datas/satellite2.json"},
+    satellite2: { type: 'raster', url: `${window.location.origin}/datas/satellite2.json`},
     canonicalMvt: { type: 'vector', tiles: [`/api/mvt/{z}/{x}/{y}.pbf?${new URLSearchParams({ dataset })}`], minzoom: GRAPH_MIN_ZOOM, maxzoom: 22 }
   },
   layers: [{ id: 'satellite2', type: 'raster', source: 'satellite2' }]

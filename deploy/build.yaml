@@ -1,0 +1,19 @@
+# Used only on the developer's machine. Offline releases need no compiler or network.
+services:
+  editor-api:
+    build:
+      context: ..
+      dockerfile: editor-api/Dockerfile
+      target: app
+  render-sync-worker:
+    build:
+      context: ..
+      dockerfile: editor-api/Dockerfile
+      target: render-worker
+  import-worker:
+    build:
+      context: ../OSM/importer
+      dockerfile: Worker.Dockerfile
+  enc-import-worker:
+    build:
+      context: ../ENC/importer
