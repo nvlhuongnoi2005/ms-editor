@@ -214,6 +214,31 @@ func TestFullExportQueueIntegration(t *testing.T) {
 		}
 	}
 	cancel(id, 409) // A finished download remains available.
+	control := func(job, action string, code int) {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/api/exports/"+job+"/"+action, nil)
+		r.Header.Set("X-Editor-Import", "1")
+		w := httptest.NewRecorder()
+		a.ServeHTTP(w, r)
+		if w.Code != code {
+			t.Fatalf("%s status=%d body=%s", action, w.Code, w.Body.String())
+		}
+	}
+	control(id, "pause", 409)
+	control(next, "pause", 202)
+	control(next, "pause", 202)
+	var pauseRequested bool
+	var phase string
+	if err := db.QueryRow(ctx, `SELECT pause_requested,phase FROM editor.export_job WHERE id=$1`, next).Scan(&pauseRequested, &phase); err != nil || !pauseRequested || phase != "paused" {
+		t.Fatalf("queued pause: %v %s %v", pauseRequested, phase, err)
+	}
+	if reused := create(); reused != next {
+		t.Fatal("paused job was duplicated")
+	}
+	control(next, "resume", 202)
+	if err := db.QueryRow(ctx, `SELECT pause_requested,phase FROM editor.export_job WHERE id=$1`, next).Scan(&pauseRequested, &phase); err != nil || pauseRequested || phase != "queued" {
+		t.Fatalf("queued resume: %v %s %v", pauseRequested, phase, err)
+	}
 	cancel(next, 202)
 	cancel(next, 202) // Retrying cancellation does not create another job.
 	var state string
@@ -228,6 +253,11 @@ func TestFullExportQueueIntegration(t *testing.T) {
 	if _, err := db.Exec(ctx, `UPDATE editor.export_job SET state='running',phase='writing',total_count=100,entity_count=50 WHERE id=$1`, running); err != nil {
 		t.Fatal(err)
 	}
+	control(running, "pause", 202)
+	if err := db.QueryRow(ctx, `SELECT pause_requested,entity_count FROM editor.export_job WHERE id=$1`, running).Scan(&pauseRequested, new(int64)); err != nil || !pauseRequested {
+		t.Fatalf("running pause: %v %v", pauseRequested, err)
+	}
+	control(running, "resume", 202)
 	cancel(running, 202)
 	if err := db.QueryRow(ctx, `SELECT state,cancel_requested FROM editor.export_job WHERE id=$1`, running).Scan(&state, &requested); err != nil || state != "running" || !requested {
 		t.Fatalf("running cancellation: %s %v %v", state, requested, err)

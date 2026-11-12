@@ -15,6 +15,7 @@ try {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
     let state = null, creates = 0, listRequests = 0, hold = true, wrongETag = false, corruptBody = false;
+    let pausedExport = false;
     const ranges = [], held = [], errors = [];
     await context.addInitScript(() => {
       window.__saveCalls = 0;
@@ -49,10 +50,16 @@ try {
         assert.equal(url.searchParams.get('dataset'), 'export-review');
         assert.equal(url.searchParams.has('bbox'), false);
         assert.equal(route.request().headers()['x-editor-import'], '1');
-        creates++; state = 'queued';
+        creates++; state = 'queued'; pausedExport = false;
         return route.fulfill({ status: 202, json: { id: jobId } });
       }
-      if (path === `/api/exports/${jobId}`) return route.fulfill({ json: { id: jobId, state, phase: state === 'running' ? 'writing' : state, totalCount: 100, cancelRequested: false, revision: 7, entityCount: state === 'running' ? 50 : 100, bytes: total, sha256: digest, created_at: '2026-11-12T01:00:00Z' } });
+      if (path === `/api/exports/${jobId}`) return route.fulfill({ json: { id: jobId, state, pauseRequested: pausedExport, phase: pausedExport ? 'paused' : state === 'running' ? 'writing' : state, totalCount: 100, cancelRequested: false, revision: 7, entityCount: state === 'running' ? 50 : 100, bytes: total, sha256: digest, created_at: '2026-11-12T01:00:00Z' } });
+      if (path.endsWith('/pause') || path.endsWith('/resume')) {
+        assert.equal(route.request().method(), 'POST');
+        assert.equal(route.request().headers()['x-editor-import'], '1');
+        pausedExport = path.endsWith('/pause');
+        return route.fulfill({ status: 202, json: { state, pauseRequested: pausedExport } });
+      }
       if (path.endsWith('/cancel')) {
         assert.equal(route.request().method(), 'POST');
         assert.equal(route.request().headers()['x-editor-import'], '1');
@@ -109,6 +116,18 @@ try {
     await page.getByText('50% · Đã xuất 50 / 100 đối tượng', { exact: true }).waitFor();
     assert.equal(await page.getByRole('progressbar', { name: 'Tiến độ xuất dữ liệu' }).getAttribute('aria-valuenow'), '50');
     await capture('exporting');
+    await page.getByRole('button', { name: 'Tạm dừng', exact: true }).evaluate(button => { button.dataset.toggleIdentity = 'server-export'; });
+    await page.getByRole('button', { name: 'Tạm dừng', exact: true }).click();
+    await page.getByText('Đã tạm dừng xuất', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Tiếp tục', exact: true }).getAttribute('data-toggle-identity'), 'server-export');
+    await capture('export-paused');
+    await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await page.getByText('50% · Đã xuất 50 / 100 đối tượng', { exact: true }).waitFor();
+    await page.reload(); await open();
+    await page.getByText('Đã tạm dừng xuất', { exact: true }).waitFor();
+    assert.equal(creates, 1);
+    await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await page.getByText('50% · Đã xuất 50 / 100 đối tượng', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Xóa', exact: true }).click();
     await page.getByText('Chọn “Tạo file PBF” để bắt đầu.', { exact: true }).waitFor();
     assert.equal(await page.getByText('Đã dừng xuất', { exact: false }).count(), 0);

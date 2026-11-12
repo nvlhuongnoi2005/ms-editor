@@ -26,7 +26,7 @@ yêu cầu viết design và implement của người dùng.
 ## Signature
 
 - Nhận diện và menu ENC dùng `WorkspaceNavigation` chung của GEODATA; trạng thái
-  **Chỉ xem** hiện cạnh menu, tác vụ dữ liệu ở cuối header.
+  **Xem hải đồ/Biên tập ENC** hiện cạnh menu, tác vụ dữ liệu ở cuối header.
 - Lề danh mục màu giấy ngà, ghép sát mép bản đồ, không bóng nổi hay thẻ lồng thẻ.
 - Tên vùng hiện hành là nội dung nổi bật nhất trong lề; mã cell và edition/update
   là dấu nhận diện dữ liệu, chỉ hiện khi có dữ liệu thực.
@@ -36,6 +36,14 @@ yêu cầu viết design và implement của người dùng.
 - Chân bản đồ là một dòng tọa độ, zoom, đơn vị độ sâu và trạng thái đọc dữ liệu.
 
 ## Tokens
+
+Biên tập cơ bản mở thanh tác vụ cạnh lề atlas và dùng bảng thuộc tính bên phải
+để sửa. Mobile giữ thanh tác vụ phía trên và bảng thuộc tính phía dưới, mỗi phần
+cuộn độc lập; nút mở lề vẫn truy cập được. Lưu, Undo/Redo và bản sao bản nháp ở
+cùng một nhóm. Điểm/đường/vùng đỏ biểu thị phần chỉnh sửa của workspace riêng.
+Trạng thái lưu đang chờ xác nhận khóa sửa tiếp và cho kiểm tra lại cùng lần lưu.
+Kiểm tra Chrome với viewport 1440 và 390 px: tạo/sửa/xóa điểm, tọa độ chính xác,
+Undo/Redo, reload, gửi lại lần lưu và bố cục không tràn ngang.
 
 | Token | Giá trị |
 |---|---|

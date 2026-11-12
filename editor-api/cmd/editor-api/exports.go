@@ -43,7 +43,7 @@ func (a *app) serveExports(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 		var jobs json.RawMessage
 		err = a.db.QueryRow(ctx, `SELECT COALESCE(jsonb_agg(to_jsonb(j) ORDER BY j.created_at DESC),'[]'::jsonb)
-   FROM (SELECT id::text,state,revision,entity_count AS "entityCount",total_count AS "totalCount",phase,cancel_requested AS "cancelRequested",bytes,sha256,error,created_at,finished_at
+   FROM (SELECT id::text,state,revision,entity_count AS "entityCount",total_count AS "totalCount",phase,cancel_requested AS "cancelRequested",pause_requested AS "pauseRequested",bytes,sha256,error,created_at,finished_at
     FROM editor.export_job WHERE dataset_id=$1 ORDER BY created_at DESC LIMIT 20) j`, datasetID).Scan(&jobs)
 		if err != nil {
 			return err
@@ -66,7 +66,7 @@ func (a *app) serveExports(ctx context.Context, w http.ResponseWriter, r *http.R
 		var job json.RawMessage
 		err := a.db.QueryRow(ctx, `SELECT to_jsonb(j) FROM (
 		 SELECT id::text,state,revision,entity_count AS "entityCount",total_count AS "totalCount",
-		 phase,cancel_requested AS "cancelRequested",bytes,sha256,created_at
+		 phase,cancel_requested AS "cancelRequested",pause_requested AS "pauseRequested",bytes,sha256,created_at
 		 FROM editor.export_job WHERE id=$1) j`, id).Scan(&job)
 		if isNoRows(err) {
 			return fail(404, "Export was not found.")
@@ -75,6 +75,35 @@ func (a *app) serveExports(ctx context.Context, w http.ResponseWriter, r *http.R
 			return err
 		}
 		writeJSON(w, 200, job)
+		return nil
+	}
+	if strings.HasSuffix(id, "/pause") || strings.HasSuffix(id, "/resume") {
+		paused := strings.HasSuffix(id, "/pause")
+		suffix := "/resume"
+		if paused {
+			suffix = "/pause"
+		}
+		id = strings.TrimSuffix(id, suffix)
+		if _, err := parseUUID(id); err != nil {
+			return fail(400, "Invalid export id.")
+		}
+		if r.Method != http.MethodPost {
+			return fail(405, "Method not allowed.")
+		}
+		if err := authorizeImport(r); err != nil {
+			return err
+		}
+		var state string
+		err := a.db.QueryRow(ctx, `UPDATE editor.export_job SET pause_requested=$2,
+		 phase=CASE WHEN state='queued' THEN CASE WHEN $2 THEN 'paused' ELSE 'queued' END ELSE phase END
+		 WHERE id=$1 AND state IN ('queued','running') AND NOT cancel_requested RETURNING state`, id, paused).Scan(&state)
+		if isNoRows(err) {
+			return fail(409, "Export is no longer active. Refresh its status.")
+		}
+		if err != nil {
+			return err
+		}
+		writeJSON(w, 202, map[string]any{"state": state, "pauseRequested": paused})
 		return nil
 	}
 	if strings.HasSuffix(id, "/cancel") {

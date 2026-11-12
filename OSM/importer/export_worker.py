@@ -61,10 +61,18 @@ def progress(status, job_id, phase, count, total=None, revision=None):
     with status.transaction():
         row = status.execute("""UPDATE editor.export_job SET phase=%s,entity_count=%s,
             total_count=COALESCE(%s,total_count),revision=COALESCE(%s,revision)
-            WHERE id=%s AND state='running' AND NOT cancel_requested RETURNING id""",
+            WHERE id=%s AND state='running' AND NOT cancel_requested RETURNING pause_requested""",
                              (phase, count, total, revision, job_id)).fetchone()
     if not row:
         raise CancelledExport()
+    while row[0]:
+        with status.transaction():
+            row = status.execute("""UPDATE editor.export_job SET phase=CASE WHEN pause_requested THEN 'paused' ELSE %s END
+                WHERE id=%s AND state='running' AND NOT cancel_requested RETURNING pause_requested""", (phase, job_id)).fetchone()
+        if not row:
+            raise CancelledExport()
+        if row[0]:
+            time.sleep(1)
 
 
 class Heartbeat:
@@ -165,12 +173,15 @@ def write_snapshot(snapshot, status, job, root):
         os.fsync(source.fileno())
     size = partial.stat().st_size
     os.replace(partial, final)
-    with status.transaction():
-        ready = status.execute("""UPDATE editor.export_job SET state='ready',phase='ready',revision=%s,entity_count=%s,
-            bytes=%s,sha256=%s,finished_at=now(),error=NULL WHERE id=%s AND state='running' AND NOT cancel_requested RETURNING id""",
-                       (revision, count, size, digest.hexdigest(), job_id)).fetchone()
-    if not ready:
-        raise CancelledExport()
+    while True:
+        progress(status, job_id, "finalizing", count)
+        with status.transaction():
+            ready = status.execute("""UPDATE editor.export_job SET state='ready',phase='ready',revision=%s,entity_count=%s,
+                bytes=%s,sha256=%s,finished_at=now(),error=NULL WHERE id=%s AND state='running'
+                AND NOT cancel_requested AND NOT pause_requested RETURNING id""",
+                           (revision, count, size, digest.hexdigest(), job_id)).fetchone()
+        if ready:
+            break
     LOG.info("Export %s ready: revision %s, %s entities, %s bytes", job_id, revision, count, size)
 
 
@@ -181,7 +192,7 @@ def worker(once=False):
         queue.autocommit = True
         # API creates the additive schema. Allow either service to start first.
         while not queue.execute("""SELECT EXISTS(SELECT 1 FROM information_schema.columns
-            WHERE table_schema='editor' AND table_name='export_job' AND column_name='cancel_requested')""").fetchone()[0]:
+            WHERE table_schema='editor' AND table_name='export_job' AND column_name='pause_requested')""").fetchone()[0]:
             if once:
                 raise RuntimeError("Start editor-api to initialize the export schema first")
             time.sleep(2)
@@ -200,7 +211,7 @@ def worker(once=False):
             while True:
                 with queue.transaction():
                     with queue.cursor(row_factory=dict_row) as cursor:
-                        job = cursor.execute("""SELECT id,dataset_id FROM editor.export_job WHERE state='queued'
+                        job = cursor.execute("""SELECT id,dataset_id FROM editor.export_job WHERE state='queued' AND NOT pause_requested
                             ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1""").fetchone()
                     if job:
                         queue.execute("UPDATE editor.export_job SET state='running',started_at=now(),error=NULL WHERE id=%s", (job["id"],))

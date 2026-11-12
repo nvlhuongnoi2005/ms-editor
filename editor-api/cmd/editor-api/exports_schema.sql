@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS editor.export_worker_status (
 ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS total_count bigint;
 ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS phase text NOT NULL DEFAULT 'queued';
 ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS cancel_requested boolean NOT NULL DEFAULT false;
+ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS pause_requested boolean NOT NULL DEFAULT false;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='editor.export_job'::regclass AND conname='export_job_state_v2_check') THEN
     ALTER TABLE editor.export_job DROP CONSTRAINT IF EXISTS export_job_state_check;

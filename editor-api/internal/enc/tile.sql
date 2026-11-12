@@ -14,8 +14,13 @@ WITH tile AS (
    THEN (c.metadata->>'DSID_INTU')::integer END AS intended_usage,
  r.edition AS revision_edition,r.update_number AS revision_update
  FROM enc.cell_revision r JOIN enc.cell c ON c.dataset_id=r.storage_dataset_id AND c.name=r.cell_name CROSS JOIN viewport v
- WHERE (($4='' AND EXISTS(SELECT 1 FROM enc.active_cell a WHERE a.revision_id=r.id))
- OR ($4<>'' AND EXISTS(SELECT 1 FROM enc.import_item i JOIN enc.dataset d ON d.id=i.batch_id WHERE i.revision_id=r.id AND d.id::text=$4 AND d.state='ready' AND d.deleted_at IS NULL)))
+ WHERE (
+   ($8<>'' AND r.id=$8)
+   OR ($8='' AND (
+     ($4='' AND EXISTS(SELECT 1 FROM enc.active_cell a WHERE a.revision_id=r.id))
+     OR ($4<>'' AND EXISTS(SELECT 1 FROM enc.import_item i JOIN enc.dataset d ON d.id=i.batch_id WHERE i.revision_id=r.id AND d.id::text=$4 AND d.state='ready' AND d.deleted_at IS NULL))
+   ))
+ )
  AND ($5='' OR c.name=$5) AND c.bounds && v.area
 ), coverage AS MATERIALIZED (
  SELECT c.dataset_id,c.name,c.revision_id,c.producer,c.compilation_scale,c.intended_usage,
@@ -67,7 +72,7 @@ WITH tile AS (
  SELECT m.revision_id::text||':'||f.cell_name||':'||f.object_class||':'||f.source_id AS feature_id,
  f.cell_name,f.object_class,
  f.attributes || COALESCE(normalized.properties,'{}'::jsonb) ||
- jsonb_build_object('s52_geometry',ST_Dimension(f.geometry),
+ jsonb_build_object('edit_key',f.object_class||'/'||f.source_id,'s52_geometry',ST_Dimension(f.geometry),
    's52_quapos',COALESCE(f.attributes->>'QUAPOS',linked_quality.quapos),
     's52_surrounding_depth',depth_context.deepest_lower_bound,
     's52_safety_contour',COALESCE(safety.contour,$6::double precision),

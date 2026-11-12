@@ -39,7 +39,8 @@ test('all three themes produce a valid complete MapLibre style', () => {
 
 test('ENC strokes use bounded paths while fills and symbol anchors retain original geometry', () => {
   globalThis.window = { location:{origin:'http://localhost:5173'} };
-  const style=localEncStyle('','','day');
+  // This assertion exercises the STANDARD category. The viewer defaults to OTHER.
+  const style=localEncStyle('','','day',0,false,6,6,'standard');
   assert.equal(style.layers.find(layer=>layer.id==='enc-coast')['source-layer'],'enc_lines');
   assert.equal(style.layers.find(layer=>layer.id==='enc-land')['source-layer'],'enc');
   assert.equal(style.layers.find(layer=>layer.id==='enc-aids-areas')['source-layer'],'enc_symbols');

@@ -11,4 +11,5 @@ REVOKE ALL ON DATABASE enc_canonical FROM PUBLIC;
 \i /docker-entrypoint-initdb.d/07-enc-catalog.sql
 \i /docker-entrypoint-initdb.d/08-enc-regions.sql
 \i /docker-entrypoint-initdb.d/09-enc-readable-revisions.sql
+\i /docker-entrypoint-initdb.d/10-enc-editing.sql
 SQL

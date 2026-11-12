@@ -4,6 +4,7 @@ export interface ExportJob {
   totalCount: number | null;
   phase: string;
   cancelRequested: boolean;
+  pauseRequested: boolean;
   revision: number | null;
   entityCount: number;
   bytes: number;
@@ -13,6 +14,12 @@ export interface ExportJob {
 }
 
 export interface ExportJobs { jobs: ExportJob[]; workerOnline: boolean }
+
+export async function setExportPaused(id: string, paused: boolean, signal?: AbortSignal, keepalive = false): Promise<{ pauseRequested: boolean }> {
+  return readResponse(await fetch(`/api/exports/${encodeURIComponent(id)}/${paused ? 'pause' : 'resume'}`, {
+    method: 'POST', headers: { 'X-Editor-Import': '1' }, signal, keepalive,
+  }));
+}
 export class ExportRequestError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }

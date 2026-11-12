@@ -76,6 +76,8 @@ geometry. ZIP không còn trên đĩa được báo trong log; metadata cũ vẫ
 Các hàng geometry trùng từ trước nâng cấp được giữ để tránh xóa dữ liệu cũ;
 những lần nhập mới trùng nội dung dùng chung kho geometry ngay từ đầu.
 
-Region, workspace chỉnh sửa, duyệt xung đột và xuất S-57 chưa thuộc giai đoạn này.
+Workspace biên tập cơ bản được bổ sung sau giai đoạn này; xem
+[enc-editing.md](../docs/enc-editing.md). Workspace ghim revision nguồn, lưu override
+riêng và giữ nguồn khi lần nhập bị xóa. Duyệt/công bố workspace và xuất S-57 chưa có.
 
 Các bổ sung sau giai đoạn 1 được theo dõi trong [ROADMAP.md](ROADMAP.md).

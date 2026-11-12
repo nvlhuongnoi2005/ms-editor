@@ -8,6 +8,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './enc-workspace.css';
 import { localEncStyle, type EncTheme } from './style';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
+import { EncEditing } from './EncEditing';
+import type { EncCredentials } from './editing';
 import { installSectorImages } from './lightSectors';
 import { WorkspaceNavigation } from '../../shared/WorkspaceNavigation';
 import type { EncImport } from './imports';
@@ -58,6 +60,8 @@ export function EncPreview() {
   const [deleteError, setDeleteError] = useState('');
   const [deleteNotice, setDeleteNotice] = useState('');
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const [editingWorkspace, setEditingWorkspace] = useState<EncCredentials | null>(null);
+  const editingActive = Boolean(editingWorkspace);
   const dataset = datasets.find(item => item.id === datasetId);
   const importSummary = dataset ?? datasets.find(item => item.id === lastImportId);
   const cell = cells.find(item => item.name === cellName);
@@ -156,12 +160,17 @@ export function EncPreview() {
     if (!instance) return;
     const controller = new AbortController();
     setSelected(null); setError('');
+    instance.setTransformRequest(editingWorkspace ? url => {
+      const target = new URL(url, location.origin);
+      return target.origin === location.origin && target.pathname.startsWith(`/api/enc/workspaces/${editingWorkspace.id}/tiles/`)
+        ? { url, headers: { 'X-ENC-Workspace-Token': editingWorkspace.token } } : { url };
+    } : null);
     instance.getCanvas().style.cursor = '';
     let failed = false;
     const idle = () => { if (!controller.signal.aborted && !failed) setState('ready'); };
     const failure = (event: maplibregl.ErrorEvent) => { if (!controller.signal.aborted) { failed = true; setState('error'); setError(event.error.message); } };
     instance.on('error', failure);
-    if (source === 'local' && ((datasetId && dataset?.state !== 'ready') || !cells.length)) {
+    if (!editingWorkspace && source === 'local' && ((datasetId && dataset?.state !== 'ready') || !cells.length)) {
       setState('empty');
       instance.setStyle(localEncStyle('', '', theme, catalogRevision, true),
         { diff: instance.isStyleLoaded() === true });
@@ -169,7 +178,10 @@ export function EncPreview() {
       setState('loading');
       const load = async () => {
         try {
-          const style = source === 'local' ? localEncStyle(datasetId, cellName, theme, catalogRevision) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
+          const style = source === 'local' ? localEncStyle(editingWorkspace ? '' : datasetId, cellName, theme, editingWorkspace ? 0 : catalogRevision) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
+          if (editingWorkspace && style.sources.enc?.type === 'vector') {
+            style.sources.enc.tiles = style.sources.enc.tiles?.map(url => url.replace('/api/enc/tiles/', `/api/enc/workspaces/${editingWorkspace.id}/tiles/`));
+          }
           if (controller.signal.aborted) return;
           if (typeof style.sprite === 'string') style.sprite = new URL(style.sprite, location.origin).href;
           instance.once('idle', idle);
@@ -181,7 +193,7 @@ export function EncPreview() {
       void load();
     }
     return () => { controller.abort(); instance.off('idle', idle); instance.off('error', failure); };
-  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload, catalogRevision]);
+  }, [theme, source, datasetId, dataset?.state, cellName, cells.length, reload, catalogRevision, editingWorkspace]);
 
   const fit = () => {
     const allBounds = cells.reduce<Bounds | null>((bounds, item) => !item.bounds ? bounds : !bounds ? [...item.bounds] : [Math.min(bounds[0],item.bounds[0]),Math.min(bounds[1],item.bounds[1]),Math.max(bounds[2],item.bounds[2]),Math.max(bounds[3],item.bounds[3])], null);
@@ -253,7 +265,7 @@ export function EncPreview() {
       </Dialog>
       <Box component="header" className="workspace-header enc-masthead">
         <WorkspaceNavigation mode="enc" />
-        <Typography className="workspace-domain-status" sx={{ color: 'text.secondary', fontSize: 12 }}>Chỉ xem</Typography>
+        <Typography className="workspace-domain-status" sx={{ color: 'text.secondary', fontSize: 12 }}>{editingActive ? 'Biên tập ENC' : 'Xem hải đồ'}</Typography>
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Bảng ký hiệu"><Button ref={symbolsButton} variant="outlined" className="enc-symbols-button"
           aria-label="Bảng ký hiệu" aria-expanded={symbolsOpen} aria-controls={symbolsOpen ? 'enc-symbol-catalog' : undefined}
@@ -277,12 +289,12 @@ export function EncPreview() {
               <Button onClick={() => setImportOpen(true)}>Nhập dữ liệu</Button>
             </Box>
             <Box><Stack spacing={1.5}>
-            <TextField select label="Nguồn hải đồ" size="small" value={source} onChange={event => setSource(event.target.value)}>
+            <TextField select label="Nguồn hải đồ" size="small" disabled={editingActive} value={source} onChange={event => setSource(event.target.value)}>
               <MenuItem value="local">ENC đã import</MenuItem><MenuItem value="demo">OpenENC demo (online)</MenuItem>
             </TextField>
             {source === 'local' && <>
               {catalogError && <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => setReload(value => value + 1)}>Tải lại</Button>}>{catalogError}</Alert>}
-              <TextField select label="Lọc theo lần nhập" size="small" slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} value={datasets.some(item => item.id === datasetId) ? datasetId : ''} onChange={event => setDatasetId(event.target.value)}>
+              <TextField select label="Lọc theo lần nhập" size="small" disabled={editingActive} slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} value={datasets.some(item => item.id === datasetId) ? datasetId : ''} onChange={event => setDatasetId(event.target.value)}>
                 <MenuItem value="">Tất cả hải đồ đã công bố</MenuItem>
                 {datasets.map(item => <MenuItem key={item.id} value={item.id}>{item.name} · {item.state === 'ready' ? 'Sẵn sàng' : item.state === 'failed' ? 'Import lỗi' : 'Đang import'}</MenuItem>)}
               </TextField>
@@ -294,7 +306,7 @@ export function EncPreview() {
               {importSummary?.state === 'ready' && importSummary.outcomes && <Alert severity={importSummary.outcomes.conflict ? 'warning' : 'success'}>{importSummary.name}: {importSummary.outcomes.imported ?? 0} cell đã nhập, {importSummary.outcomes.duplicate ?? 0} cell trùng, {importSummary.outcomes.older ?? 0} bản cũ, {importSummary.outcomes.conflict ?? 0} xung đột. Cell xung đột không tự công bố.</Alert>}
               {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'importing' && <Alert severity="info" icon={<CircularProgress size={18} />}>Đang nhập ENC mới. Bản đồ chung vẫn hiển thị hải đồ đã công bố.</Alert>}
               {lastImportId && datasets.find(item => item.id === lastImportId)?.state === 'failed' && <Alert severity="error">{datasets.find(item => item.id === lastImportId)?.error || 'Lần nhập mới thất bại.'}</Alert>}
-              {cells.length > 0 && <TextField select label="Phạm vi hiển thị" size="small"
+              {cells.length > 0 && <TextField select label="Phạm vi hiển thị" size="small" disabled={editingActive}
                 slotProps={{
                   select: {
                     displayEmpty: true,
@@ -337,7 +349,8 @@ export function EncPreview() {
           </Stack>
         </Paper> : <Paper className="enc-collapsed" elevation={0} sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}><Button sx={{ minHeight: 44 }} startIcon={<Layers3 size={18} />} onClick={() => setPanelOpen(true)} aria-label="Mở bảng hiển thị hải đồ">Hiển thị hải đồ</Button></Paper>}
         {symbolsOpen && <DeferredDialog onClose={closeSymbols}><EncSymbolCatalog onClose={closeSymbols} /></DeferredDialog>}
-        {selected && !symbolsOpen && <EncPropertiesPanel properties={selected} onClose={() => setSelected(null)} onFitBounds={bounds => {
+        <Box sx={{ display: symbolsOpen ? 'none' : 'contents' }}><EncEditing map={map.current} selected={selected} cell={cell} sidebarOpen={panelOpen} enabled={source === 'local'} onActive={setEditingWorkspace} onClearSelection={() => setSelected(null)} /></Box>
+        {selected && !symbolsOpen && !editingActive && <EncPropertiesPanel properties={selected} onClose={() => setSelected(null)} onFitBounds={bounds => {
           map.current?.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], {
             padding: { left: panelOpen && innerWidth > 700 ? 354 : 30, right: innerWidth > 700 ? 420 : 30, top: panelOpen && innerWidth <= 700 ? 260 : 40, bottom: innerWidth <= 700 ? Math.round(innerHeight * 0.46) : 40 }, duration: 500,
           });

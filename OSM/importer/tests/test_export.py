@@ -24,6 +24,60 @@ from export_worker import write_snapshot, worker
 
 @unittest.skipUnless(os.environ.get("EDITOR_EXPORT_TEST") == "1", "requires disposable Canonical DB")
 class ExportIntegration(unittest.TestCase):
+    def test_pause_resume_keeps_partial_file_and_same_snapshot(self):
+        dataset_id, job_id = uuid.uuid4(), uuid.uuid4()
+        with connection() as conn:
+            conn.execute("INSERT INTO editor.dataset(id,name,state,canonical_revision) VALUES(%s,%s,'ready',1)", (dataset_id, str(dataset_id)))
+            for node in (1, 2):
+                conn.execute("INSERT INTO editor.entity_current(dataset_id,entity_type,entity_id,version,node_lon_e7,node_lat_e7) VALUES(%s,'node',%s,1,0,0)", (dataset_id, node))
+            conn.execute("INSERT INTO editor.export_job(id,dataset_id,state) VALUES(%s,%s,'queued')", (job_id, dataset_id))
+        original = export_worker.write_entity
+        def pause_after_first(writer, kind, row):
+            original(writer, kind, row)
+            if row["entity_id"] == 1:
+                with connection() as control:
+                    control.execute("UPDATE editor.export_job SET pause_requested=true WHERE id=%s", (job_id,))
+                with connection() as status:
+                    export_worker.progress(status, job_id, "writing", 1)
+        thread = None
+        try:
+            with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"EDITOR_EXPORT_DIR": folder, "EDITOR_EXPORT_MIN_FREE_BYTES": "0"}), patch("export_worker.write_entity", side_effect=pause_after_first):
+                thread = threading.Thread(target=lambda: worker(once=True), daemon=True)
+                thread.start()
+                paused = False
+                for _ in range(160):
+                    with connection() as conn:
+                        row = conn.execute("SELECT phase,entity_count FROM editor.export_job WHERE id=%s", (job_id,)).fetchone()
+                    if row == ("paused", 1): paused = True; break
+                    time.sleep(0.05)
+                self.assertTrue(paused, "worker never acknowledged pause")
+                partial = Path(folder) / (str(job_id) + ".partial")
+                self.assertTrue(partial.exists())
+                time.sleep(0.1)
+                self.assertTrue(thread.is_alive())
+                with connection() as conn:
+                    conn.execute("UPDATE editor.entity_current SET node_lon_e7=10000000 WHERE dataset_id=%s AND entity_id=2", (dataset_id,))
+                    conn.execute("UPDATE editor.dataset SET canonical_revision=2 WHERE id=%s", (dataset_id,))
+                    conn.execute("UPDATE editor.export_job SET pause_requested=false WHERE id=%s", (job_id,))
+                thread.join(10)
+                self.assertFalse(thread.is_alive())
+                with connection() as conn:
+                    self.assertEqual(conn.execute("SELECT state,revision,entity_count FROM editor.export_job WHERE id=%s", (job_id,)).fetchone(), ("ready", 1, 2))
+                nodes = []
+                class Read(osmium.SimpleHandler):
+                    def node(self, obj): nodes.append((obj.id, obj.location.lon))
+                Read().apply_file(str(Path(folder) / (str(job_id) + ".osm.pbf")))
+                self.assertEqual(nodes, [(1, 0.0), (2, 0.0)])
+                self.assertFalse(partial.exists())
+        finally:
+            if thread and thread.is_alive():
+                with connection() as conn: conn.execute("UPDATE editor.export_job SET cancel_requested=true WHERE id=%s", (job_id,))
+                thread.join(5)
+            with connection() as conn:
+                conn.execute("DELETE FROM editor.export_job WHERE dataset_id=%s", (dataset_id,))
+                conn.execute("DELETE FROM editor.entity_current WHERE dataset_id=%s", (dataset_id,))
+                conn.execute("DELETE FROM editor.dataset WHERE id=%s", (dataset_id,))
+
     def test_cancellation_interrupts_a_long_database_query(self):
         dataset_id, job_id = uuid.uuid4(), uuid.uuid4()
         with connection() as conn:
@@ -51,7 +105,7 @@ class ExportIntegration(unittest.TestCase):
                 conn.execute("DELETE FROM editor.dataset WHERE id=%s", (dataset_id,))
 
     def test_cancellation_cleans_partial_and_unpublished_final(self):
-        for phase in ("writing", "publication"):
+        for phase in ("writing", "publication", "paused"):
             with self.subTest(phase=phase):
                 dataset_id, job_id = uuid.uuid4(), uuid.uuid4()
                 with connection() as conn:
@@ -59,23 +113,35 @@ class ExportIntegration(unittest.TestCase):
                     conn.execute("""INSERT INTO editor.entity_current(dataset_id,entity_type,entity_id,version,node_lon_e7,node_lat_e7)
                         VALUES(%s,'node',1,1,0,0)""", (dataset_id,))
                     conn.execute("INSERT INTO editor.export_job(id,dataset_id,state) VALUES(%s,%s,'queued')", (job_id, dataset_id))
-                original = export_worker.write_entity if phase == "writing" else os.replace
+                original = os.replace if phase == "publication" else export_worker.write_entity
+                observed_pause = []
+                timer = None
 
                 def request_cancel(*args):
+                    nonlocal timer
                     result = original(*args)
                     with connection() as conn:
-                        conn.execute("UPDATE editor.export_job SET cancel_requested=true WHERE id=%s", (job_id,))
+                        field = "pause_requested" if phase == "paused" else "cancel_requested"
+                        conn.execute(f"UPDATE editor.export_job SET {field}=true WHERE id=%s", (job_id,))
+                    if phase == "paused":
+                        def cancel_paused():
+                            with connection() as conn:
+                                observed_pause.append(conn.execute("SELECT phase FROM editor.export_job WHERE id=%s", (job_id,)).fetchone()[0])
+                                conn.execute("UPDATE editor.export_job SET cancel_requested=true WHERE id=%s", (job_id,))
+                        timer = threading.Timer(0.5, cancel_paused); timer.start()
                     return result
 
                 try:
                     with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"EDITOR_EXPORT_DIR": folder, "EDITOR_EXPORT_MIN_FREE_BYTES": "0", "EDITOR_EXPORT_BATCH_SIZE": "1"}):
-                        target = "export_worker.write_entity" if phase == "writing" else "export_worker.os.replace"
+                        target = "export_worker.os.replace" if phase == "publication" else "export_worker.write_entity"
                         with patch(target, side_effect=request_cancel):
                             worker(once=True)
                         self.assertEqual(list(Path(folder).iterdir()), [])
+                        if phase == "paused": self.assertEqual(observed_pause, ["paused"])
                         with connection() as conn:
                             self.assertEqual(conn.execute("SELECT state,phase,error FROM editor.export_job WHERE id=%s", (job_id,)).fetchone(), ("cancelled", "cancelled", None))
                 finally:
+                    if timer: timer.join()
                     with connection() as conn:
                         conn.execute("DELETE FROM editor.export_job WHERE dataset_id=%s", (dataset_id,))
                         conn.execute("DELETE FROM editor.entity_current WHERE dataset_id=%s", (dataset_id,))

@@ -3,6 +3,9 @@
 `ENC/` chứa tài sản và hợp đồng riêng cho luồng Electronic Navigational Chart.
 Nó không dùng model node/way/relation, importer hoặc renderer của OSM.
 
+Biên tập cơ bản đã có workspace theo cell, sửa thuộc tính/điểm, lưu riêng và
+khôi phục bản nháp. Xem [hướng dẫn biên tập ENC](../docs/enc-editing.md).
+
 ## Xem ENC local
 
 ### Import từ giao diện
@@ -90,7 +93,8 @@ Giao diện nhận ZIP S-57 hoặc một file cell `.000` (mỗi file tối đa 
 tạo job và theo dõi trạng thái. Worker GDAL kiểm tra archive, cell trùng, update
 thiếu và checksum trước khi ghi dữ liệu; với `.000` lẻ, GDAL đọc cell gốc không
 có update. Dataset chỉ được mở để đọc khi toàn bộ import đã commit.
-Các đường đọc hiện tại dành cho viewer, chưa cung cấp Save hay export S-57.
+Các đường đọc dành cho viewer; thao tác lưu dùng workspace riêng theo
+[enc-editing.md](../docs/enc-editing.md). Chưa xuất ngược S-57.
 
 Chạy queue worker từ thư mục gốc:
 

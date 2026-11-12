@@ -118,6 +118,9 @@ func main() {
 		log.Fatalf("configure ENC DB: %v", err)
 	}
 	defer encPool.Close()
+	if err := encdomain.EnsureEditingSchema(ctx, encPool); err != nil {
+		log.Printf("warn: ensure ENC editing schema (apply ENC migrations): %v", err)
+	}
 	encAPI := &encdomain.Handler{DB: encPool, UploadDir: getenv("ENC_IMPORT_DIR", "../data/enc/uploads")}
 	if err := serveEditorAPI(&app{db: pool, renderDB: renderPool, staticRoot: staticRoot(), encAssetsRoot: encAssetsRoot(), encHandler: encAPI}); err != nil {
 		log.Fatal(err)

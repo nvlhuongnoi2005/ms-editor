@@ -84,6 +84,26 @@ và [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Orig
 
 ## Tiến độ xuất trên server
 
+Ngay trong bước tạo PBF có hai nút **Tạm dừng / Tiếp tục** (cùng vị trí) và
+**Xóa**. `POST /api/exports/<uuid>/pause` đặt `pause_requested=true`;
+`/resume` bỏ cờ này. Cùng kiểm tra header/origin như tạo và hủy export.
+Tác vụ chờ bị tạm dừng sẽ chưa được worker nhận. Tác vụ đang chạy dừng ở
+checkpoint an toàn, giữ writer/file dở, cursor, snapshot và trạng thái hash;
+phase chuyển `paused` sau khi worker xác nhận. Nếu đang COUNT/truy vấn fetch
+dài, chờ truy vấn đó kết thúc, không ngắt transaction rồi nối snapshot khác.
+Xóa vẫn ngắt truy vấn hoặc đánh thức vòng chờ tạm dừng để dọn file.
+
+Reload gửi yêu cầu pause bằng fetch keepalive; khi mở lại một tác vụ đang
+chạy từ phiên trước, dialog cũng yêu cầu pause trước khi hiển thị. Không tự
+resume/tạo UUID mới. Đóng dialog đơn thuần vẫn cho export tiếp tục.
+
+Tạm dừng trên server giữ snapshot PostgreSQL và chiếm worker xuất duy nhất;
+tác vụ khác phải đợi. Không nên để paused lâu vì snapshot giữ các version
+MVCC cũ. Tạm dừng không bảo đảm tiếp tục được sau khi worker/server restart:
+process cũ mất snapshot thì tác vụ bị đánh dấu failed, không nối PBF dở với
+snapshot mới. Cần cập nhật API và build/recreate `export-worker` để dùng các
+endpoint mới; cập nhật image đơn thuần không thay process worker đang chạy.
+
 Phần trăm đo theo **số đối tượng**, không phải dung lượng file hay thời gian
 còn lại. Việc đếm chính xác cần thêm một lượt đọc DB; trong lúc đếm, giao diện
 hiển thị thanh chờ. Sau khi xuất đủ đối tượng, hệ thống còn tính checksum và

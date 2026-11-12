@@ -138,7 +138,7 @@ export class DraftConflictError extends Error {
 }
 
 /** Compare-and-swap inside ONE IndexedDB transaction, including deletions. */
-export async function writeDraft(dataset: string, expected: string | null, draft: DraftRecord | null): Promise<void> {
+export async function writeDraft<T extends { revision: string } = DraftRecord>(dataset: string, expected: string | null, draft: T | null): Promise<void> {
   const db = await openDatabase();
   try {
     await new Promise<void>((resolve, reject) => {
