@@ -130,8 +130,10 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = a.servePublishStatus(r.Context(), w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/mvt/") && r.Method == http.MethodGet:
 		err = a.serveMVT(r.Context(), w, r)
-	case r.URL.Path == "/api/export/osm" && r.Method == http.MethodGet:
-		err = a.exportOSM(r.Context(), w, r)
+	case r.URL.Path == "/api/exports" || strings.HasPrefix(r.URL.Path, "/api/exports/"):
+		err = a.serveExports(r.Context(), w, r)
+	case r.URL.Path == "/api/export/osm":
+		err = fail(410, "Viewport export was removed. Use the full dataset PBF export.")
 	case r.URL.Path == "/api/export/osc" && r.Method == http.MethodGet:
 		err = a.exportLatestOSC(r.Context(), w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/0.6/"):

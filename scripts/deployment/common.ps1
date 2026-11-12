@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:RepoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $script:RuntimeCompose = Join-Path $script:RepoRoot 'deploy/compose.yaml'
-$script:Services = @('editor-api', 'import-worker', 'render-sync-worker', 'enc-import-worker', 'tile-server')
+$script:Services = @('editor-api', 'import-worker', 'export-worker', 'render-sync-worker', 'enc-import-worker', 'tile-server')
 
 function Write-Utf8([string]$Path, [string]$Content) {
     [IO.File]::WriteAllText($Path, $Content, (New-Object Text.UTF8Encoding($false)))
@@ -104,7 +104,7 @@ function Initialize-Config([int]$Port = 0, [string]$ProjectName = '') {
     Write-Utf8 $path (($lines -join "`n") + "`n")
 }
 function Initialize-DataDirectories {
-    foreach ($path in @('data/imports','data/enc/uploads','data/runtime/tiles')) {
+    foreach ($path in @('data/imports','data/exports','data/enc/uploads','data/runtime/tiles')) {
         [IO.Directory]::CreateDirectory((Join-Path $script:RepoRoot $path)) | Out-Null
     }
 }

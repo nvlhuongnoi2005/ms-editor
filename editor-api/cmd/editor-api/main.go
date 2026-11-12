@@ -93,6 +93,9 @@ func main() {
 	if err := ensureImportsSchema(ctx, pool); err != nil {
 		log.Fatalf("ensure import schema: %v", err)
 	}
+	if err := ensureExportsSchema(ctx, pool); err != nil {
+		log.Fatalf("ensure export schema: %v", err)
+	}
 	if os.Getenv("EDITOR_MODE") == "render-worker" {
 		if err := runRenderWorker(ctx, pool); err != nil {
 			log.Fatal(err)

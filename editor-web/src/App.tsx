@@ -71,6 +71,7 @@ import { DeferredDialog } from './shared/DeferredDialog';
 const DatasetManagerDialog = lazy(() => import('./features/editor/DatasetManagerDialog').then(module => ({ default: module.DatasetManagerDialog })));
 const ConflictDialog = lazy(() => import('./features/editor/ConflictDialog').then(module => ({ default: module.ConflictDialog })));
 const ChangesetHistoryDialog = lazy(() => import('./features/editor/ChangesetHistoryDialog').then(module => ({ default: module.ChangesetHistoryDialog })));
+const ExportDatasetDialog = lazy(() => import('./features/editor/ExportDatasetDialog').then(module => ({ default: module.ExportDatasetDialog })));
 const GeometryLocksDialog = lazy(() => import('./features/editor/GeometryLocksDialog').then(module => ({ default: module.GeometryLocksDialog })));
 const CommandImpactDialog = lazy(() => import('./features/editor/CommandImpactDialog').then(module => ({ default: module.CommandImpactDialog })));
 
@@ -911,6 +912,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
   const [conflictSession, setConflictSession] = useState<ConflictSession | null>(null);
   const writeBusyRef = useRef(false);
   const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [coordinateAnchor, setCoordinateAnchor] = useState<HTMLElement | null>(null);
   const [coordinateInput, setCoordinateInput] = useState('');
   const [coordinateError, setCoordinateError] = useState<string | null>(null);
@@ -1218,18 +1220,13 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     setSaveStatus('Đã cập nhật preview trên bản server mới. Kiểm tra kết quả và bấm Lưu nếu còn thay đổi.');
   }, [graphLoader, resolveConflicts, setLoading]);
 
-  const handleExport = useCallback((format: 'osm' | 'osc') => {
+  const handleExport = useCallback((format: 'pbf' | 'osc') => {
     setExportAnchor(null);
-    const query = new URLSearchParams({ dataset: dataset.name });
-    if (format === 'osm') {
-      const viewport = viewportRef.current;
-      if (!viewport) {
-        setSaveStatus('Chờ bản đồ xác định vùng cần xuất.');
-        return;
-      }
-      query.set('bbox', viewport.bbox.join(','));
-      query.set('limit', '5000');
+    if (format === 'pbf') {
+      setExportOpen(true);
+      return;
     }
+    const query = new URLSearchParams({ dataset: dataset.name });
     window.location.assign(`/api/export/${format}?${query.toString()}`);
   }, [dataset.name]);
 
@@ -1927,10 +1924,10 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
               onClose={() => setExportAnchor(null)}
               slotProps={{ paper: { sx: { minWidth: 240, mt: 0.75, borderRadius: 2, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' } } }}
             >
-              <MenuItem onClick={() => handleExport('osm')}>
+              <MenuItem onClick={() => handleExport('pbf')}>
                 <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#252c2b' }}>Xuất tệp dữ liệu (.osm)</Typography>
-                  <Typography sx={{ fontSize: 11, color: '#626a63' }}>Toàn bộ đối tượng trong vùng đang xem</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#252c2b' }}>Tải toàn bộ dữ liệu (.osm.pbf)</Typography>
+                  <Typography sx={{ fontSize: 11, color: '#626a63' }}>Toàn bộ dataset và các chỉnh sửa đã lưu</Typography>
                 </Box>
               </MenuItem>
               <MenuItem onClick={() => handleExport('osc')}>
@@ -1984,6 +1981,7 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
         </Toolbar>
       </AppBar>
 
+      {exportOpen && <DeferredDialog onClose={() => setExportOpen(false)}><ExportDatasetDialog key={dataset.id} dataset={dataset.name} hasDraft={changeCount > 0 || Boolean(pendingCloseId) || drawVertices.length > 0 || Boolean(pendingTags)} saving={saving} onClose={() => setExportOpen(false)} /></DeferredDialog>}
       {datasetManagerOpen && <DeferredDialog onClose={() => setDatasetManagerOpen(false)}><DatasetManagerDialog activeId={dataset.id} canSwitch={!changeCount && !saving && !pendingCloseId && !conflictSession && !historyOpen && drawMode === 'select'} onClose={() => setDatasetManagerOpen(false)} onOpenDataset={next => {
         if (changeCount || saving || pendingCloseId || conflictSession || historyOpen || drawMode !== 'select') return;
         graphLoader.cancel(); entityRequestRef.current += 1; onOpenDataset(next);

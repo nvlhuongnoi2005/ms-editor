@@ -80,6 +80,7 @@ Khi import xong, khởi động editor như các bước trên. Danh sách datas
 ## Worker và các dịch vụ tùy chọn
 
 - **Import PBF từ giao diện:** cần chạy `import-worker` bên cạnh API. Hướng dẫn upload, giới hạn file và khởi chạy worker nằm trong [`docs/pbf-import.md`](docs/pbf-import.md). API native lưu file ở `data/imports`, cùng thư mục được worker Docker mount.
+- **Tải toàn bộ PBF sau chỉnh sửa:** menu Xuất tệp tạo tác vụ nền bằng `export-worker`, xuất toàn bộ dataset và tải trực tiếp xuống đĩa với HTTP Range/resume. Chức năng xuất vùng đang xem đã được bỏ. Xem [`docs/pbf-export.md`](docs/pbf-export.md).
 - **Publish thay đổi sau Save:** chạy `render-sync-worker` để xử lý hàng đợi từ Canonical sang Render. Có lệnh khởi động và cách kiểm tra revision trong [`infra/README.md`](infra/README.md).
 - **Tile server nền vệ tinh local:** tùy chọn, cấu hình và lệnh chạy cũng nằm trong [`infra/README.md`](infra/README.md). Frontend dev hoặc API không tự khởi động dịch vụ này.
 

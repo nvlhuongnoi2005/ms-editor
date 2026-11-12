@@ -2,6 +2,7 @@
 data/*.osm.pbf
 data/*.pbf
 data/imports/
+data/exports/
 data/runtime/
 data/enc/
 data/*.mbtiles

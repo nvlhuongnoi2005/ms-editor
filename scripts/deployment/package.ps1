@@ -42,7 +42,7 @@ try {
 
 foreach ($folder in @('deploy','scripts/deployment','infra/init','infra/ops','docs')) { [IO.Directory]::CreateDirectory((Join-Path $Output $folder)) | Out-Null }
 foreach ($folder in @('infra/init','infra/ops','deploy/tile-server')) { Copy-Tree (Join-Path $script:RepoRoot $folder) (Join-Path $Output $folder) }
-foreach ($file in @('deploy/compose.yaml','scripts/deployment/common.ps1','scripts/deployment/setup.ps1','scripts/deployment/control.ps1','scripts/deployment/doctor.ps1','Setup.cmd','Start.cmd','Stop.cmd','Doctor.cmd','Logs.cmd','docs/setup-new-machine.md','docs/deployment-verification.md')) {
+foreach ($file in @('deploy/compose.yaml','scripts/deployment/common.ps1','scripts/deployment/setup.ps1','scripts/deployment/control.ps1','scripts/deployment/doctor.ps1','Setup.cmd','Start.cmd','Stop.cmd','Doctor.cmd','Logs.cmd','docs/setup-new-machine.md','docs/deployment-verification.md','docs/pbf-export.md')) {
     Copy-Item -LiteralPath (Join-Path $script:RepoRoot $file) -Destination (Join-Path $Output $file)
 }
 Write-Utf8 (Join-Path $Output 'deploy/images.env') ((@($images.Keys | Sort-Object | ForEach-Object { "$_=$($images[$_])" }) -join "`n") + "`n")

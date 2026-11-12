@@ -35,5 +35,7 @@ for ($attempt = 0; $attempt -lt 20; $attempt++) {
     Start-Sleep -Seconds 1
 }
 if (-not $online) { throw 'OSM import worker heartbeat is missing. Check Logs.cmd.' }
+$exportOnline = Invoke-Sql $container 'canonical' "SELECT EXISTS(SELECT 1 FROM editor.export_worker_status WHERE heartbeat_at > now()-interval '30 seconds')"
+if ($exportOnline -ne 't') { throw 'OSM export worker heartbeat is missing. Check Logs.cmd.' }
 Write-Host 'OK import consumers: OSM heartbeat, ENC queue and GDAL S-57 driver'
 Write-Host "System checks passed. Open $base"

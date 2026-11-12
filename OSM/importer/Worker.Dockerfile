@@ -4,5 +4,5 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 osm2pgsql && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-COPY importer.py worker.py ./
+COPY importer.py worker.py export_worker.py ./
 ENTRYPOINT ["python", "/app/worker.py"]

@@ -34,11 +34,13 @@ services:
       ENC_DB_HOST: postgres
       ENC_DB_PASSWORD: ${ENC_DB_PASSWORD}
       EDITOR_IMPORT_DIR: /var/lib/map-service/imports
+      EDITOR_EXPORT_DIR: /var/lib/map-service/exports
       ENC_IMPORT_DIR: /data/enc/uploads
       ENC_BASEMAP_TILE_SERVER_URL: http://tile-server:8080
       ENC_BASEMAP_ENABLED: ${ENC_BASEMAP_ENABLED:-false}
     volumes:
       - ../data/imports:/var/lib/map-service/imports
+      - ../data/exports:/var/lib/map-service/exports:ro
       - ../data/enc/uploads:/data/enc/uploads
     ports:
       - "127.0.0.1:${EDITOR_API_PORT:-4173}:4173"
@@ -64,6 +66,24 @@ services:
       EDITOR_IMPORT_DIR: /var/lib/map-service/imports
     volumes:
       - ../data/imports:/var/lib/map-service/imports
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  export-worker:
+    image: ${OSM_WORKER_IMAGE:-ms-editor/osm-worker:local}
+    entrypoint: ["python", "/app/export_worker.py"]
+    environment:
+      DB_HOST: postgres
+      DB_NAME: canonical
+      DB_USER: canonical_owner
+      DB_PASSWORD: ${CANONICAL_DB_PASSWORD}
+      EDITOR_EXPORT_DIR: /var/lib/map-service/exports
+      EDITOR_EXPORT_BATCH_SIZE: ${EDITOR_EXPORT_BATCH_SIZE:-1000}
+      EDITOR_EXPORT_MIN_FREE_BYTES: ${EDITOR_EXPORT_MIN_FREE_BYTES:-1073741824}
+    volumes:
+      - ../data/exports:/var/lib/map-service/exports
     depends_on:
       postgres:
         condition: service_healthy
