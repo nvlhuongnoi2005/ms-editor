@@ -1,4 +1,5 @@
 import { DataManagerTabs, type DataManagerSection } from '../../shared/DataManagerTabs';
+import { startVisiblePolling } from '../../api/polling';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { loadDatasets, loadImports, retryImport, uploadPBF, type DatasetInfo, type ImportJob, type ImportState, type ImportStatus } from '../../api/datasets';
@@ -20,20 +21,22 @@ export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClo
   const [notice, setNotice] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
   const mounted = useRef(true);
+  const pollingRef = useRef<ReturnType<typeof startVisiblePolling> | null>(null);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; controller.current?.abort(); }; }, []);
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const results = await Promise.allSettled([loadDatasets(signal), loadImports(signal)]);
-    if (!mounted.current || signal?.aborted) return;
+    if (!mounted.current || signal?.aborted) return 60_000;
     if (results[0].status === 'fulfilled') { setDatasets(results[0].value); setError(null); }
     else setError(errorText(results[0].reason));
     if (results[1].status === 'fulfilled') { setStatus(results[1].value); setImportError(null); }
     else { setStatus(null); setImportError(errorText(results[1].reason)); }
+    if (results.some(result => result.status === 'rejected')) throw new Error('Không tải được trạng thái import.');
+    return results[1].status === 'fulfilled' && results[1].value.jobs.some(job => job.state !== 'ready' && job.state !== 'failed') ? 2500 : 60_000;
   }, []);
   useEffect(() => {
-    const abort = new AbortController(); let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => { await refresh(abort.signal); if (!abort.signal.aborted) timer = setTimeout(() => { void poll(); }, 2500); };
-    void poll();
-    return () => { abort.abort(); clearTimeout(timer); };
+    const polling = startVisiblePolling(signal => refresh(signal));
+    pollingRef.current = polling;
+    return () => { polling.dispose(); pollingRef.current = null; };
   }, [refresh]);
   const upload = async () => {
     if (!file || busy) return;
@@ -46,13 +49,13 @@ export function DatasetManagerDialog({ activeId, canSwitch, onOpenDataset, onClo
       await uploadPBF(file, name, setProgress, controller.current.signal);
       if (!mounted.current) return;
       setNotice('Đã tiếp nhận file. Import chạy nền; bạn có thể đóng bảng này rồi mở lại để theo dõi.');
-      setFile(null); setName(''); await refresh();
+      setFile(null); setName(''); pollingRef.current?.refresh();
     } catch (reason) { if (mounted.current) setError(errorText(reason)); }
     finally { if (mounted.current) { setBusy(false); setProgress(null); } controller.current = null; }
   };
   const retry = async (job: ImportJob) => {
     setBusy(true); setError(null);
-    try { await retryImport(job.id); await refresh(); }
+    try { await retryImport(job.id); pollingRef.current?.refresh(); }
     catch (reason) { if (mounted.current) setError(errorText(reason)); }
     finally { if (mounted.current) setBusy(false); }
   };

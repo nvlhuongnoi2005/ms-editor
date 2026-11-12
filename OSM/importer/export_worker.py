@@ -24,6 +24,49 @@ LOCK_ID = 713480191
 TYPES = ("node", "way", "relation")
 
 
+class CancelledExport(Exception):
+    pass
+
+
+class ExportCancellation:
+    """Interrupt a long COUNT/cursor query without terminating the worker."""
+    def __init__(self, snapshot, job_id):
+        self.snapshot, self.job_id = snapshot, job_id
+        self.stop = threading.Event()
+        self.thread = threading.Thread(target=self.watch, daemon=True)
+
+    def watch(self):
+        while not self.stop.is_set():
+            try:
+                with connection() as conn:
+                    row = conn.execute("SELECT cancel_requested FROM editor.export_job WHERE id=%s", (self.job_id,)).fetchone()
+                if row and row[0]:
+                    self.snapshot.cancel()
+                    # Keep checking: cancellation may have hit between queries.
+                    # The next COUNT/cursor fetch must also be interruptible.
+            except Exception:
+                LOG.warning("Cannot check export cancellation")
+            self.stop.wait(1)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *_):
+        self.stop.set()
+        self.thread.join(timeout=2)
+
+
+def progress(status, job_id, phase, count, total=None, revision=None):
+    with status.transaction():
+        row = status.execute("""UPDATE editor.export_job SET phase=%s,entity_count=%s,
+            total_count=COALESCE(%s,total_count),revision=COALESCE(%s,revision)
+            WHERE id=%s AND state='running' AND NOT cancel_requested RETURNING id""",
+                             (phase, count, total, revision, job_id)).fetchone()
+    if not row:
+        raise CancelledExport()
+
+
 class Heartbeat:
     def __init__(self):
         self.stop = threading.Event()
@@ -82,8 +125,12 @@ def write_snapshot(snapshot, status, job, root):
         if not dataset or dataset[1] != "ready":
             raise RuntimeError("Dataset is no longer ready")
         revision = dataset[0]
-        with status.transaction():
-            status.execute("UPDATE editor.export_job SET revision=%s WHERE id=%s", (revision, job_id))
+        progress(status, job_id, "counting", 0, revision=revision)
+        # Count the same MVCC snapshot that the following cursors will export.
+        # This is an extra scan, not a RAM allocation proportional to the dataset.
+        total = snapshot.execute("SELECT count(*) FROM editor.entity_current WHERE dataset_id=%s AND visible", (job["dataset_id"],)).fetchone()[0]
+        progress(status, job_id, "writing", 0, total=total)
+        last_progress = time.monotonic()
         header = osmium.io.Header()
         header.set("generator", "Map Service Editor")
         # Explicit format because the staging filename ends in .partial.
@@ -100,23 +147,30 @@ def write_snapshot(snapshot, status, job, root):
                     for row in cursor:
                         write_entity(writer, kind, row)
                         count += 1
-                        if count % batch_size == 0:
+                        if count % batch_size == 0 or time.monotonic() - last_progress >= 1:
                             if shutil.disk_usage(root).free < reserve:
                                 raise RuntimeError("Export disk has insufficient free space")
-                            with status.transaction():
-                                status.execute("UPDATE editor.export_job SET entity_count=%s WHERE id=%s", (count, job_id))
+                            if time.monotonic() - last_progress >= 1:
+                                progress(status, job_id, "writing", count)
+                                last_progress = time.monotonic()
+    progress(status, job_id, "hashing", count)
     # Hash in bounded blocks; do not expose a download until all writes finish.
     digest = hashlib.sha256()
     with partial.open("rb") as source:
         for block in iter(lambda: source.read(1 << 20), b""):
             digest.update(block)
+            if time.monotonic() - last_progress >= 1:
+                progress(status, job_id, "hashing", count)
+                last_progress = time.monotonic()
         os.fsync(source.fileno())
     size = partial.stat().st_size
     os.replace(partial, final)
     with status.transaction():
-        status.execute("""UPDATE editor.export_job SET state='ready',revision=%s,entity_count=%s,
-            bytes=%s,sha256=%s,finished_at=now(),error=NULL WHERE id=%s""",
-                       (revision, count, size, digest.hexdigest(), job_id))
+        ready = status.execute("""UPDATE editor.export_job SET state='ready',phase='ready',revision=%s,entity_count=%s,
+            bytes=%s,sha256=%s,finished_at=now(),error=NULL WHERE id=%s AND state='running' AND NOT cancel_requested RETURNING id""",
+                       (revision, count, size, digest.hexdigest(), job_id)).fetchone()
+    if not ready:
+        raise CancelledExport()
     LOG.info("Export %s ready: revision %s, %s entities, %s bytes", job_id, revision, count, size)
 
 
@@ -126,7 +180,8 @@ def worker(once=False):
     with connection() as queue:
         queue.autocommit = True
         # API creates the additive schema. Allow either service to start first.
-        while not queue.execute("SELECT to_regclass('editor.export_job')").fetchone()[0]:
+        while not queue.execute("""SELECT EXISTS(SELECT 1 FROM information_schema.columns
+            WHERE table_schema='editor' AND table_name='export_job' AND column_name='cancel_requested')""").fetchone()[0]:
             if once:
                 raise RuntimeError("Start editor-api to initialize the export schema first")
             time.sleep(2)
@@ -134,8 +189,9 @@ def worker(once=False):
             raise RuntimeError("Another export worker owns the queue")
         # A lost process cannot continue its old PostgreSQL snapshot. Mark it
         # failed instead of resuming bytes from a different database revision.
-        interrupted = queue.execute("""UPDATE editor.export_job SET state='failed',
-            error='Export worker interrupted. Create a new export.',finished_at=now()
+        interrupted = queue.execute("""UPDATE editor.export_job SET state=CASE WHEN cancel_requested THEN 'cancelled' ELSE 'failed' END,
+            phase=CASE WHEN cancel_requested THEN 'cancelled' ELSE phase END,
+            error=CASE WHEN cancel_requested THEN NULL ELSE 'Export worker interrupted. Create a new export.' END,finished_at=now()
             WHERE state='running' RETURNING id""").fetchall()
         for (job_id,) in interrupted:
             (root / (str(job_id) + ".partial")).unlink(missing_ok=True)
@@ -153,7 +209,7 @@ def worker(once=False):
                         reserve = max(0, int(os.environ.get("EDITOR_EXPORT_MIN_FREE_BYTES", str(1 << 30))))
                         if shutil.disk_usage(root).free < reserve:
                             raise RuntimeError("Export disk has insufficient free space")
-                        with connection() as snapshot:
+                        with connection() as snapshot, ExportCancellation(snapshot, job["id"]):
                             write_snapshot(snapshot, queue, job, root)
                     except Exception as error:
                         # Avoid leaking connection parameters or credentials.
@@ -161,12 +217,16 @@ def worker(once=False):
                         secret = os.environ.get("DB_PASSWORD")
                         if secret:
                             message = message.replace(secret, "[redacted]")
-                        LOG.error("Export %s failed (%s): %s", job["id"], type(error).__name__, message[-2000:])
+                        row = queue.execute("SELECT cancel_requested FROM editor.export_job WHERE id=%s", (job["id"],)).fetchone()
+                        cancelled = isinstance(error, CancelledExport) or bool(row and row[0])
+                        if not cancelled:
+                            LOG.error("Export %s failed (%s): %s", job["id"], type(error).__name__, message[-2000:])
                         for suffix in (".partial", ".osm.pbf"):
                             (root / (str(job["id"]) + suffix)).unlink(missing_ok=True)
-                        queue.execute("""UPDATE editor.export_job SET state='failed',
-                            error='Export failed. Check worker logs, database connection and available disk space.',finished_at=now()
-                            WHERE id=%s""", (job["id"],))
+                        queue.execute("""UPDATE editor.export_job SET state=%s,phase=%s,
+                            error=%s,finished_at=now() WHERE id=%s""",
+                                      ("cancelled" if cancelled else "failed", "cancelled" if cancelled else "failed",
+                                       None if cancelled else "Export failed. Check worker logs, database connection and available disk space.", job["id"]))
                 elif not once:
                     time.sleep(2)
                 if once:

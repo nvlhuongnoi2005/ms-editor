@@ -8,7 +8,7 @@ const errors = [];
 const node = (id, version = 1) => ({ type: 'Feature', properties: { entityType: 'node', entityId: id, version, tags: { amenity: 'bench', name: id } }, geometry: { type: 'Point', coordinates: [105 + (Number(id) - 2) * 0.0003, 21] } });
 async function context(options = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce', ...options });
-  const api = { mode: 'success', creates: 0, uploads: 0, committed: false, version: 1 };
+  const api = { mode: 'success', creates: 0, uploads: 0, committed: false, closed: false, version: 1 };
   ctx.on('page', page => {
     page.on('pageerror', error => errors.push(error.message));
     page.on('dialog', dialog => dialog.accept());
@@ -35,7 +35,7 @@ async function context(options = {}) {
       if (api.mode === 'server-error-after' && api.uploads === 1) return route.fulfill({ status: 500, json: { error: 'Unknown commit outcome' } });
       return route.fulfill({ json: { changeset: { id: '123', status: 'committed', committedRevision: 2 } } });
     }
-    if (path.startsWith('/api/0.6/changeset/')) return route.fulfill({ json: { changeset: { id: '123', status: path.endsWith('/close') ? 'closed' : api.committed ? 'committed' : 'open', ...(api.committed ? { committedRevision: 2 } : {}) } } });
+    if (path.startsWith('/api/0.6/changeset/')) return route.fulfill({ json: { changeset: { id: '123', status: path.endsWith('/close') || api.closed ? 'closed' : api.committed ? 'committed' : 'open', ...(api.committed ? { committedRevision: 2 } : {}) } } });
     return route.fulfill({ json: { features: [] } });
   });
   return { ctx, api };
@@ -142,6 +142,21 @@ try {
       await page.reload(); await page.getByRole('button', { name: 'Kiểm tra / Tiếp tục phiên lưu', exact: true }).click();
       await page.getByRole('status').filter({ hasText: 'Không có thay đổi cần lưu nháp' }).waitFor();
       assert.equal(await read(page), undefined); assert.equal(api.creates, 1); assert.equal(api.uploads, mode === 'lost-before' ? 2 : 1);
+    } finally { await ctx.close(); }
+  });
+  for (const mode of ['closed', 'reject']) await run(`recovery: ${mode} keeps original draft/session and reports the actual failure`, async () => {
+    const { ctx, api } = await context();
+    try {
+      const page = await open(ctx); await locate(page); await duplicate(page); await saved(page); api.mode = 'lost-before';
+      await saveButton(page).click();
+      await page.getByRole('button', { name: 'Kiểm tra / Tiếp tục phiên lưu', exact: true }).waitFor();
+      if (mode === 'closed') api.closed = true; else api.mode = 'reject';
+      await page.getByRole('button', { name: 'Kiểm tra / Tiếp tục phiên lưu', exact: true }).click();
+      await page.getByText(mode === 'closed' ? /đã đóng nhưng chưa lưu dữ liệu/ : /Test rejection/).waitFor();
+      assert.equal((await read(page)).pendingUpload, '123');
+      assert.equal(api.creates, 1);
+      assert.equal(api.uploads, mode === 'closed' ? 1 : 2);
+      assert.equal(api.committed, false);
     } finally { await ctx.close(); }
   });
   await run('extras: blocked storage degrades explicitly and server save still works', async () => {

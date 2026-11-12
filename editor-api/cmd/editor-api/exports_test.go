@@ -145,6 +145,24 @@ func TestFullExportQueueIntegration(t *testing.T) {
 		t.Fatalf("listing=%s error=%v", w.Body.String(), err)
 	}
 	w = httptest.NewRecorder()
+	a.ServeHTTP(w, httptest.NewRequest("GET", "/api/exports/"+id, nil))
+	var current struct{ ID, State string }
+	if err := json.Unmarshal(w.Body.Bytes(), &current); err != nil || w.Code != 200 || current.ID != id || current.State != "queued" {
+		t.Fatalf("single export status=%d body=%s error=%v", w.Code, w.Body.String(), err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := fields["error"]; exists {
+		t.Fatal("single export leaks internal worker logs")
+	}
+	w = httptest.NewRecorder()
+	a.ServeHTTP(w, httptest.NewRequest("GET", "/api/exports/a1111111-2222-4333-8444-555555555559", nil))
+	if w.Code != 404 {
+		t.Fatalf("missing export status=%d", w.Code)
+	}
+	w = httptest.NewRecorder()
 	a.ServeHTTP(w, httptest.NewRequest("GET", "/api/exports/"+id+"/file", nil))
 	if w.Code != 409 {
 		t.Fatalf("pending download status=%d", w.Code)
@@ -168,7 +186,79 @@ func TestFullExportQueueIntegration(t *testing.T) {
 	if _, err := db.Exec(ctx, `UPDATE editor.dataset SET canonical_revision=9 WHERE id=$1`, datasetID); err != nil {
 		t.Fatal(err)
 	}
-	if next := create(); next == id {
+	next := create()
+	if next == id {
 		t.Fatal("new revision reused old export")
+	}
+	t.Setenv("EDITOR_EXPORT_MAX_PENDING", "1")
+	const otherID = "a1111111-2222-4333-8444-555555555556"
+	if _, err := db.Exec(ctx, `INSERT INTO editor.dataset(id,name,state) VALUES($1,'export-capacity-verification','ready')`, otherID); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Exec(ctx, `DELETE FROM editor.dataset WHERE id=$1`, otherID)
+	r = httptest.NewRequest("POST", "/api/exports?dataset=export-capacity-verification", nil)
+	r.Header.Set("X-Editor-Import", "1")
+	w = httptest.NewRecorder()
+	a.ServeHTTP(w, r)
+	if w.Code != 503 || w.Header().Get("Retry-After") != "2" {
+		t.Fatalf("full queue status=%d headers=%v body=%s", w.Code, w.Header(), w.Body.String())
+	}
+	cancel := func(job string, code int) {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/api/exports/"+job+"/cancel", nil)
+		r.Header.Set("X-Editor-Import", "1")
+		w := httptest.NewRecorder()
+		a.ServeHTTP(w, r)
+		if w.Code != code {
+			t.Fatalf("cancel status=%d body=%s", w.Code, w.Body.String())
+		}
+	}
+	cancel(id, 409) // A finished download remains available.
+	cancel(next, 202)
+	cancel(next, 202) // Retrying cancellation does not create another job.
+	var state string
+	var requested bool
+	if err := db.QueryRow(ctx, `SELECT state,cancel_requested FROM editor.export_job WHERE id=$1`, next).Scan(&state, &requested); err != nil || state != "cancelled" || !requested {
+		t.Fatalf("queued cancellation: %s %v %v", state, requested, err)
+	}
+	running := create()
+	if running == next {
+		t.Fatal("cancelled job reused")
+	}
+	if _, err := db.Exec(ctx, `UPDATE editor.export_job SET state='running',phase='writing',total_count=100,entity_count=50 WHERE id=$1`, running); err != nil {
+		t.Fatal(err)
+	}
+	cancel(running, 202)
+	if err := db.QueryRow(ctx, `SELECT state,cancel_requested FROM editor.export_job WHERE id=$1`, running).Scan(&state, &requested); err != nil || state != "running" || !requested {
+		t.Fatalf("running cancellation: %s %v %v", state, requested, err)
+	}
+	if reused := create(); reused != running {
+		t.Fatal("new export created before worker confirmed cancellation")
+	}
+	w = httptest.NewRecorder()
+	a.ServeHTTP(w, httptest.NewRequest("GET", "/api/exports?dataset=export-api-verification", nil))
+	var progressListing struct {
+		Jobs []struct {
+			ID              string
+			TotalCount      int
+			EntityCount     int
+			Phase           string
+			CancelRequested bool
+		}
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &progressListing); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, job := range progressListing.Jobs {
+		if job.ID == running {
+			found = true
+			if job.TotalCount != 100 || job.EntityCount != 50 || job.Phase != "writing" || !job.CancelRequested {
+				t.Fatalf("progress=%+v", job)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("running export missing")
 	}
 }

@@ -107,7 +107,7 @@ try {
   await call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
   await waitFor('(await testMap.getSource("editor-selection").getData()).features[0]?.properties.entityId === "1"');
   omitSelected = true;
-  await evaluate('void testMap.jumpTo({zoom:12})');
+  await evaluate('void testMap.jumpTo({zoom:14})');
   await waitFor('testMap.queryRenderedFeatures({layers:["graph-point-preview"]}).length && !(await testMap.getSource("canonical-graph").getData()).features.some(f=>f.properties.entityId==="1")');
   assert.equal(await evaluate('(await testMap.getSource("editor-selection").getData()).features[0]?.properties.entityId'), '1');
   assert.ok(await evaluate('testMap.queryRenderedFeatures({layers:["selection-origin-point-preview"]}).length'));
@@ -118,9 +118,9 @@ try {
   const pulseA = await evaluate('testMap.getPaintProperty("selection-halo-point-preview","circle-radius")');
   await pause(220);
   const pulseB = await evaluate('testMap.getPaintProperty("selection-halo-point-preview","circle-radius")');
-  assert.notEqual(pulseA, pulseB, 'selected POI must keep pulsing below Z12');
+  assert.notEqual(pulseA, pulseB, 'selected POI must keep pulsing below Z14');
   assert.ok(await evaluate('testMap.queryRenderedFeatures({layers:["selection-origin-point-preview"]}).length'));
-  assert.equal(graphRequests.length, before, 'no graph request below Z12');
+  assert.equal(graphRequests.length, before, 'no graph request below Z14');
   assert.equal(await evaluate('testMap.queryRenderedFeatures({layers:["graph-line","graph-point-preview"]}).length'), 0);
 
   await evaluate('void testMap.jumpTo({zoom:16})');
@@ -134,10 +134,10 @@ try {
   const linePulseA = await evaluate('testMap.getPaintProperty("selection-halo-line","line-opacity")');
   await pause(220);
   const linePulseB = await evaluate('testMap.getPaintProperty("selection-halo-line","line-opacity")');
-  assert.notEqual(linePulseA, linePulseB, 'selected way must keep pulsing below Z12');
+  assert.notEqual(linePulseA, linePulseB, 'selected way must keep pulsing below Z14');
   assert.deepEqual(errors, []);
   assert.deepEqual(unexpected, []);
-  console.log(JSON.stringify({ passed: true, graphAt: 12, selectedVisibleAt: 11, pulseA, pulseB, linePulseA, linePulseB, graphRequests: graphRequests.length, errors }, null, 2));
+  console.log(JSON.stringify({ passed: true, graphAt: 14, selectedVisibleAt: 11, pulseA, pulseB, linePulseA, linePulseB, graphRequests: graphRequests.length, errors }, null, 2));
 } catch (error) {
   if (evaluate) console.error(await evaluate('document.body.innerText.slice(0,2000)').catch(() => 'Cannot inspect page'));
   throw error;

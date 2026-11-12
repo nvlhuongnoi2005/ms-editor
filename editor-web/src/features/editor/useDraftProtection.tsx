@@ -117,13 +117,19 @@ export function useDraftProtection({ dataset, busy, unfinished, workspace, works
     setWorking(true); setError(null);
     try {
       let result = await getChangeset(saved.pendingUpload);
+      if (result.committedRevision === undefined && result.status === 'closed') {
+        throw new Error('Phiên thay đổi chưa xác nhận commit. Phiên đã đóng nhưng chưa lưu dữ liệu. Bản nháp được giữ nguyên; xuất bản sao JSON để đối soát.');
+      }
       // Retry only the SAME changeset and immutable payload. The backend locks
       // its row and refuses a second commit, including an in-flight first try.
       if (!result.committedRevision && result.status === 'open') {
         try { result = await uploadChangeset(saved.pendingUpload, toUploadChanges(pendingChanges(saved.state))); }
-        catch { result = await getChangeset(saved.pendingUpload); }
+        catch (uploadError) {
+          result = await getChangeset(saved.pendingUpload);
+          if (result.committedRevision === undefined) throw new Error(`Phiên thay đổi chưa xác nhận commit. ${uploadError instanceof Error ? uploadError.message : 'Lỗi kết nối.'} Bản nháp được giữ nguyên.`);
+        }
       }
-      if (!result.committedRevision) throw new Error(`Phiên #${saved.pendingUpload} chưa xác nhận commit. Bản nháp được giữ nguyên; kiểm tra lại kết nối hoặc xuất bản sao để đối soát.`);
+      if (!result.committedRevision) throw new Error('Phiên thay đổi chưa xác nhận commit. Bản nháp được giữ nguyên; kiểm tra lại kết nối hoặc xuất bản sao để đối soát.');
       await writeDraft(dataset, expected.current, null); expected.current = null;
       pendingUpload.current = undefined; setCandidate(null); discardChanges(); setPhase('ready'); setStatus('Đã xác nhận phiên lưu trên hệ thống');
       window.location.reload();
@@ -173,7 +179,7 @@ export function useDraftProtection({ dataset, busy, unfinished, workspace, works
         }} />
         {phase === 'loading' && <Typography>Đang đọc bản nháp trên trình duyệt này…</Typography>}
         {phase === 'manager' && <><Typography>{status}</Typography><Typography variant="body2">Nháp chỉ nằm trên trình duyệt này. Xóa dữ liệu trình duyệt sẽ xóa nháp. Có thể xuất JSON để giữ thêm một bản sao.</Typography></>}
-        {phase === 'recovery' && <Alert severity="warning">Chưa rõ phiên #{candidate?.pendingUpload} đã được server lưu hay chưa. Kiểm tra và tiếp tục đúng phiên cũ để tránh tạo dữ liệu trùng; không tạo phiên lưu mới.</Alert>}
+        {phase === 'recovery' && <Alert severity="warning">Phiên thay đổi chưa xác nhận commit. Bản nháp được giữ nguyên; kiểm tra lại kết nối hoặc xuất bản sao để đối soát.</Alert>}
         {candidate && <>
           <Typography sx={{ overflowWrap: 'anywhere' }}>{dataset} · {new Date(candidate.savedAt).toLocaleString('vi-VN')}</Typography>
           <Typography>{Object.keys(candidate.state.overrides).length} thay đổi · {candidate.workspace?.vertices.length ?? 0} đỉnh đang vẽ. Khôi phục giữ nguyên tọa độ, liên kết và lịch sử Undo/Redo.</Typography>

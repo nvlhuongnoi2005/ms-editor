@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	encdomain "github.com/vht/map-service/editor-api/internal/enc"
@@ -33,6 +34,8 @@ func fail(status int, format string, args ...any) error {
 }
 
 type app struct {
+	readCacheOnce sync.Once
+	reads         *readCache
 	db            *pgxpool.Pool
 	renderDB      *pgxpool.Pool
 	staticRoot    string
@@ -74,7 +77,7 @@ type entityRow struct {
 
 func main() {
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, databaseURL())
+	pool, err := openDatabasePool(ctx, databaseURL(), "CANONICAL_DB")
 	if err != nil {
 		log.Fatalf("open Canonical DB pool: %v", err)
 	}
@@ -102,7 +105,7 @@ func main() {
 		}
 		return
 	}
-	renderPool, err := pgxpool.New(ctx, renderDatabaseURL())
+	renderPool, err := openDatabasePool(ctx, renderDatabaseURL(), "RENDER_DB")
 	if err != nil {
 		log.Fatalf("open Render DB pool: %v", err)
 	}
@@ -110,7 +113,7 @@ func main() {
 	if err := renderPool.Ping(ctx); err != nil {
 		log.Fatalf("ping Render DB: %v", err)
 	}
-	encPool, err := pgxpool.New(ctx, encDatabaseURL())
+	encPool, err := openDatabasePool(ctx, encDatabaseURL(), "ENC_DB")
 	if err != nil {
 		log.Fatalf("configure ENC DB: %v", err)
 	}

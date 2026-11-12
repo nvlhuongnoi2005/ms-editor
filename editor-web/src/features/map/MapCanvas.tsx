@@ -8,7 +8,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildTopologyGraph, snapCoordinate, type DrawMode, type SnappedVertex } from '../editor/drawing';
 import type { Coordinate, EntityType, GraphFeature, SelectedEntity } from '../../types/osm';
 import type { PointIconName } from './styleRules';
-import { GRAPH_MIN_ZOOM, GraphTileHandoff, renderCollection, selectedFeatureCollection } from './graphRendering';
+import { GRAPH_MIN_ZOOM, GraphRenderDiff, GraphTileHandoff, renderCollection, selectedFeatureCollection } from './graphRendering';
 import type { DatasetBounds } from '../../api/datasets';
 import type { GeometryCommandPlan } from '../editor/geometryCommandPlan';
 
@@ -292,16 +292,31 @@ export function MapCanvas({ commandPreview, inspectionOnly, restoredCamera, isGe
     const finishGraphHandoff = () => {
       if (handoff.waiting && map.getSource('canonical-graph')) handoff.rendered(map.isSourceLoaded('canonical-graph'));
     };
-    const updateGraph = () => {
+    const renderDiff = new GraphRenderDiff();
+    let writingGraph = false;
+    let pendingGraph: { features: GraphFeature[]; revision: number } | null = null;
+    const flushGraph = async () => {
       const source = geoJsonSource(map, 'canonical-graph');
       if (!source) return;
-      const nextFeatures = featuresRef.current;
-      const revision = handoff.begin(changedKeysRef.current);
-      void source.setData(renderCollection(nextFeatures)).then(() => {
-        if (disposed) return;
-        handoff.settled(revision, nextFeatures);
-        map.triggerRepaint();
-      }).catch(error => { if (!disposed) console.error('Không thể cập nhật lớp graph:', error); });
+      writingGraph = true;
+      try {
+        while (pendingGraph && !disposed) {
+          const current = pendingGraph; pendingGraph = null;
+          const update = renderDiff.next(current.features);
+          try {
+            if (update.full) await source.setData(update.full);
+            else if (update.diff) await source.updateData(update.diff);
+            if (!disposed) { handoff.settled(current.revision, current.features); map.triggerRepaint(); }
+          } catch (error) {
+            renderDiff.reset();
+            if (!disposed) console.error('Không thể cập nhật lớp graph:', error);
+          }
+        }
+      } finally { writingGraph = false; }
+    };
+    const updateGraph = () => {
+      pendingGraph = { features: featuresRef.current, revision: handoff.begin(changedKeysRef.current) };
+      if (!writingGraph) void flushGraph();
     };
     updateGraphRef.current = updateGraph;
     const resizeObserver = new ResizeObserver(() => map.resize());
@@ -451,10 +466,12 @@ export function MapCanvas({ commandPreview, inspectionOnly, restoredCamera, isGe
       map.getCanvas().style.cursor = 'grabbing';
       setFeatureDragPreview([0, 0]);
     };
-    const onMouseMove = (event: MapMouseEvent) => {
-      pointer = event.lngLat;
-      pointerCoordinateCallbackRef.current([event.lngLat.lng, event.lngLat.lat]);
-      schedulePointerStatus();
+    let interactionFrame: number | undefined;
+    let latestInteraction: MapMouseEvent | null = null;
+    const updateInteraction = () => {
+      interactionFrame = undefined;
+      const event = latestInteraction; latestInteraction = null;
+      if (!event || disposed) return;
       if (draggingNodeId) {
         setDragPreview([event.lngLat.lng, event.lngLat.lat]);
         return;
@@ -466,7 +483,19 @@ export function MapCanvas({ commandPreview, inspectionOnly, restoredCamera, isGe
       if (drawModeRef.current !== 'select') updateDraft(snap(event.lngLat));
       else setSelectCursor(event.point);
     };
+    const cancelInteraction = () => {
+      if (interactionFrame !== undefined) window.cancelAnimationFrame(interactionFrame);
+      interactionFrame = undefined; latestInteraction = null;
+    };
+    const onMouseMove = (event: MapMouseEvent) => {
+      pointer = event.lngLat;
+      pointerCoordinateCallbackRef.current([event.lngLat.lng, event.lngLat.lat]);
+      schedulePointerStatus();
+      latestInteraction = event;
+      if (interactionFrame === undefined) interactionFrame = window.requestAnimationFrame(updateInteraction);
+    };
     const onMouseUp = (event: MapMouseEvent) => {
+      cancelInteraction();
       if (!draggingNodeId && !draggingFeatureKeys) return;
       const nodeId = draggingNodeId;
       const featureKeys = draggingFeatureKeys;
@@ -490,6 +519,7 @@ export function MapCanvas({ commandPreview, inspectionOnly, restoredCamera, isGe
       dragStart = null;
     };
     const onMouseOut = () => {
+      cancelInteraction();
       pointerCoordinateCallbackRef.current(null);
       if (!draggingNodeId && !draggingFeatureKeys && drawModeRef.current === 'select') map.getCanvas().style.cursor = '';
     };
@@ -634,6 +664,7 @@ export function MapCanvas({ commandPreview, inspectionOnly, restoredCamera, isGe
     updateBounds();
     return () => {
       disposed = true;
+      cancelInteraction();
       resizeObserver.disconnect();
       if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
       if (selectionPulseTimer !== undefined) window.clearTimeout(selectionPulseTimer);

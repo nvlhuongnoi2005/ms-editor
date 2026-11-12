@@ -43,7 +43,7 @@ func (a *app) serveExports(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 		var jobs json.RawMessage
 		err = a.db.QueryRow(ctx, `SELECT COALESCE(jsonb_agg(to_jsonb(j) ORDER BY j.created_at DESC),'[]'::jsonb)
-   FROM (SELECT id::text,state,revision,entity_count AS "entityCount",bytes,sha256,error,created_at,finished_at
+   FROM (SELECT id::text,state,revision,entity_count AS "entityCount",total_count AS "totalCount",phase,cancel_requested AS "cancelRequested",bytes,sha256,error,created_at,finished_at
     FROM editor.export_job WHERE dataset_id=$1 ORDER BY created_at DESC LIMIT 20) j`, datasetID).Scan(&jobs)
 		if err != nil {
 			return err
@@ -56,6 +56,53 @@ func (a *app) serveExports(ctx context.Context, w http.ResponseWriter, r *http.R
 		return nil
 	}
 	id := strings.TrimPrefix(r.URL.Path, "/api/exports/")
+	if !strings.Contains(id, "/") {
+		if _, err := parseUUID(id); err != nil {
+			return fail(400, "Invalid export id.")
+		}
+		if r.Method != http.MethodGet {
+			return fail(405, "Method not allowed.")
+		}
+		var job json.RawMessage
+		err := a.db.QueryRow(ctx, `SELECT to_jsonb(j) FROM (
+		 SELECT id::text,state,revision,entity_count AS "entityCount",total_count AS "totalCount",
+		 phase,cancel_requested AS "cancelRequested",bytes,sha256,created_at
+		 FROM editor.export_job WHERE id=$1) j`, id).Scan(&job)
+		if isNoRows(err) {
+			return fail(404, "Export was not found.")
+		}
+		if err != nil {
+			return err
+		}
+		writeJSON(w, 200, job)
+		return nil
+	}
+	if strings.HasSuffix(id, "/cancel") {
+		id = strings.TrimSuffix(id, "/cancel")
+		if _, err := parseUUID(id); err != nil {
+			return fail(400, "Invalid export id.")
+		}
+		if r.Method != http.MethodPost {
+			return fail(405, "Method not allowed.")
+		}
+		if err := authorizeImport(r); err != nil {
+			return err
+		}
+		var state string
+		err := a.db.QueryRow(ctx, `UPDATE editor.export_job SET cancel_requested=true,
+		 phase=CASE WHEN state='queued' THEN 'cancelled' ELSE phase END,
+		 finished_at=CASE WHEN state='queued' THEN now() ELSE finished_at END,
+		 state=CASE WHEN state='queued' THEN 'cancelled' ELSE state END
+		 WHERE id=$1 AND state IN ('queued','running','cancelled') RETURNING state`, id).Scan(&state)
+		if isNoRows(err) {
+			return fail(409, "Export has already finished or was not found. Refresh the export list.")
+		}
+		if err != nil {
+			return err
+		}
+		writeJSON(w, 202, map[string]string{"state": state})
+		return nil
+	}
 	if !strings.HasSuffix(id, "/file") {
 		return fail(404, "Export route was not found.")
 	}
@@ -112,6 +159,16 @@ func (a *app) createExport(ctx context.Context, w http.ResponseWriter, datasetID
 		}
 	}
 	if id == "" {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('export-queue-capacity'))`); err != nil {
+			return err
+		}
+		var queued int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM editor.export_job WHERE state IN ('queued','running')`).Scan(&queued); err != nil {
+			return err
+		}
+		if queued >= intEnv("EDITOR_EXPORT_MAX_PENDING", 16, 1, 1000) {
+			return fail(503, "Export queue is full. Please retry later.")
+		}
 		var value [16]byte
 		if _, err := rand.Read(value[:]); err != nil {
 			return err

@@ -18,3 +18,13 @@ CREATE TABLE IF NOT EXISTS editor.export_worker_status (
   id integer PRIMARY KEY CHECK (id=1),
   heartbeat_at timestamptz NOT NULL
 );
+
+ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS total_count bigint;
+ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS phase text NOT NULL DEFAULT 'queued';
+ALTER TABLE editor.export_job ADD COLUMN IF NOT EXISTS cancel_requested boolean NOT NULL DEFAULT false;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='editor.export_job'::regclass AND conname='export_job_state_v2_check') THEN
+    ALTER TABLE editor.export_job DROP CONSTRAINT IF EXISTS export_job_state_check;
+    ALTER TABLE editor.export_job ADD CONSTRAINT export_job_state_v2_check CHECK (state IN ('queued','running','ready','failed','cancelled'));
+  END IF;
+END $$;

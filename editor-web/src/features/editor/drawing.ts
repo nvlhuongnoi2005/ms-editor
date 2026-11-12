@@ -1,4 +1,4 @@
-import { findNearestNode, findNearestSegment, insertNodeIntoWay } from '../topology/graph';
+import { findNearestNode, findNearestSegment, insertNodeIntoWay, prepareTopologyGraph } from '../topology/graph';
 import type { SegmentHit, TopologyGraph, TopologyNode, TopologyWay } from '../topology/graph';
 import type { Coordinate, GraphFeature, WayNode } from '../../types/osm';
 
@@ -30,7 +30,7 @@ export function buildTopologyGraph(features: GraphFeature[]): TopologyGraph {
     ways.set(entityId, { id: entityId, nodeRefs: [...nodeIds], tags: { ...feature.properties.tags } });
     nodeIds.forEach((nodeId, index) => nodes.set(nodeId, { id: nodeId, coordinate: coordinates[index] }));
   }
-  return { nodes, ways };
+  return prepareTopologyGraph({ nodes, ways });
 }
 
 export function snapCoordinate(graph: TopologyGraph, coordinate: Coordinate, maxDistance: number): SnappedVertex {

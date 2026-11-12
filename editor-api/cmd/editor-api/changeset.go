@@ -115,6 +115,8 @@ func (a *app) uploadChangeset(ctx context.Context, w http.ResponseWriter, r *htt
 	if len(body.Changes) == 0 || len(body.Changes) > 500 {
 		return fail(400, "changes must contain between 1 and 500 items.")
 	}
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
 	tx, err := a.db.Begin(ctx)
 	if err != nil {
 		return err

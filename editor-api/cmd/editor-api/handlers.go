@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,12 +19,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func serveEditorAPI(handler http.Handler) error {
 	if address := os.Getenv("EDITOR_API_ADDR"); address != "" {
-		server := &http.Server{Addr: address, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+		server := &http.Server{Addr: address, Handler: handler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 		log.Printf("Map Service Editor (Go): http://%s", server.Addr)
 		return server.ListenAndServe()
 	}
@@ -43,7 +43,7 @@ func serveEditorAPI(handler http.Handler) error {
 	log.Printf("Map Service Editor (Go): http://localhost:4173")
 	errorsCh := make(chan error, 2)
 	serve := func(listener net.Listener) {
-		server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+		server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 		errorsCh <- server.Serve(listener)
 	}
 	go serve(ipv4)
@@ -145,6 +145,13 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		return
 	}
+	if errors.Is(err, context.Canceled) {
+		return
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		writeJSON(w, http.StatusGatewayTimeout, map[string]string{"error": "The request timed out. Please retry."})
+		return
+	}
 	var apiErr *apiError
 	var conflictErr *versionConflictError
 	if errors.As(err, &conflictErr) {
@@ -152,6 +159,9 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.As(err, &apiErr) {
+		if apiErr.status == 503 {
+			w.Header().Set("Retry-After", "2")
+		}
 		writeJSON(w, apiErr.status, map[string]string{"error": apiErr.message})
 		return
 	}
@@ -238,16 +248,22 @@ func (a *app) serveGraph(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if dataset == "" {
 		dataset = "vietnam-260901"
 	}
-	// Z12 viewports (including the prefetch margin on wide screens) exceed
-	// export's .3-degree limit. Graph responses still have bounded entity counts.
+	// Bound graph requests independently of whole-dataset exports.
 	bbox, ok := parseBboxWithMaxSpan(r.URL.Query().Get("bbox"), 2)
 	if !ok || !validDataset(dataset) {
 		return fail(400, "A valid, compact bbox and dataset are required.")
 	}
 	limit := boundedInt(r.URL.Query().Get("limit"), 260, 1, 1200)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	tx, err := a.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	var datasetID string
 	var revision int64
-	err := a.db.QueryRow(ctx, "SELECT id, canonical_revision FROM editor.dataset WHERE name = $1 AND state = 'ready' ORDER BY created_at DESC LIMIT 1", dataset).Scan(&datasetID, &revision)
+	err = tx.QueryRow(ctx, "SELECT id, canonical_revision FROM editor.dataset WHERE name = $1 AND state = 'ready' ORDER BY created_at DESC LIMIT 1", dataset).Scan(&datasetID, &revision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return fail(409, "The requested canonical dataset is not ready.")
 	}
@@ -256,25 +272,37 @@ func (a *app) serveGraph(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	features := []any{}
 	if part != "relations" {
-		ways, err := graphWays(ctx, a.db, datasetID, bbox, limit)
+		ways, err := graphWays(ctx, tx, datasetID, bbox, limit)
 		if err != nil {
 			return err
 		}
-		points, err := graphPoints(ctx, a.db, datasetID, bbox, min(limit, 300))
+		points, err := graphPoints(ctx, tx, datasetID, bbox, min(limit, 300))
 		if err != nil {
 			return err
 		}
 		features = append(ways, points...)
 	}
 	if part != "geometry" {
-		relations, err := graphRelations(ctx, a.db, datasetID, bbox, min(limit, 300))
+		relations, err := graphRelations(ctx, tx, datasetID, bbox, min(limit, 300))
 		if err != nil {
 			return err
 		}
 		features = append(features, relations...)
 	}
-	writeJSON(w, 200, map[string]any{"type": "FeatureCollection", "dataset": dataset, "canonicalRevision": revision, "features": features})
-	return nil
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Add("Vary", "Accept-Encoding")
+	var output io.Writer = w
+	if acceptsGzip(r.Header.Get("Accept-Encoding")) {
+		w.Header().Set("Content-Encoding", "gzip")
+		compressed, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
+		defer compressed.Close()
+		output = compressed
+	}
+	return json.NewEncoder(output).Encode(map[string]any{"type": "FeatureCollection", "dataset": dataset, "canonicalRevision": revision, "features": features})
 }
 
 func (a *app) servePublishStatus(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -285,57 +313,45 @@ func (a *app) servePublishStatus(ctx context.Context, w http.ResponseWriter, r *
 	if !validDataset(dataset) {
 		return fail(400, "A valid dataset is required.")
 	}
-	var canonicalRevision, renderRevision int64
-	var waiting, rendering, failed int
-	var lastError *string
-
-	query := `SELECT dataset.canonical_revision, dataset.render_revision,
-		COUNT(event.id) FILTER (WHERE event.published_at IS NULL AND event.processing_at IS NULL)::int,
-		COUNT(event.id) FILTER (WHERE event.published_at IS NULL AND event.processing_at IS NOT NULL)::int,
-		COUNT(event.id) FILTER (WHERE event.published_at IS NULL AND event.last_error IS NOT NULL)::int,
-		(ARRAY_AGG(event.last_error ORDER BY event.id DESC) FILTER (WHERE event.published_at IS NULL AND event.last_error IS NOT NULL))[1]
-		FROM editor.dataset dataset
-		LEFT JOIN editor.outbox_event event ON event.dataset_id=dataset.id
-		WHERE dataset.name=$1 AND dataset.state='ready'
-		GROUP BY dataset.id`
-
-	err := a.db.QueryRow(ctx, query, dataset).Scan(&canonicalRevision, &renderRevision, &waiting, &rendering, &failed, &lastError)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "42703" { // undefined_column (e.g. processing_at missing on older DB volumes)
-			_ = ensurePublishPipelineSchema(ctx, a.db)
-			err = a.db.QueryRow(ctx, query, dataset).Scan(&canonicalRevision, &renderRevision, &waiting, &rendering, &failed, &lastError)
-			if err != nil && errors.As(err, &pgErr) && pgErr.Code == "42703" {
-				fallbackQuery := `SELECT dataset.canonical_revision, dataset.render_revision,
-					COUNT(event.id) FILTER (WHERE event.published_at IS NULL)::int,
-					0::int, 0::int, NULL::text
-					FROM editor.dataset dataset
-					LEFT JOIN editor.outbox_event event ON event.dataset_id=dataset.id
-					WHERE dataset.name=$1 AND dataset.state='ready'
-					GROUP BY dataset.id`
-				err = a.db.QueryRow(ctx, fallbackQuery, dataset).Scan(&canonicalRevision, &renderRevision, &waiting, &rendering, &failed, &lastError)
-			}
+	data, err := a.cachedRead(ctx, "publish:"+dataset, 2*time.Second, func(ctx context.Context) ([]byte, error) {
+		var canonicalRevision, renderRevision int64
+		var waiting, rendering, failed int
+		var lastError *string
+		// Filter at the join so the pending partial index can serve this query.
+		// Historical published events never participate in aggregation.
+		err := a.db.QueryRow(ctx, `SELECT dataset.canonical_revision,dataset.render_revision,
+   COUNT(event.id) FILTER (WHERE event.processing_at IS NULL)::int,
+   COUNT(event.id) FILTER (WHERE event.processing_at IS NOT NULL)::int,
+   COUNT(event.id) FILTER (WHERE event.last_error IS NOT NULL)::int,
+   (ARRAY_AGG(event.last_error ORDER BY event.id DESC) FILTER (WHERE event.last_error IS NOT NULL))[1]
+   FROM editor.dataset dataset LEFT JOIN editor.outbox_event event
+    ON event.dataset_id=dataset.id AND event.published_at IS NULL
+   WHERE dataset.id=(SELECT id FROM editor.dataset WHERE name=$1 AND state='ready' ORDER BY created_at DESC LIMIT 1)
+   GROUP BY dataset.id`, dataset).Scan(&canonicalRevision, &renderRevision, &waiting, &rendering, &failed, &lastError)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fail(404, "Dataset was not found or is not ready.")
 		}
-	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fail(404, "Dataset was not found or is not ready.")
-	}
+		if err != nil {
+			return nil, err
+		}
+		status := "published"
+		if failed > 0 {
+			status = "failed"
+		} else if rendering > 0 {
+			status = "rendering"
+		} else if waiting > 0 || renderRevision < canonicalRevision {
+			status = "pending"
+		}
+		return json.Marshal(map[string]any{"dataset": dataset, "status": status, "canonicalRevision": canonicalRevision,
+			"renderRevision": renderRevision, "pendingEvents": waiting + rendering, "lastError": lastError})
+	})
 	if err != nil {
 		return err
 	}
-	status := "published"
-	if failed > 0 {
-		status = "failed"
-	} else if rendering > 0 {
-		status = "rendering"
-	} else if waiting > 0 || renderRevision < canonicalRevision {
-		status = "pending"
-	}
-	writeJSON(w, 200, map[string]any{
-		"dataset": dataset, "status": status, "canonicalRevision": canonicalRevision,
-		"renderRevision": renderRevision, "pendingEvents": waiting + rendering, "lastError": lastError,
-	})
-	return nil
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, err = w.Write(data)
+	return err
 }
 
 func (a *app) serveMVT(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -359,21 +375,44 @@ func (a *app) serveMVT(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	if err != nil || y < 0 || y >= 1<<z {
 		return fail(400, "MVT y is outside the zoom range.")
 	}
-	var renderRevision int64
-	var datasetID, renderSchema string
-	if err := a.db.QueryRow(ctx, "SELECT id::text,render_revision,render_schema FROM editor.dataset WHERE name=$1 AND state='ready' ORDER BY created_at DESC LIMIT 1", dataset).Scan(&datasetID, &renderRevision, &renderSchema); errors.Is(err, pgx.ErrNoRows) {
-		return fail(409, "The requested canonical dataset is not ready.")
-	} else if err != nil {
+	metaBytes, err := a.cachedRead(ctx, "tile-meta:"+dataset, time.Second, func(ctx context.Context) ([]byte, error) {
+		var meta struct {
+			ID, Schema string
+			Revision   int64
+		}
+		err := a.db.QueryRow(ctx, "SELECT id::text,render_revision,render_schema FROM editor.dataset WHERE name=$1 AND state='ready' ORDER BY created_at DESC LIMIT 1", dataset).Scan(&meta.ID, &meta.Revision, &meta.Schema)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fail(409, "The requested canonical dataset is not ready.")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(meta)
+	})
+	if err != nil {
 		return err
 	}
-	etag := fmt.Sprintf("\"%s-r%d\"", datasetID, renderRevision)
+	var meta struct {
+		ID, Schema string
+		Revision   int64
+	}
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		return err
+	}
+	etag := fmt.Sprintf("\"%s-r%d-%d-%d-%d\"", meta.ID, meta.Revision, z, x, y)
+	w.Header().Set("Cache-Control", "public, max-age=30, must-revalidate")
 	if r.Header.Get("If-None-Match") == etag {
 		w.Header().Set("ETag", etag)
 		w.WriteHeader(http.StatusNotModified)
 		return nil
 	}
-	var tile []byte
-	if err := a.renderDB.QueryRow(ctx, renderMVTQuery(renderSchema), z, x, y).Scan(&tile); err != nil {
+	key := fmt.Sprintf("mvt:%s:%s:%d:%d:%d:%d", meta.ID, meta.Schema, meta.Revision, z, x, y)
+	tile, err := a.cachedRead(ctx, key, 30*time.Second, func(ctx context.Context) ([]byte, error) {
+		var data []byte
+		err := a.renderDB.QueryRow(ctx, renderMVTQuery(meta.Schema), z, x, y).Scan(&data)
+		return data, err
+	})
+	if err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/vnd.mapbox-vector-tile")

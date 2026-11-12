@@ -27,7 +27,7 @@ import {
 import { ArrowDown, ArrowUp, Banknote, Building2, BusFront, ChevronDown, ChevronRight, CirclePlus, Clipboard, Copy, Crosshair, Files, Fuel, GraduationCap, Hospital, Hotel, Info, Landmark, MapPin, MousePointer2, Network, Pentagon, Redo2, Route, Scissors, ShoppingBag, Spline, Trash2, TreePine, Undo2, Utensils, Waves, X, type LucideIcon } from 'lucide-react';
 import { closeChangeset, createChangeset, ChangesetApiError, rollbackChangeset, toUploadChanges, uploadChangeset } from './api/changeset';
 import { DATASET_NAME, loadGraph } from './api/graph';
-import { loadPublishStatus, type PublishStatus } from './api/publish';
+import { loadPublishStatus, PublishStatusPoller, type PublishStatus } from './api/publish';
 import { loadDatasets, type DatasetInfo } from './api/datasets';
 import { EditorStoreProvider, entityKey, pendingChanges, type CommandResult, type EditorChange, type FeatureMutation, useEditorStore } from './features/editor/EditorStore';
 import { insertNodeIntoFeature, makeNodeFeature, type DrawMode, type SnappedVertex } from './features/editor/drawing';
@@ -1038,25 +1038,29 @@ function EditorShell({ dataset, onOpenDataset }: { dataset: DatasetInfo; onOpenD
     return true;
   }, [storeSelectFeatureSet]);
 
-  const refreshPublishStatus = useCallback(async () => {
-    try {
-      setPublishStatus(await loadPublishStatus(dataset.name));
-    } catch {
-      // Ignore background sync errors quietly
-    }
-  }, [dataset.name]);
+  const publishPoller = useRef<PublishStatusPoller | null>(null);
+  const refreshPublishStatus = useCallback(() => publishPoller.current?.refresh(), []);
 
   useEffect(() => {
-    void refreshPublishStatus();
-    const timer = window.setInterval(() => { void refreshPublishStatus(); }, 3_000);
-    return () => window.clearInterval(timer);
-  }, [refreshPublishStatus]);
+    const poller = new PublishStatusPoller(signal => loadPublishStatus(dataset.name, signal), value => {
+      setPublishStatus(previous => previous && JSON.stringify(previous) === JSON.stringify(value) ? previous : value);
+    });
+    publishPoller.current = poller;
+    return () => { poller.dispose(); publishPoller.current = null; };
+  }, [dataset.name]);
 
   const graphLoader = useMemo(() => new ViewportGraphLoader({
     load: (bbox, signal, part) => loadGraph(bbox, signal, part, dataset.name), onFeatures: hydrateGraph, onRelations: hydrateSupport, onLoading: setLoading, onError: setError
   }), [dataset.name, hydrateGraph, hydrateSupport, setLoading, setError]);
 
   useEffect(() => () => { graphLoader.cancel(); entityRequestRef.current += 1; }, [graphLoader]);
+
+  useEffect(() => {
+    if (publishStatus && graphLoader.observeRevision(publishStatus.canonicalRevision)) {
+      const viewport = viewportRef.current;
+      if (viewport && viewport.zoom >= GRAPH_MIN_ZOOM) void graphLoader.refresh(viewport.bbox);
+    }
+  }, [graphLoader, publishStatus?.canonicalRevision]);
 
   const refreshGraph = useCallback(({ bbox: viewport, zoom, camera }: MapViewport) => {
     viewportRef.current = { bbox: viewport, zoom };

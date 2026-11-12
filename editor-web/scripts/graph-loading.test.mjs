@@ -11,7 +11,7 @@ const graphURL = await loadSource('../src/features/topology/graph.ts');
 const topologyURL = await loadSource('../src/features/editor/topologyOperations.ts', { '../topology/graph': graphURL });
 const geometryURL = await loadSource('../src/features/editor/geometryOperations.ts', { './topologyOperations': topologyURL, 'polygon-clipping': import.meta.resolve('polygon-clipping') });
 const { booleanGeometry } = await import(geometryURL);
-const { GRAPH_MIN_ZOOM, GraphTileHandoff, renderCollection, selectedFeatureCollection } = await import(await loadSource('../src/features/map/graphRendering.ts', { './styleRules': styleURL, '../editor/geometryOperations': geometryURL }));
+const { GRAPH_MIN_ZOOM, GraphRenderDiff, GraphTileHandoff, renderCollection, selectedFeatureCollection } = await import(await loadSource('../src/features/map/graphRendering.ts', { './styleRules': styleURL, '../editor/geometryOperations': geometryURL }));
 const { loadGraph } = await import(await loadSource('../src/api/graph.ts'));
 const bbox = [106.175, 20.388, 106.185, 20.397];
 const elsewhere = [107, 21, 107.01, 21.01];
@@ -289,4 +289,38 @@ test('map worker payload keeps geometry/style but excludes editing metadata', ()
   assert.equal(typeof output.properties.editorColor, 'string');
   for (const key of ['tags', 'nodes', 'nodeIds', 'parents', 'members']) assert.equal(key in output.properties, false);
   assert.deepEqual(input, before);
+});
+
+test('map diff sends only changed and removed entities, skips unchanged metadata and resets after failure', () => {
+  const a = feature(1), b = feature(2), diff = new GraphRenderDiff();
+  assert.equal(diff.next([a,b]).full.features.length, 2);
+  assert.deepEqual(diff.next([a,b]), {});
+  assert.deepEqual(diff.next([{...a,properties:{...a.properties,version:2}},b]), {}, 'version alone is not map data');
+  const moved = {...a,geometry:{type:'Point',coordinates:[107,21]}};
+  const update = diff.next([moved,b]);
+  assert.deepEqual(update.diff.remove,['node/1']);
+  assert.deepEqual(update.diff.add.map(item=>item.id),['node/1']);
+  assert.deepEqual(update.diff.add[0].geometry,moved.geometry);
+  assert.deepEqual(diff.next([moved]).diff,{remove:['node/2'],add:[]});
+  diff.reset();
+  assert.equal(diff.next([moved]).full.features.length,1);
+});
+
+test('map diff updates unchanged multipolygon relation when its member geometry moves and restores rings on removal', () => {
+  const ring = (id, x, size, y = 21) => {
+    const coordinates = [[x,y],[x+size,y],[x+size,y+size],[x,y+size],[x,y]];
+    return {type:'Feature',properties:{entityType:'way',entityId:String(id),version:1,tags:{},nodeIds:coordinates.map((_,i)=>`${id}-${i===4?0:i}`)},geometry:{type:'Polygon',coordinates:[coordinates]}};
+  };
+  const outer = ring(1,105,0.01), inner = ring(2,105.002,0.002,21.002);
+  const relation = {...feature(3,'relation'),properties:{...feature(3,'relation').properties,tags:{type:'multipolygon'},members:[{type:'way',ref:'1',role:'outer',sequence:0},{type:'way',ref:'2',role:'inner',sequence:1}]}};
+  const diff = new GraphRenderDiff();
+  diff.next([outer,inner,relation]);
+  const moved = ring(1,105,0.012);
+  const next = diff.next([moved,inner,relation]);
+  const changedRelation = next.diff.add.find(item=>item.id==='relation/3');
+  assert.deepEqual(changedRelation.geometry,renderCollection([moved,inner,relation]).features[2].geometry);
+  assert.equal(changedRelation.geometry.coordinates[0].length,2);
+  const removed = diff.next([moved,inner]);
+  assert.ok(removed.diff.remove.includes('relation/3'));
+  assert.equal(removed.diff.add.find(item=>item.id==='way/1').geometry.type,'Polygon');
 });

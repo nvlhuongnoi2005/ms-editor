@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func fetchEntity(ctx context.Context, tx pgx.Tx, datasetID, typeName string, id int64, lock bool) (entityRow, bool, error) {
@@ -115,7 +114,7 @@ func needsBboxRebuild(change normalizedChange, existing entityRow, found bool) b
 
 const rebuildBboxSQL = `WITH affected AS (SELECT entity_id FROM editor.entity_current WHERE dataset_id=$1 AND entity_type='way'::editor.entity_type AND visible AND (entity_id=ANY($2::bigint[]) OR node_refs && $3::bigint[])), envelopes AS (SELECT way.entity_id,ST_Envelope(ST_Collect(ST_SetSRID(ST_MakePoint(node.node_lon_e7::double precision/10000000,node.node_lat_e7::double precision/10000000),4326))) AS bbox FROM affected JOIN editor.entity_current way ON way.dataset_id=$1 AND way.entity_type='way'::editor.entity_type AND way.visible AND way.entity_id=affected.entity_id JOIN LATERAL unnest(way.node_refs) AS reference(node_id) ON TRUE JOIN editor.entity_current node ON node.dataset_id=way.dataset_id AND node.entity_type='node'::editor.entity_type AND node.entity_id=reference.node_id AND node.visible GROUP BY way.entity_id) UPDATE editor.entity_current way SET bbox=envelopes.bbox,updated_at=now() FROM envelopes WHERE way.dataset_id=$1 AND way.entity_type='way'::editor.entity_type AND way.entity_id=envelopes.entity_id`
 
-func graphWays(ctx context.Context, db *pgxpool.Pool, datasetID string, bbox [4]float64, limit int) ([]any, error) {
+func graphWays(ctx context.Context, db graphQuerier, datasetID string, bbox [4]float64, limit int) ([]any, error) {
 	rows, err := db.Query(ctx, `WITH viewport_ways AS (SELECT entity_id,version,tags,node_refs FROM editor.entity_current WHERE dataset_id=$1 AND entity_type='way'::editor.entity_type AND visible AND bbox && ST_MakeEnvelope($2,$3,$4,$5,4326) ORDER BY bbox <-> ST_SetSRID(ST_MakePoint(($2+$4)/2,($3+$5)/2),4326) LIMIT $6) SELECT way.entity_id,way.version,way.tags,jsonb_agg(jsonb_build_object('id',node.entity_id,'version',node.version,'tags',node.tags,'coordinates',jsonb_build_array(node.node_lon_e7::double precision/10000000,node.node_lat_e7::double precision/10000000)) ORDER BY reference.position) FROM viewport_ways way JOIN LATERAL unnest(way.node_refs) WITH ORDINALITY AS reference(node_id,position) ON TRUE JOIN editor.entity_current node ON node.dataset_id=$1 AND node.entity_type='node'::editor.entity_type AND node.entity_id=reference.node_id AND node.visible GROUP BY way.entity_id,way.version,way.tags ORDER BY way.entity_id`, datasetID, bbox[0], bbox[1], bbox[2], bbox[3], limit)
 	if err != nil {
 		return nil, err
@@ -159,7 +158,7 @@ func graphWays(ctx context.Context, db *pgxpool.Pool, datasetID string, bbox [4]
 	}
 	return features, rows.Err()
 }
-func graphPoints(ctx context.Context, db *pgxpool.Pool, datasetID string, bbox [4]float64, limit int) ([]any, error) {
+func graphPoints(ctx context.Context, db graphQuerier, datasetID string, bbox [4]float64, limit int) ([]any, error) {
 	rows, err := db.Query(ctx, `SELECT entity_id,version,tags,node_lon_e7::double precision/10000000,node_lat_e7::double precision/10000000 FROM editor.entity_current WHERE dataset_id=$1 AND entity_type='node'::editor.entity_type AND visible AND tags<>'{}'::jsonb AND bbox && ST_MakeEnvelope($2,$3,$4,$5,4326) ORDER BY bbox <-> ST_SetSRID(ST_MakePoint(($2+$4)/2,($3+$5)/2),4326) LIMIT $6`, datasetID, bbox[0], bbox[1], bbox[2], bbox[3], limit)
 	if err != nil {
 		return nil, err

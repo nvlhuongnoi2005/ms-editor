@@ -22,6 +22,33 @@ interface EditorTransaction {
   changes: EditorChange[];
 }
 
+export const MAX_UNDO_TRANSACTIONS = 150;
+const MAX_HISTORY_BYTES = 16 * 1024 * 1024;
+const historySizes = new WeakMap<EditorTransaction, number>();
+function historySize(entry: EditorTransaction): number {
+  const cached = historySizes.get(entry);
+  if (cached !== undefined) return cached;
+  let size = 128;
+  for (const change of entry.changes) for (const feature of [change.before, change.after]) if (feature) {
+    const p = feature.properties, g = feature.geometry;
+    const points = g.type === 'Point' ? 1 : g.type === 'LineString' ? g.coordinates.length : g.coordinates.reduce((sum, ring) => sum + ring.length, 0);
+    size += 512 + points * 32 + (p.nodes?.length ?? 0) * 256 + (p.nodeIds?.length ?? 0) * 32 + (p.members?.length ?? 0) * 128;
+    for (const [key, value] of Object.entries(p.tags)) size += (key.length + value.length) * 2 + 48;
+  }
+  historySizes.set(entry, size);
+  return size;
+}
+function boundedHistory(entries: EditorTransaction[]): EditorTransaction[] {
+  let start = entries.length, bytes = 0;
+  while (start > 0 && entries.length - start < MAX_UNDO_TRANSACTIONS) {
+    const size = historySize(entries[start - 1]);
+    // Keep the latest transaction undoable, even if a single operation is huge.
+    if (start < entries.length && bytes + size > MAX_HISTORY_BYTES) break;
+    bytes += size; start--;
+  }
+  return start ? entries.slice(start) : entries;
+}
+
 export interface FeatureMutation {
   key: EntityKey;
   feature: GraphFeature | null;
@@ -198,7 +225,7 @@ export function executeTransaction(state: EditorState, mutations: FeatureMutatio
   const updated = { ...state, error: null, overrides };
   const selectedKeys = state.selectedKeys.filter(key => readFeature(updated, key));
   return { state: { ...updated, selectedKeys, selectedKey: state.selectedKey && selectedKeys.includes(state.selectedKey) ? state.selectedKey : selectedKeys.at(-1) ?? null,
-    undoStack: [...state.undoStack, { id: state.nextChangeId, label, changes }], redoStack: [], nextChangeId: state.nextChangeId + 1 }, result: { status: 'applied', changedKeys: changes.map(change => change.key) } };
+    undoStack: boundedHistory([...state.undoStack, { id: state.nextChangeId, label, changes }]), redoStack: [], nextChangeId: state.nextChangeId + 1 }, result: { status: 'applied', changedKeys: changes.map(change => change.key) } };
 }
 
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
@@ -479,7 +506,8 @@ export function EditorStoreProvider({ children }: { children: ReactNode }) {
   // viewport graph first. Consumers must treat this synchronous read as immutable.
   const getDraftState = useCallback(() => stateRef.current, []);
   const restoreDraftState = useCallback((snapshot: EditorState) => {
-    publish({ ...structuredClone(snapshot), loading: false, error: null });
+    const copy = structuredClone(snapshot);
+    publish({ ...copy, undoStack: boundedHistory(copy.undoStack), redoStack: boundedHistory(copy.redoStack), loading: false, error: null });
   }, [publish]);
   const draftToken = useMemo(() => ({}), [state.overrides, state.undoStack, state.redoStack, state.lockedKeys, state.lockedLayers]);
 

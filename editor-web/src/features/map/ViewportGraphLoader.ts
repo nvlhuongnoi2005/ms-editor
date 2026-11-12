@@ -7,6 +7,8 @@ interface Entry {
   features: GraphFeature[];
   revision: number;
   complete: boolean;
+  bytes: number;
+  storedAt: number;
 }
 interface Request {
   bbox: Bbox;
@@ -14,11 +16,24 @@ interface Request {
   promise: Promise<void>;
 }
 interface Options {
+  maxCacheBytes?: number;
   load: (bbox: Bbox, signal: AbortSignal, part: GraphPart) => Promise<GraphResponse>;
   onFeatures: (features: GraphFeature[]) => void;
   onRelations: (features: GraphFeature[]) => void;
   onLoading: (loading: boolean) => void;
   onError: (error: string | null) => void;
+}
+
+// Approximate retained JS size without allocating a second JSON copy.
+function featureBytes(features: GraphFeature[]) {
+  let bytes = 0;
+  for (const feature of features) {
+    const p = feature.properties, g = feature.geometry;
+    const points = g.type === 'Point' ? 1 : g.type === 'LineString' ? g.coordinates.length : g.coordinates.reduce((sum, ring) => sum + ring.length, 0);
+    bytes += 768 + points * 32 + (p.nodes?.length ?? 0) * 256 + (p.members?.length ?? 0) * 128;
+    for (const [key, value] of Object.entries(p.tags)) bytes += (key.length + value.length) * 2 + 48;
+  }
+  return bytes;
 }
 
 function contains(outer: Bbox, inner: Bbox) {
@@ -36,6 +51,7 @@ export class ViewportGraphLoader {
   private cache = new Map<string, Entry>();
   private active: Request | null = null;
   private displayed: GraphFeature[] | null = null;
+  private knownRevision: number | null = null;
 
   constructor(private options: Options) {}
 
@@ -51,6 +67,23 @@ export class ViewportGraphLoader {
     this.displayed = null;
   }
 
+  observeRevision(revision: number): boolean {
+    if (this.knownRevision !== null && revision <= this.knownRevision) return false;
+    const changed = this.knownRevision !== null;
+    this.knownRevision = revision;
+    if (changed) this.invalidate();
+    return changed;
+  }
+
+  private trim() {
+    let bytes = [...this.cache.values()].reduce((sum, entry) => sum + entry.bytes, 0);
+    const budget = this.options.maxCacheBytes ?? 12 * 1024 * 1024;
+    for (const [key, entry] of this.cache) {
+      if (this.cache.size <= 8 && bytes <= budget) break;
+      this.cache.delete(key); bytes -= entry.bytes;
+    }
+  }
+
   private show(features: GraphFeature[]) {
     if (features === this.displayed) return;
     this.displayed = features;
@@ -58,6 +91,7 @@ export class ViewportGraphLoader {
   }
 
   refresh(viewport: Bbox): Promise<void> {
+    for (const [key, entry] of this.cache) if (Date.now() - entry.storedAt > 60_000) this.cache.delete(key);
     const cached = [...this.cache.values()].reverse().find(entry => contains(entry.bbox, viewport));
     if (cached?.complete) {
       this.cancel();
@@ -80,9 +114,12 @@ export class ViewportGraphLoader {
         if (!entry) {
           const geometry = await this.options.load(bbox, request.controller.signal, 'geometry');
           if (!current()) return;
-          entry = { bbox, features: geometry.features, revision: geometry.canonicalRevision, complete: false };
+          if (this.knownRevision !== null && geometry.canonicalRevision < this.knownRevision) throw new Error('Dữ liệu đang thay đổi. Hãy tải lại vùng bản đồ.');
+          if (geometry.canonicalRevision !== this.knownRevision) this.cache.clear();
+          this.knownRevision = geometry.canonicalRevision;
+          entry = { bbox, features: geometry.features, revision: geometry.canonicalRevision, complete: false, bytes: featureBytes(geometry.features), storedAt: Date.now() };
           this.cache.set(bbox.join(','), entry);
-          if (this.cache.size > 8) this.cache.delete(this.cache.keys().next().value!);
+          this.trim();
           this.show(entry.features);
           this.options.onLoading(false);
         }
@@ -96,10 +133,12 @@ export class ViewportGraphLoader {
         }
         if (relations.features.length) {
           entry.features = [...entry.features, ...relations.features];
+          entry.bytes += featureBytes(relations.features);
           // Append only new relations; don't clone/hydrate the geometry again.
           this.options.onRelations(relations.features);
         }
         entry.complete = true;
+        this.trim();
         this.displayed = entry.features;
       } catch (reason) {
         if (current()) {

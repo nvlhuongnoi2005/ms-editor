@@ -35,13 +35,13 @@ filters its response to avoid duplicates, but cannot make that old SQL fast.
   on `style.load` rather than waiting for every initial map resource.
 - Repeated viewport events share an in-flight request if its buffered bbox
   covers the viewport. An unchanged cached snapshot does not hydrate again.
-- Graph geometry and MVT coverage start at Z12. Lightweight POI circles are
+- Graph geometry and MVT coverage start at Z14. Lightweight POI circles are
   available before detailed icons load asynchronously at Z18. Graph requests
-  accept bboxes up to 2 degrees per axis for wide, buffered Z12 viewports;
-  entity count limits are unchanged and exports retain the .3-degree limit.
-- Changing viewport, zooming below Z12, applying a conflict resolution,
+  accept bboxes up to 2 degrees per axis for wide, buffered Z14 viewports;
+  entity count limits are unchanged. Full dataset PBF exports use a separate background job.
+- Changing viewport, zooming below Z14, applying a conflict resolution,
   committing, or unmounting cancels obsolete work. Late responses are ignored.
-- The cache holds at most eight viewports. Failed relation loads retain usable
+- The cache holds at most eight viewports within an estimated 12 MiB budget and expires entries after 60 seconds. New observed revisions invalidate cached regions. Failed relation loads retain usable
   geometry and can retry without refetching it. Different canonical revisions
   are never silently merged.
 - Tile clicks missing from the local graph fetch an entity snapshot rather
@@ -53,7 +53,7 @@ filters its response to avoid duplicates, but cannot make that old SQL fast.
   Identical tile filters are not reapplied; icons remain lazy at Z18.
 - The selected entity has its own source, independent of viewport coverage and
   zoom. Its latest local geometry and pulsing highlight remain visible below
-  Z12 (nodes use a circle below Z18). A viewport reload retains the current
+  Z14 (nodes use a circle below Z18). A viewport reload retains the current
   selection even if the bounded response omits it, without creating an edit.
 
 ## Verification
@@ -78,7 +78,10 @@ the same IDs as the full graph. These are API measurements, not browser paint
 times; browser rendering still needs a manual check on the target device.
 
 The opt-in browser smoke test uses the built frontend, an isolated HTTP fixture
-server and installed Chrome (`CHROME_BIN` overrides its path). It verifies Z12
-graph visibility, no graph requests below Z12, and persistent pulsing node/way
+server and installed Chrome (`CHROME_BIN` overrides its path). It verifies Z14
+graph visibility, no graph requests below Z14, and persistent pulsing node/way
 selection at Z11, including after a viewport response omits the selected POI.
 It never connects to a real dataset or submits changes.
+
+See [`osm-performance.md`](osm-performance.md) for adaptive polling, server cache,
+source diffs, spatial snapping indexes, undo limits and deployment settings.

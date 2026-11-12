@@ -83,12 +83,14 @@ func commitChanges(ctx context.Context, tx pgx.Tx, datasetID string, changesetID
 	if err := tx.QueryRow(ctx, "UPDATE editor.dataset SET canonical_revision = canonical_revision + 1 WHERE id = $1 RETURNING canonical_revision", datasetID).Scan(&revision); err != nil {
 		return 0, nil, err
 	}
+	batch := &pgx.Batch{}
 	for sequence, item := range audit {
 		before, _ := json.Marshal(item.before)
 		after, _ := json.Marshal(entityPayload(item.after))
-		if _, err := tx.Exec(ctx, "INSERT INTO editor.entity_change (changeset_id, sequence, entity_type, entity_id, operation, before_payload, after_payload, bbox_before) VALUES ($1, $2, $3::editor.entity_type, $4, $5, $6, $7, ST_GeomFromText($8,4326))", changesetID, sequence, item.after.Type, item.after.ID, item.operation, before, after, item.beforeBBox); err != nil {
-			return 0, nil, err
-		}
+		batch.Queue("INSERT INTO editor.entity_change (changeset_id, sequence, entity_type, entity_id, operation, before_payload, after_payload, bbox_before) VALUES ($1, $2, $3::editor.entity_type, $4, $5, $6, $7, ST_GeomFromText($8,4326))", changesetID, sequence, item.after.Type, item.after.ID, item.operation, before, after, item.beforeBBox)
+	}
+	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
+		return 0, nil, err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE editor.entity_change change
 		SET bbox_after=current.bbox

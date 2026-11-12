@@ -88,11 +88,15 @@ func assertNoRemainingDependencies(ctx context.Context, tx pgx.Tx, datasetID str
 	switch entityType {
 	case "node":
 		rows, err = tx.Query(ctx, `SELECT entity_type::text, entity_id FROM editor.entity_current
-			WHERE dataset_id=$1 AND visible AND entity_type='way'::editor.entity_type AND node_refs @> ARRAY[$2]::bigint[]`, datasetID, id)
+			WHERE dataset_id=$1 AND visible AND entity_type='way'::editor.entity_type AND node_refs @> ARRAY[$2]::bigint[]
+			UNION ALL
+			SELECT entity_type::text, entity_id FROM editor.entity_current
+			WHERE dataset_id=$1 AND visible AND entity_type='relation'::editor.entity_type
+			  AND members @> jsonb_build_array(jsonb_build_object('type','node'::text,'ref',$2::bigint))`, datasetID, id)
 	default:
 		rows, err = tx.Query(ctx, `SELECT entity_type::text, entity_id FROM editor.entity_current
 			WHERE dataset_id=$1 AND visible AND entity_type='relation'::editor.entity_type
-			  AND members @> jsonb_build_array(jsonb_build_object('type',$2,'ref',$3))`, datasetID, entityType, id)
+			  AND members @> jsonb_build_array(jsonb_build_object('type',$2::text,'ref',$3::bigint))`, datasetID, entityType, id)
 	}
 	if err != nil {
 		return err

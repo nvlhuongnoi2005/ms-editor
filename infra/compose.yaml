@@ -46,6 +46,11 @@ services:
         condition: service_healthy
     environment:
       EDITOR_API_ADDR: 0.0.0.0:4173
+      EDITOR_READ_CACHE_MIB: ${EDITOR_READ_CACHE_MIB:-64}
+      EDITOR_EXPORT_MAX_PENDING: ${EDITOR_EXPORT_MAX_PENDING:-16}
+      CANONICAL_DB_POOL_MAX_CONNS: ${CANONICAL_DB_POOL_MAX_CONNS:-16}
+      RENDER_DB_POOL_MAX_CONNS: ${RENDER_DB_POOL_MAX_CONNS:-16}
+      ENC_DB_POOL_MAX_CONNS: ${ENC_DB_POOL_MAX_CONNS:-4}
       CANONICAL_DB_HOST: postgres
       CANONICAL_DB_PORT: 5432
       CANONICAL_DB_NAME: canonical
@@ -97,6 +102,8 @@ services:
     restart: unless-stopped
 
   export-worker:
+    cpus: ${EDITOR_EXPORT_CPUS:-1.0}
+    mem_limit: ${EDITOR_EXPORT_MEMORY_LIMIT:-2g}
     build:
       context: ../OSM/importer
       dockerfile: Worker.Dockerfile
@@ -137,6 +144,7 @@ services:
       RENDER_DB_USER: render_owner
       RENDER_DB_PASSWORD: ${RENDER_DB_PASSWORD}
       RENDER_DB_SCHEMA: render
+      CANONICAL_DB_POOL_MAX_CONNS: 4
       RENDER_OSC_DIR: /var/lib/map-service/osc
       TILE_DIRTY_MIN_ZOOM: ${TILE_DIRTY_MIN_ZOOM:-14}
       TILE_DIRTY_MAX_ZOOM: ${TILE_DIRTY_MAX_ZOOM:-18}
