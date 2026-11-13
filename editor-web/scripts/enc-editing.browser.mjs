@@ -9,10 +9,10 @@ const attributes = [{ key: 'OBJNAM', label: 'Tên đối tượng', kind: 'text'
 const dictionary = JSON.parse(await readFile(new URL('../../editor-api/internal/enc/editing_schema.generated.json',import.meta.url),'utf8'));
 let transformFeature;
 try {
-  for (const width of process.env.ENC_FIELDS_REVIEW_ONLY ? [390] : [1440, 390]) {
+  for (const width of process.env.ENC_REVIEW_WIDTH ? [Number(process.env.ENC_REVIEW_WIDTH)] : process.env.ENC_FIELDS_REVIEW_ONLY ? [390] : [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
     const errors = [], commits = [], receipts = new Map(), documents = new Map();
-    let credentials, version = 0, loseResponse = false, creates = 0;
+    let credentials, version = 0, loseResponse = false, creates = 0,catalogRequests=0;
     let slowRequests=0, releaseSlow,markSlow;
     const slowTiles=new Promise(resolve=>releaseSlow=resolve);
     const firstSlowTile=new Promise(resolve=>markSlow=resolve);
@@ -22,7 +22,11 @@ try {
     await context.route('**/api/**', async route => {
       const request = route.request(), url = new URL(request.url()), path = url.pathname;
       if (!path.startsWith('/api/')) return route.continue();
-      if (path === '/api/enc/datasets') return route.fulfill({ json: { datasets: [], catalogRevision: 1 } });
+      if (path === '/api/enc/datasets') {
+        catalogRequests++;
+        if(width>=700&&catalogRequests===1)return route.fulfill({status:503,json:{error:'Temporary catalog outage'}});
+        return route.fulfill({ json: { datasets: [], catalogRevision: 1 } });
+      }
       if (path === '/api/enc/cells') return route.fulfill({ json: { cells: [{ name: 'TESTCELL', description: 'Hải đồ kiểm thử', revisionId: revision, edition: 1, updateNumber: 0, bounds: [105, 21, 105.01, 21.01], focus: [105.005, 21.005] }] } });
       if (path === '/api/enc/regions') return route.fulfill({ json: { type: 'FeatureCollection', features: [] } });
       if (path.startsWith('/api/enc/tiles/')) return route.fulfill({ status: 204 });
@@ -68,7 +72,10 @@ try {
       return route.fulfill({ body: await readFile(new URL(`../../Presentation_Library/assets/fonts/${relative}`, import.meta.url)), contentType: 'application/x-protobuf' });
     });
     await page.addInitScript(() => localStorage.setItem('enc:presentation-settings:v1', JSON.stringify({ category: 'base', names: false, soundings: false, quality: false })));
+    const catalogRecovery=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/enc/datasets'&&response.status()===200);
     await page.goto(origin + '/?mode=enc');
+    await catalogRecovery;
+    if(width>=700)assert.ok(catalogRequests>=2,'catalog retries after a failed request without reload');
     await page.locator('.maplibregl-map').waitFor();
     if (width < 700) await page.getByRole('button', { name: 'Mở bảng hiển thị hải đồ' }).click();
     await page.getByLabel('Phạm vi hiển thị').click();
@@ -166,8 +173,20 @@ try {
     await page.getByRole('option').filter({hasText:'BOYLAT'}).click();
     await page.waitForFunction(()=>!document.querySelector('.MuiModal-root'));
     await contextBox.click({button:'right'});await contextMenu.getByRole('menuitem',{name:'Cắt điểm…',exact:true}).click();
-    await inspector.getByText('Xóa điểm khỏi bản biên tập?',{exact:false}).waitFor();
-    await inspector.getByRole('button',{name:'Hủy',exact:true}).click();
+    const deleteDialog=page.getByRole('dialog',{name:'Xóa điểm khỏi bản biên tập?',exact:true});
+    await deleteDialog.waitFor();
+    await deleteDialog.getByRole('button',{name:'Hủy',exact:true}).click();
+    await page.getByText(/1 thay đổi chưa lưu · 1 đối tượng/).waitFor();
+    await contextBox.click({button:'right'});
+    await contextMenu.getByRole('menuitem',{name:'Xóa điểm…',exact:true}).click();
+    await deleteDialog.waitFor();
+    if(process.env.REVIEW_SCREENSHOTS)await page.screenshot({path:`${process.env.REVIEW_SCREENSHOTS}/enc-context-delete-${width}.png`});
+    await deleteDialog.getByRole('button',{name:'Xóa',exact:true}).click();
+    await page.getByText(/0 thay đổi chưa lưu · 0 đối tượng/).waitFor();
+    await page.getByRole('button',{name:'Hoàn tác ENC',exact:true}).click();
+    await page.getByRole('combobox',{name:'Đối tượng trong bản biên tập',exact:true}).click();
+    await page.getByRole('option').filter({hasText:'BOYLAT'}).click();
+    await page.waitForFunction(()=>!document.querySelector('.MuiModal-root'));
     await page.getByText(/1 thay đổi chưa lưu · 1 đối tượng/).waitFor();
     if(width>=700){
       const frame=page.getByRole('group',{name:'Khung thao tác BOYLAT',exact:true});
@@ -193,7 +212,7 @@ try {
       // Real source-class regression: HRBFAC is movable without being creatable.
       const marinaCoordinate=await page.evaluate(()=>{const p=window.encTestMap.unproject([800,290]);return[p.lng,p.lat];});
       for(const movable of [true,false]){
-        transformFeature={key:`HRBFAC/${movable?'marina':'shared-marina'}`,sourceId:movable?'marina':'shared-marina',objectClass:'HRBFAC',attributes:{CATHAF:[5]},geometry:{type:'Point',coordinates:marinaCoordinate},canMove:movable,canDelete:false,deleted:false};
+        transformFeature={key:`HRBFAC/${movable?'marina':'shared-marina'}`,sourceId:movable?'marina':'shared-marina',objectClass:'HRBFAC',attributes:{CATHAF:[5]},geometry:{type:'Point',coordinates:marinaCoordinate},canMove:movable,canDelete:false,deleted:false,moveLockReason:movable?undefined:'feature_links'};
         await page.evaluate(({feature,revision})=>{
           const map=window.encTestMap;
           map.getSource('enc-edits').updateData({add:[{type:'Feature',id:feature.key,geometry:feature.geometry,properties:{object_class:'HRBFAC',edit_key:feature.key,revision_id:revision,list_CATHAF:'|5|',sym_CATHAF:5}}]});
@@ -216,6 +235,7 @@ try {
           await page.getByRole('button',{name:'Hoàn tác ENC',exact:true}).click();
         }else{
           assert.ok((await marinaBox.innerText()).includes('Khóa vị trí'));
+          await inspector.getByText(/Đối tượng có tham chiếu dùng chung/).waitFor();
           assert.deepEqual(await page.evaluate(()=>window.encTestMap.getCenter().toArray()),camera,'protected geometry does not accidentally pan the map');
         }
         await page.evaluate(key=>window.encTestMap.getSource('enc-edits').updateData({remove:[key]}),transformFeature.key);
@@ -281,6 +301,18 @@ try {
       await mkdir(process.env.REVIEW_SCREENSHOTS, { recursive: true });
       await page.screenshot({ path: `${process.env.REVIEW_SCREENSHOTS}/enc-editing-${width}.png` });
     }
+    await page.getByRole('button',{name:'Rà soát thay đổi',exact:true}).click();
+    const review=page.getByRole('region',{name:'Rà soát thay đổi',exact:true});await review.waitFor();
+    await review.getByRole('cell',{name:'12.5',exact:true}).waitFor();
+    assert.ok((await review.innerText()).includes('105.123456789'));
+    assert.equal(await page.getByRole('region',{name:'Chỉnh sửa đối tượng ENC',exact:true}).count(),0,'review replaces the inspector');
+    if(process.env.REVIEW_SCREENSHOTS)await page.screenshot({path:`${process.env.REVIEW_SCREENSHOTS}/enc-change-review-${width}.png`});
+    // Deletion confirmation must remain visible when the inspector is hidden by review.
+    await page.evaluate(async()=>{const map=window.encTestMap,data=await map.getSource('enc-edits').getData(),feature=data.features.find(f=>f.properties.object_class==='BOYLAT');map.fire('contextmenu',{point:{x:170,y:310},lngLat:map.unproject([170,310]),editKey:feature.id,originalEvent:new MouseEvent('contextmenu',{clientX:170,clientY:370})});});
+    await contextMenu.getByRole('menuitem',{name:'Xóa điểm…',exact:true}).click();
+    await deleteDialog.waitFor();
+    await deleteDialog.getByRole('button',{name:'Hủy',exact:true}).click();
+    await review.waitFor({state:'hidden'});
     await page.getByRole('button', { name: 'Lưu', exact: true }).click();
     await page.getByText('Đã lưu thay đổi vào không gian biên tập.', { exact: true }).waitFor();
     assert.equal(documents.size, 1);
@@ -302,6 +334,8 @@ try {
     const undoStart=performance.now();
     await page.getByRole('button', { name: 'Hoàn tác ENC' }).click();
     await inspector.getByLabel('Kinh độ', { exact: true }).waitFor();
+    const undoLongitudeId=await inspector.getByLabel('Kinh độ',{exact:true}).getAttribute('id');
+    await page.waitForFunction(id=>document.getElementById(id)?.value!=='105.123456789',undoLongitudeId);
     assert.notEqual(await inspector.getByLabel('Kinh độ', { exact: true }).inputValue(), '105.123456789');
     await page.waitForFunction(async()=>{
       const source=window.encTestMap.getSource('enc-edits');if(!source)return false;
@@ -348,14 +382,18 @@ try {
     const point = [...documents.values()][0];
     assert.ok(Math.abs(point.symbolScale-1.1)<1e-9,'reload and retry retain symbol size');
     await page.evaluate(coordinates => { window.encTestMap.jumpTo({ center: coordinates }); }, point.geometry.coordinates);
-    await page.waitForFunction(() => window.encTestMap.getLayer('enc-edits-points') && window.encTestMap.queryRenderedFeatures({ layers: ['enc-edits-points'] }).length > 0);
+    await page.waitForFunction(() => window.encTestMap.getLayer('enc-edits-points') && window.encTestMap.queryRenderedFeatures({ layers: ['enc-edits-points'] }).length > 0).catch(async error=>{
+      console.log('Overlay after reload',await page.evaluate(async()=>{const map=window.encTestMap,source=map.getSource('enc-edits');return {center:map.getCenter().toArray(),zoom:map.getZoom(),layer:Boolean(map.getLayer('enc-edits-points')),count:source?(await source.getData()).features.length:0};}));
+      if(process.env.REVIEW_SCREENSHOTS)await page.screenshot({path:`${process.env.REVIEW_SCREENSHOTS}/enc-reload-failure-${width}.png`});
+      throw error;
+    });
     await page.evaluate(coordinates => {
       const map = window.encTestMap, point = map.project(coordinates);
       map.fire('click', { point, lngLat: { lng: coordinates[0], lat: coordinates[1] }, originalEvent: new MouseEvent('click') });
     }, point.geometry.coordinates);
     await inspector.waitFor();
     await inspector.getByRole('button', { name: 'Xóa điểm', exact: true }).click();
-    await inspector.getByRole('button', { name: 'Xóa', exact: true }).click();
+    await deleteDialog.getByRole('button', { name: 'Xóa', exact: true }).click();
     await page.getByRole('button', { name: 'Lưu', exact: true }).click();
     await page.getByText('Đã lưu thay đổi vào không gian biên tập.', { exact: true }).waitFor();
     assert.equal(documents.size, 0, 'deleted local point removed from workspace');

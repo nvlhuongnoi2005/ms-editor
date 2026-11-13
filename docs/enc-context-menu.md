@@ -25,7 +25,9 @@ LNAM và liên kết primitive nguồn không được mang sang. Mỗi bản d�
 tham gia cùng luồng draft, Undo/Redo và lưu. Clipboard chỉ nằm trong bộ nhớ tab.
 
 **Cắt điểm** sao chép vào clipboard và mở xác nhận xóa. Nếu hủy, đối tượng vẫn
-giữ nguyên. Xác nhận được cuộn vào vùng nhìn trong bảng thuộc tính.
+giữ nguyên. Cắt và xóa mở hộp xác nhận riêng, nêu đúng điểm được bấm chuột phải;
+không phụ thuộc bảng thuộc tính đang cuộn, bị ẩn hoặc đang mở bảng rà soát.
+Hủy/Escape không xóa dữ liệu; sau khi xác nhận có thể Hoàn tác.
 
 Đường/vùng đủ quyền vẫn dùng được lệnh kéo/đổi tỷ lệ, tăng/giảm kích thước và xem
 toàn bộ đối tượng. Sao chép/xóa đường/vùng, nhóm, xoay, tách/gộp hoặc biên tập

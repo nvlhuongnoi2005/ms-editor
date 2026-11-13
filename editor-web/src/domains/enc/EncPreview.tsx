@@ -11,6 +11,7 @@ import { EncPropertiesPanel } from './EncPropertiesPanel';
 import { EncEditing } from './EncEditing';
 import { pickEncFeature, pickEncFeatures } from './featurePicking';
 import { EncFeatureChooser } from './EncFeatureChooser';
+import { startRecoveringPoll } from './recoveringPoll';
 import { defaultPresentationSettings as presentation } from '../../../../Presentation_Library/runtime/profile';
 import { bundledEncAsset } from './atlasAssets';
 import type { EncCredentials } from './editing';
@@ -133,20 +134,13 @@ export function EncPreview() {
   }, [panelOpen]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const load = async () => {
-      try {
-        const data = await fetch('/api/enc/datasets', { signal: controller.signal }).then(readJSON<{ datasets: Dataset[]; catalogRevision: number }>);
-        if (controller.signal.aborted) return;
-        setDatasets(data.datasets); setCatalogError('');
-        setCatalogRevision(data.catalogRevision);
-        setDatasetId(current => current && !data.datasets.some(item => item.id === current) ? '' : current);
-        timer = setTimeout(load, data.datasets.some(item => item.state === 'importing') ? 3000 : 10000);
-      } catch (reason) { if (!controller.signal.aborted) setCatalogError(reason instanceof Error ? reason.message : String(reason)); }
-    };
-    void load();
-    return () => { controller.abort(); clearTimeout(timer); };
+    return startRecoveringPoll(async signal=>{
+      const data=await fetch('/api/enc/datasets',{signal:AbortSignal.any([signal,AbortSignal.timeout(30_000)])}).then(readJSON<{ datasets: Dataset[]; catalogRevision: number }>);
+      if(signal.aborted)return 10_000;
+      setDatasets(data.datasets);setCatalogError('');setCatalogRevision(data.catalogRevision);
+      setDatasetId(current=>current&&!data.datasets.some(item=>item.id===current)?'':current);
+      return data.datasets.some(item=>item.state==='importing')?3000:10_000;
+    },reason=>setCatalogError(reason instanceof Error?reason.message:String(reason)));
   }, [reload]);
 
   useEffect(() => {

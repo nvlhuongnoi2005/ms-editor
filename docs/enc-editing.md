@@ -6,6 +6,28 @@ Luồng preview và ghi nháp đã được tối ưu; xem [cơ chế và số �
 Chọn trực tiếp, khung kéo/đổi kích thước và quyền biến đổi: [hướng dẫn thao tác](enc-edit-transforms.md).
 Các lệnh sao chép, dán, nhân bản, kích thước và lưu tại con trỏ: [menu chuột phải](enc-context-menu.md).
 
+Icon **Rà soát thay đổi** cạnh nút tải bản nháp mở bảng trước/sau: thuộc tính,
+tọa độ/phạm vi hình học, kích thước ký hiệu và đánh dấu xóa. So sánh với lần lưu
+gần nhất; đối tượng nguồn chưa từng lưu thì lấy bản nguồn đầy đủ để đối chiếu,
+tối đa 4 yêu cầu đồng thời. Bấm tên một mục để sửa tiếp. Escape đóng bảng.
+Nếu không tải được nguồn, bảng báo rõ; không coi dữ liệu thiếu là bản gốc rỗng.
+
+Trước khi tạo yêu cầu lưu mới, client kiểm tra các giá trị đã đổi theo schema,
+quyền đã biết, tọa độ điểm và kích thước ký hiệu, khoảng độ sâu DRVAL1/DRVAL2,
+giới hạn 500 mục và payload 4 MiB. API vẫn kiểm tra độc lập trong transaction.
+Không sửa khoảng độ sâu đã nhập thì vẫn cho sửa trường khác; việc này không có
+nghĩa dữ liệu nguồn đã đạt kiểm tra nghiệp vụ. Retry lần lưu đang chờ xác nhận
+giữ nguyên payload và requestId, không tạo lại yêu cầu.
+
+Khi khóa vị trí, API trả `moveLockReason`; bảng thuộc tính giải thích nhóm nguyên
+nhân đã xác nhận được. Kiểm tra cạnh chưa đạt chỉ báo chưa xác nhận quyền sở hữu,
+không suy diễn chắc chắn rằng có cạnh dùng chung. Mã lý do không cấp quyền biến đổi.
+
+Polling catalog tự thử lại khi lỗi, tăng khoảng nghỉ có jitter tối đa 60 giây;
+thành công trở về 3 giây khi import hoặc 10 giây khi nghỉ. Tab ẩn/offline dừng
+polling và hủy yêu cầu đang chạy, rồi kiểm tra lại khi hiện tab/online. Mỗi tab
+chỉ có một yêu cầu polling đang chạy; fetch có timeout 30 giây.
+
 Khi bấm nơi có nhiều đối tượng chồng nhau, bảng **Chọn đối tượng** liệt kê các
 đối tượng trong bán kính 6 pixel, kèm hình ký hiệu, mã lớp, tên và cell. Chọn một
 dòng để xem chi tiết hoặc biên tập. Các lớp ký hiệu, đường viền, nhãn và mảnh tile

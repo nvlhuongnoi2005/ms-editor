@@ -31,15 +31,18 @@ type editGeometry struct {
 	Coordinates json.RawMessage `json:"coordinates"`
 }
 type editFeature struct {
-	Key         string         `json:"key"`
-	ObjectClass string         `json:"objectClass"`
-	SourceID    string         `json:"sourceId"`
-	Geometry    editGeometry   `json:"geometry"`
-	Attributes  map[string]any `json:"attributes"`
-	Deleted     bool           `json:"deleted"`
-	CanMove     bool           `json:"canMove"`
-	CanDelete   bool           `json:"canDelete"`
-	SymbolScale float64        `json:"symbolScale,omitempty"`
+	Key            string         `json:"key"`
+	ObjectClass    string         `json:"objectClass"`
+	SourceID       string         `json:"sourceId"`
+	Geometry       editGeometry   `json:"geometry"`
+	Attributes     map[string]any `json:"attributes"`
+	Deleted        bool           `json:"deleted"`
+	CanMove        bool           `json:"canMove"`
+	CanDelete      bool           `json:"canDelete"`
+	SymbolScale    float64        `json:"symbolScale,omitempty"`
+	MoveLockReason string         `json:"moveLockReason,omitempty"`
+	CanOverridePosition bool      `json:"canOverridePosition,omitempty"`
+	PositionOverride bool         `json:"positionOverride,omitempty"`
 }
 type editChange struct {
 	Key   string       `json:"key"`
@@ -278,6 +281,8 @@ func (h *Handler) readEditFeature(ctx context.Context, db editQuerier, storage, 
 			return f, err
 		}
 	}
+	f.MoveLockReason = movementLockReason(f, isolated, exclusive)
+	f.CanOverridePosition = canOverridePointPosition(f)
 	return f, nil
 }
 
@@ -285,6 +290,9 @@ func validateEditFeature(after, before *editFeature) error {
 	if after == nil {
 		return nil
 	} // Reset an override to the immutable source.
+	if after.PositionOverride && (before == nil || !canOverridePointPosition(*before)) {
+		return fmt.Errorf("Chỉ mở khóa vị trí riêng cho ký hiệu điểm nguồn 2D được hỗ trợ.")
+	}
 	if after.SymbolScale != 0 && (after.Geometry.Type != "Point" || math.IsNaN(after.SymbolScale) || math.IsInf(after.SymbolScale, 0) || after.SymbolScale < 0.5 || after.SymbolScale > 4) {
 		return fmt.Errorf("Kích thước ký hiệu phải từ 50%% đến 400%% và chỉ áp dụng cho điểm.")
 	}
@@ -338,10 +346,15 @@ func validateEditFeature(after, before *editFeature) error {
 			return err
 		}
 	}
+	low, hasLow := after.Attributes["DRVAL1"].(float64)
+	high, hasHigh := after.Attributes["DRVAL2"].(float64)
+	if hasLow && hasHigh && low > high && (!reflect.DeepEqual(original["DRVAL1"], low) || !reflect.DeepEqual(original["DRVAL2"], high)) {
+		return fmt.Errorf("DRVAL1 không được lớn hơn DRVAL2.")
+	}
 	if before != nil && sameEditGeometry(after.Geometry, before.Geometry) {
 		return nil
 	}
-	if before != nil && !before.CanMove {
+	if before != nil && !before.CanMove && !after.PositionOverride {
 		return fmt.Errorf("Hình học có liên kết hoặc không thuộc phạm vi biên tập điểm.")
 	}
 	if before != nil && before.Geometry.Type != "Point" {
@@ -422,8 +435,13 @@ func (h *Handler) commitWorkspace(ctx context.Context, w http.ResponseWriter, r 
 				return err
 			}
 		} else {
-			change.After.CanMove = baseline == nil || baseline.CanMove
+			change.After.CanMove = baseline == nil || baseline.CanMove || change.After.PositionOverride
+			change.After.CanOverridePosition = baseline != nil && canOverridePointPosition(*baseline)
 			change.After.CanDelete = baseline == nil || baseline.CanDelete
+			change.After.MoveLockReason = ""
+			if baseline != nil && !change.After.CanMove {
+				change.After.MoveLockReason = baseline.MoveLockReason
+			}
 			doc, _ := json.Marshal(change.After)
 			if _, err = tx.Exec(ctx, `INSERT INTO enc.workspace_feature(workspace_id,feature_key,document) VALUES($1,$2,$3::jsonb) ON CONFLICT(workspace_id,feature_key) DO UPDATE SET document=EXCLUDED.document`, id, change.Key, doc); err != nil {
 				return err

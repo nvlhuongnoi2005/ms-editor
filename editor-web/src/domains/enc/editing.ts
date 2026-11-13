@@ -3,6 +3,9 @@ export type EncEditFeature = {
   key: string; objectClass: string; sourceId: string; geometry: EncGeometry;
   attributes: Record<string, unknown>; deleted: boolean; canMove: boolean; canDelete: boolean;
   symbolScale?: number;
+  moveLockReason?: string;
+  canOverridePosition?: boolean;
+  positionOverride?: boolean;
 };
 export type EncCredentials = { id: string; token: string; baseRevision: string };
 export type EncAttribute = { key: string; label: string; kind: 'text' | 'number' | 'integer' | 'enum' | 'list'; options?: Array<{ value: number; label: string }> };
@@ -94,6 +97,7 @@ export function validateEditingDraft(value: unknown, baseRevision: string): EncE
       if (!Array.isArray(c) || c.length < 2 || c.some(n => typeof n !== 'number' || !Number.isFinite(n)) || Math.abs(c[0]) > 180 || Math.abs(c[1]) > 90) return fail();
     }
     if (feature.symbolScale !== undefined && (feature.geometry.type !== 'Point' || !Number.isFinite(feature.symbolScale) || feature.symbolScale < 0.5 || feature.symbolScale > 4)) return fail();
+    if(feature.positionOverride!==undefined&&typeof feature.positionOverride!=='boolean')return fail();
   };
   for (const documents of [state.documents, state.saved]) {
     if (Array.isArray(documents) || typeof documents !== 'object' || Object.keys(documents).length > 1000) return fail();

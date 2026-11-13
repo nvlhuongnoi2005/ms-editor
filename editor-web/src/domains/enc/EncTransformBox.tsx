@@ -5,6 +5,7 @@ import type { EncEditFeature } from './editing';
 import type { EncTheme } from './style';
 import { geometryPositions, geometryCenter, projectPosition, transformGeometry, symbolScale } from './geometryTransform';
 import { markerElement, pointRotation } from './pointSymbols';
+import { movementLockMessage } from './editPermissions';
 
 type Props={map:EncMap;feature:EncEditFeature;theme:EncTheme;disabled:boolean;onChange:(feature:EncEditFeature)=>void;onError:(message:string)=>void};
 const corners=['nw','ne','se','sw'] as const;
@@ -130,7 +131,7 @@ export function EncTransformBox({map,feature,theme,disabled,onChange,onError}:Pr
     const rect=map.getCanvas().getBoundingClientRect();const point:[number,number]=[event.clientX-rect.left,event.clientY-rect.top];
     map.fire('click',{point:{x:point[0],y:point[1]},lngLat:map.unproject(point),originalEvent:event.nativeEvent});
   }}>
-    <span className="enc-transform-caption">{feature.objectClass}{point?` · ${Math.round((feature.symbolScale??1)*100)}%`:''}{!feature.canMove?' · Khóa vị trí':''}</span>
+    <span className="enc-transform-caption" title={movementLockMessage(feature)}>{feature.objectClass}{point?` · ${Math.round((feature.symbolScale??1)*100)}%`:''}{!feature.canMove?' · Khóa vị trí':''}</span>
     <svg className="enc-transform-geometry" aria-hidden="true"><path ref={drawing}/></svg>
     {point&&<div ref={icon} className="enc-transform-icon"/>}
     {scalable&&corners.map(corner=><button key={corner} type="button" data-transform="scale" className={`enc-transform-handle ${corner}`} aria-label={`Đổi kích thước ${corner}`} onKeyDown={event=>{

@@ -190,7 +190,7 @@ func TestEditingPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	sharedMarina, sharedErr := h.readEditFeature(ctx, db, dataset, "TESTCELL", "HRBFAC/shared-marina")
-	if sharedErr != nil || sharedMarina.CanMove || sharedMarina.CanDelete {
+	if sharedErr != nil || sharedMarina.CanMove || sharedMarina.CanDelete || sharedMarina.MoveLockReason != "feature_links" {
 		t.Fatalf("shared marina must stay protected: %+v %v", sharedMarina, sharedErr)
 	}
 	if err != nil || !one.CanMove {

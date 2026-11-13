@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Alert, Box, Button, CircularProgress, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { Clipboard, Copy, Download, Files, LocateFixed, MapPinPlus, Move, Redo2, RotateCcw, Save, Scissors, SquarePen, Trash2, Undo2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Clipboard, ClipboardCheck, Copy, Download, Files, LocateFixed, MapPinPlus, Move, Redo2, RotateCcw, Save, Scissors, SquarePen, Trash2, Undo2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Marker, type Map as EncMap, type MapMouseEvent, type SymbolLayerSpecification } from 'maplibre-gl';
 import { PointTypePicker } from './PointTypePicker';
 import { EncAttributeFields } from './EncAttributeFields';
@@ -10,6 +10,9 @@ import { encSpriteLayers } from './sprites';
 import { createDraftWriter } from './draftWriter';
 import { createEditPreview } from './editPreview';
 import { EncTransformBox } from './EncTransformBox';
+import { EncEditReview } from './EncEditReview';
+import { reviewEditing } from './editReview';
+import { movementLockMessage } from './editPermissions';
 import { EncContextMenu, type EncMenuAction } from './EncContextMenu';
 import { pickEncFeature } from './featurePicking';
 import { createEncPoint, copyEncPoint, canCopyEncPoint } from './editCommands';
@@ -47,7 +50,11 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
   const [creating, setCreating] = useState(false);
   const [newPoint, setNewPoint] = useState(() => pointChoices(['LNDMRK'])[0]);
   const [attributeInvalid, setAttributeInvalid] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reviewOpen,setReviewOpen]=useState(false);
+  const [reviewLoading,setReviewLoading]=useState(false);
+  const [reviewError,setReviewError]=useState('');
+  const [sourceVersion,setSourceVersion]=useState(0);
+  const [deleteTarget,setDeleteTarget]=useState<EncEditFeature|null>(null);
   const [coordinates, setCoordinates] = useState(['', '']);
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -57,18 +64,22 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
   const draftRevision = useRef<string | null>(null);
   const generation = useRef(0);
   const renderPreview = useRef<() => void>(() => {});
-  const locked = busy || storageBlocked || Boolean(state?.pending);
+  const locked = busy || reviewLoading || storageBlocked || Boolean(state?.pending);
   const effective = useMemo(()=>{
     const feature=focused&&state?state.documents[focused.key]??originals.current[focused.key]??null:focused;
     const source=focused&&originals.current[focused.key];
-    return feature&&source&&(feature.canMove!==source.canMove||feature.canDelete!==source.canDelete)
-      ?{...feature,canMove:source.canMove,canDelete:source.canDelete}:feature;
-  },[focused,state?.documents]);
+    return feature&&source&&(feature.canMove!==source.canMove||feature.canDelete!==source.canDelete||feature.moveLockReason!==source.moveLockReason)
+      ?{...feature,canMove:source.canMove,canDelete:source.canDelete,moveLockReason:source.moveLockReason}:feature;
+  },[focused,state?.documents,sourceVersion]);
   const dirty = useMemo(()=>state ? commitChanges(state).length : 0,[state?.documents,state?.saved]);
-  const attributeSchema = effective ? config?.attributesByClass?.[effective.objectClass] ?? config?.attributes ?? [] : [];
+  useEffect(()=>{setReviewOpen(false);setReviewError('');setDeleteTarget(null);},[state?.workspace.id]);
   useEffect(()=>{
-    if(deleteOpen)map?.getContainer().querySelector('[data-enc-delete-confirmation]')?.scrollIntoView({block:'nearest'});
-  },[deleteOpen,effective?.key,map]);
+    if(!reviewOpen)return;
+    const close=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setReviewOpen(false);}};
+    window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close);
+  },[reviewOpen]);
+  const attributeSchema = effective ? config?.attributesByClass?.[effective.objectClass] ?? config?.attributes ?? [] : [];
+
 
   // Register after the navigator so the compact launcher follows it on every viewport.
   useEffect(() => {
@@ -148,7 +159,7 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
     if (selected.revision_id && selected.revision_id !== state.workspace.baseRevision) return;
     const id = ++generation.current;
     const key = String(selected.edit_key);
-    setError(''); setDeleteOpen(false);
+    setError(''); setDeleteTarget(null);
     const cached = current.current?.documents[key] ?? originals.current[key];
     if (cached && (cached.sourceId.startsWith('new:')||originals.current[key])) { setFocused(cached); return; }
     void loadEncFeature(state.workspace, key).then(feature => {
@@ -175,16 +186,16 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
       const document=valid?current.current?.documents[key]:undefined;
       const source=valid?originals.current[key]:undefined;
       const value=document??source;
-      const cached=value&&(source||value.sourceId.startsWith('new:'))?(source?{...value,canMove:source.canMove,canDelete:source.canDelete}:value):undefined;
+      const cached=value&&(source||value.sourceId.startsWith('new:'))?(source?{...value,canMove:source.canMove,canDelete:source.canDelete,moveLockReason:source.moveLockReason}:value):undefined;
       setContext({...position,feature:cached??null,loading:Boolean(valid&&!cached)});
       if(!valid)return;
       generation.current++;onClearSelection();
-      if(cached){setFocused(cached);setDeleteOpen(false);return;}
+      if(cached){setFocused(cached);setDeleteTarget(null);return;}
       void loadEncFeature(workspace,key).then(feature=>{
         if(id!==contextGeneration.current||current.current?.workspace.id!==workspace.id)return;
-        originals.current[key]=feature;setFocused(feature);setDeleteOpen(false);
+        originals.current[key]=feature;setFocused(feature);setDeleteTarget(null);
         const document=current.current?.documents[key];
-        setContext({...position,feature:document?{...document,canMove:feature.canMove,canDelete:feature.canDelete}:feature,loading:false});
+        setContext({...position,feature:document?{...document,canMove:feature.canMove,canDelete:feature.canDelete,moveLockReason:feature.moveLockReason}:feature,loading:false});
       }).catch(reason=>{if(id===contextGeneration.current){setContext({...position,feature:null,loading:false});setError(reason.message);setToolsOpen(true);}});
     };
     map.on('contextmenu',openMenu);map.on('movestart',closeContext);map.on('style.load',closeContext);
@@ -208,7 +219,7 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
       // Returning to the source removes the override rather than creating a net change.
       const original = originals.current[featureKey];
       const next = after && original && sameDocument(after,original) ? undefined : after;
-      update(changeFeature(value, featureKey, next)); setDeleteOpen(false);
+      update(changeFeature(value, featureKey, next)); setDeleteTarget(null);
     } catch (reason) { setError((reason as Error).message); }
   }, [locked, update]);
   const changeAttributes=useCallback((attributes:Record<string,unknown>)=>{if(effective)mutate({...effective,attributes});},[effective,mutate]);
@@ -259,16 +270,33 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
   },[map,creating,newPoint,theme,locked]);
 
 
+  const ensureReviewSources=async(value:EncEditState)=>{
+    const missing=commitChanges(value).filter(change=>{
+      const feature=change.after??value.saved[change.key];
+      return feature&&!feature.sourceId.startsWith('new:')&&!originals.current[change.key]&&(!value.saved[change.key]||change.after===null);
+    });
+    for(let offset=0;offset<missing.length;offset+=4){
+      const features=await Promise.all(missing.slice(offset,offset+4).map(change=>loadEncFeature(value.workspace,change.key)));
+      if(current.current?.workspace.id!==value.workspace.id)return;
+      for(const feature of features)originals.current[feature.key]=feature;
+    }
+    setSourceVersion(version=>version+1);
+  };
   const save = async () => {
     let value = current.current;
-    if (!value || busy || storageBlocked || attributeInvalid) return;
+    if (!value || busy || reviewLoading || storageBlocked || attributeInvalid) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      if (!config) { await createEncWorkspace(value.workspace); setConfig(await loadEncWorkspace(value.workspace)); }
+      let activeConfig=config;
+      if (!activeConfig) { await createEncWorkspace(value.workspace); activeConfig=await loadEncWorkspace(value.workspace);setConfig(activeConfig); }
       if (!value.pending) {
         const changes = commitChanges(value);
         if (!changes.length) { setNotice('Các thay đổi đã được lưu.'); return; }
         if (changes.length > 500) throw new Error('Mỗi lần lưu tối đa 500 đối tượng. Hoàn tác bớt thay đổi rồi lưu theo từng đợt.');
+        await ensureReviewSources(value);
+        const entries=reviewEditing(value,originals.current,activeConfig.attributesByClass??{});
+        if(entries.some(entry=>entry.errors.length)){setReviewOpen(true);throw new Error('Dữ liệu chưa hợp lệ. Mở Rà soát thay đổi để sửa các mục được đánh dấu.');}
+        if(new TextEncoder().encode(JSON.stringify({requestId:crypto.randomUUID(),expectedVersion:value.version,changes})).length>4*1024*1024)throw new Error('Nội dung lưu vượt 4 MiB. Giảm số thay đổi trong lần lưu này.');
         value = { ...value, pending: { requestId: crypto.randomUUID(), expectedVersion: value.version, changes } };
         current.current = value; setState(value);
       }
@@ -295,6 +323,27 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
     const a = document.createElement('a'); a.href = url; a.download = `enc-draft-${value?.workspace.id ?? 'backup'}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const reviewEntries=useMemo(()=>state&&reviewOpen?reviewEditing(state,originals.current,config?.attributesByClass??{}):[],[reviewOpen,state?.documents,state?.saved,config,sourceVersion]);
+  const openReview=async()=>{
+    const value=current.current;if(!value)return;
+    setReviewOpen(true);setReviewLoading(true);setReviewError('');
+    try{await ensureReviewSources(value);}catch(reason){setReviewError((reason as Error).message);}
+    finally{setReviewLoading(false);}
+  };
+  const requestDelete=(feature:EncEditFeature)=>{
+    if(locked||!feature.canDelete||feature.deleted)return;
+    generation.current++;onClearSelection();setCreating(false);setReviewOpen(false);
+    setFocused(feature);setDeleteTarget(feature);
+  };
+  const confirmDelete=()=>{
+    if(locked||!deleteTarget)return;
+    const feature=current.current?.documents[deleteTarget.key]??originals.current[deleteTarget.key]??deleteTarget;
+    const source=originals.current[feature.key];
+    if(!(source??feature).canDelete||feature.deleted){setDeleteTarget(null);return;}
+    if(feature.sourceId.startsWith('new:')){mutate(undefined,feature.key);setFocused(null);}
+    else mutate({...feature,deleted:true});
+    setDeleteTarget(null);
+  };
   const target=context?.feature;
   const canCopy=canCopyEncPoint(target,config?.pointClasses??[]);
   const addFromMenu=(feature:EncEditFeature)=>{mutate(feature);generation.current++;onClearSelection();setFocused(feature);setCreating(false);};
@@ -310,7 +359,7 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
     {id:'copy',label:'Sao chép điểm',icon:Copy,disabled:locked||!canCopy,separator:true,run:()=>{if(target)setClipboard(clonePoint(target));}},
     {id:'paste',label:'Dán điểm tại đây',icon:Clipboard,disabled:locked||!clipboard||!context||!config?.pointClasses.includes(clipboard.objectClass),run:()=>{if(clipboard&&context)addFromMenu(clonePoint(clipboard,context.coordinate));}},
     {id:'duplicate',label:'Nhân bản điểm',icon:Files,disabled:locked||!canCopy,run:()=>{if(target&&map){const p=map.project(target.geometry.coordinates as [number,number]),location=map.unproject([p.x+24,p.y+24]);addFromMenu(clonePoint(target,[location.lng,location.lat]));}}},
-    {id:'cut',label:'Cắt điểm…',icon:Scissors,disabled:locked||!canCopy||!target?.canDelete,run:()=>{if(target){setClipboard(clonePoint(target));setFocused(target);setDeleteOpen(true);}}},
+    {id:'cut',label:'Cắt điểm…',icon:Scissors,disabled:locked||!canCopy||!target?.canDelete,run:()=>{if(target){setClipboard(clonePoint(target));requestDelete(target);}}},
     {id:'add',label:`Thêm ${newPoint.objectClass} tại đây`,icon:MapPinPlus,disabled:locked||!config,run:()=>{if(context)addFromMenu(createEncPoint(newPoint.objectClass,newPoint.attributes,context.coordinate));}},
     {id:'larger',label:'Tăng kích thước 10%',icon:ZoomIn,disabled:locked||!canResize||(target?.geometry.type==='Point'&&(target.symbolScale??1)>=4),separator:true,run:()=>resizeTarget(1.1)},
     {id:'smaller',label:'Giảm kích thước 10%',icon:ZoomOut,disabled:locked||!canResize||(target?.geometry.type==='Point'&&(target.symbolScale??1)<=.5),run:()=>resizeTarget(1/1.1)},
@@ -319,14 +368,22 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
     {id:'undo',label:'Hoàn tác',icon:Undo2,disabled:locked||!state?.undo.length,separator:true,run:()=>{if(current.current)update(travelHistory(current.current,'undo'));}},
     {id:'redo',label:'Làm lại',icon:Redo2,disabled:locked||!state?.redo.length,run:()=>{if(current.current)update(travelHistory(current.current,'redo'));}},
     {id:'save',label:state?.pending?'Kiểm tra lần lưu':'Lưu thay đổi',icon:Save,disabled:busy||storageBlocked||attributeInvalid||(!dirty&&!state?.pending),run:()=>void save()},
-    {id:'delete',label:'Xóa điểm…',icon:Trash2,danger:true,separator:true,disabled:locked||!target?.canDelete||target.deleted,run:()=>{if(target){setFocused(target);setDeleteOpen(true);}}},
+    {id:'delete',label:'Xóa điểm…',icon:Trash2,danger:true,separator:true,disabled:locked||!target?.canDelete||target.deleted,run:()=>{if(target)requestDelete(target);}},
     {id:'deselect',label:'Bỏ chọn',icon:X,disabled:!focused,run:()=>{generation.current++;onClearSelection();setFocused(null);}},
   ];
 
   if (!enabled && !state) return null;
   return <>
+    <Dialog open={Boolean(deleteTarget)} onClose={()=>{if(!locked)setDeleteTarget(null);}} aria-labelledby="enc-delete-title" aria-describedby="enc-delete-description" maxWidth="xs" fullWidth>
+      <DialogTitle id="enc-delete-title">Xóa điểm khỏi bản biên tập?</DialogTitle>
+      <DialogContent><DialogContentText id="enc-delete-description">
+        {deleteTarget&&`${deleteTarget.objectClass} · ${String(deleteTarget.attributes.OBJNAM??'Điểm đang chọn')}`}
+        {' '}Thay đổi áp dụng trong bản biên tập. Bạn có thể Hoàn tác sau khi xóa.
+      </DialogContentText></DialogContent>
+      <DialogActions><Button autoFocus disabled={locked} onClick={()=>setDeleteTarget(null)}>Hủy</Button><Button color="error" variant="contained" disabled={locked} onClick={confirmDelete}>Xóa</Button></DialogActions>
+    </Dialog>
     <EncContextMenu position={context} title={target?`${target.objectClass} · ${String(target.attributes.OBJNAM??'Đối tượng đang chọn')}`:'Công cụ biên tập ENC'} loading={context?.loading} actions={menuActions} onClose={closeContext} onError={message=>{setError(message);setToolsOpen(true);}}/>
-    {!selectionPending && map && state && effective && !creating && !effective.deleted && <EncTransformBox map={map} feature={effective} theme={theme} disabled={locked} onChange={mutate} onError={setError} />}
+    {!reviewOpen && !selectionPending && map && state && effective && !creating && !effective.deleted && <EncTransformBox map={map} feature={effective} theme={theme} disabled={locked} onChange={mutate} onError={setError} />}
     {controlHost && createPortal(<Tooltip title="Biên tập ENC" placement="left"><IconButton aria-label="Mở công cụ biên tập ENC" aria-expanded={toolsOpen} aria-controls={toolsOpen ? 'enc-edit-tools' : undefined} onClick={() => setToolsOpen(value => !value)} className={toolsOpen ? 'enc-edit-control-active' : ''}><SquarePen size={18} /></IconButton></Tooltip>, controlHost)}
     {toolsOpen && <Paper id="enc-edit-tools" component="section" aria-label="Biên tập ENC" elevation={0} className={`enc-edit-toolbar${!state ? ' enc-edit-start' : ''}${effective&&!creating?' has-selection':''}`} sx={state ? { left: sidebarOpen && innerWidth > 700 ? 336 : 16, right: 'auto' } : undefined} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setToolsOpen(false); controlHost?.querySelector('button')?.focus(); } }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}><Typography sx={{ fontSize: 14, fontWeight: 600 }}>Công cụ biên tập</Typography><IconButton aria-label="Thu gọn công cụ biên tập ENC" onClick={() => setToolsOpen(false)}><X size={18} /></IconButton></Stack>
@@ -342,6 +399,7 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
           <IconButton aria-label="Làm lại ENC" disabled={locked || !state.redo.length} onClick={() => update(travelHistory(state, 'redo'))}><Redo2 size={18} /></IconButton>
           <Button variant="contained" startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />} disabled={busy || storageBlocked || attributeInvalid || (!dirty && !state.pending && Boolean(config))} onClick={() => void save()}>{busy ? 'Đang lưu…' : state.pending ? 'Kiểm tra lần lưu' : 'Lưu'}</Button>
           <IconButton aria-label="Xuất bản sao bản nháp ENC" onClick={exportCopy}><Download size={18} /></IconButton>
+          <Tooltip title="Rà soát thay đổi"><span><IconButton aria-label="Rà soát thay đổi" disabled={busy||reviewLoading||attributeInvalid||!config} onClick={()=>void openReview()}><ClipboardCheck size={18}/></IconButton></span></Tooltip>
         </Stack>
         <Stack spacing={1} className="enc-edit-create-tools">
           <PointTypePicker classes={config?.pointClasses??['LNDMRK']} labels={config?.classLabels} value={newPoint} onChange={setNewPoint} disabled={locked || !config} theme={theme}/>
@@ -351,7 +409,7 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
         <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Lưu riêng bản biên tập; hải đồ công bố giữ nguyên.</Typography>
         {Object.keys(state.documents).length > 0 && <TextField select label="Đối tượng trong bản biên tập" size="small" value={effective && state.documents[effective.key] ? effective.key : ''} slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} onChange={event => {
           const feature = state.documents[event.target.value]; if (!feature) return;
-          generation.current++;onClearSelection(); setFocused(feature); setDeleteOpen(false);
+          generation.current++;onClearSelection(); setFocused(feature); setDeleteTarget(null);
           if(!feature.sourceId.startsWith('new:')&&!originals.current[feature.key]){
             const id=generation.current;
             void loadEncFeature(state.workspace,feature.key).then(source=>{if(id===generation.current){originals.current[feature.key]=source;setFocused(source);}}).catch(reason=>{if(id===generation.current)setError(reason.message);});
@@ -365,10 +423,12 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
       {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
       {notice && <Alert severity="success" sx={{ mt: 1 }}>{notice}</Alert>}
     </Paper>}
-    {!selectionPending && state && effective && !creating && <Paper component="section" aria-label="Chỉnh sửa đối tượng ENC" className="enc-properties enc-edit-properties" elevation={0}>
+    {state&&reviewOpen&&!selectionPending&&<EncEditReview entries={reviewEntries} loading={reviewLoading} error={reviewError} onClose={()=>setReviewOpen(false)} onSelect={key=>{const feature=state.documents[key]??originals.current[key];if(feature){generation.current++;onClearSelection();setFocused(feature);setReviewOpen(false);}}}/>}
+    {!reviewOpen && !selectionPending && state && effective && !creating && <Paper component="section" aria-label="Chỉnh sửa đối tượng ENC" className="enc-properties enc-edit-properties" elevation={0}>
       <Box className="enc-properties-header"><Box><Typography component="h2">Biên tập đối tượng</Typography><Typography component="h3" className="enc-properties-name">{effective.objectClass}</Typography></Box><IconButton aria-label="Đóng biên tập đối tượng" onClick={() => { generation.current++;onClearSelection(); setFocused(null); }}><X size={20} /></IconButton></Box>
       <Stack spacing={2} className="enc-properties-body" sx={{ pt: '20px !important' }}>
         {effective.deleted ? <><Alert severity="info">Đối tượng đã được đánh dấu xóa trong bản biên tập.</Alert><Button disabled={locked} onClick={() => mutate({ ...effective, deleted: false })}>Khôi phục đối tượng</Button></> : <>
+          {!effective.canMove&&<Alert severity="info">{movementLockMessage(effective)}</Alert>}
           {effective.objectClass === 'SOUNDG' && <Alert severity="info">Độ sâu: {String(effective.attributes.DEPTH ?? (effective.geometry.coordinates as number[])[2] ?? '—')} m. SOUNDG được bảo vệ để giữ nhóm điểm nguồn.</Alert>}
           <EncAttributeFields key={effective.key} schema={attributeSchema} attributes={effective.attributes} disabled={locked || effective.objectClass === 'SOUNDG'} onValidityChange={setAttributeInvalid} onChange={changeAttributes}/>
           {effective.canMove && effective.geometry.type === 'Point' ? <>
@@ -385,7 +445,7 @@ export function EncEditing({ map, selected, cell, sidebarOpen, enabled, theme='d
             <Typography variant="caption">Kích thước ký hiệu chỉ áp dụng trong bản biên tập, từ 50% đến 400%.</Typography>
             {(effective.symbolScale??1)!==1&&<Button disabled={locked} onClick={()=>mutate({...effective,symbolScale:undefined})}>Khôi phục kích thước chuẩn</Button>}
           </>}
-          {effective.canDelete && (deleteOpen ? <Alert data-enc-delete-confirmation severity="warning" action={<Button color="inherit" disabled={locked} onClick={() => { if (effective.sourceId.startsWith('new:')) { mutate(undefined, effective.key); setFocused(null); } else mutate({ ...effective, deleted: true }); }}>Xóa</Button>}>Xóa điểm khỏi bản biên tập? <Button color="inherit" onClick={() => setDeleteOpen(false)}>Hủy</Button></Alert> : <Button color="error" startIcon={<Trash2 size={16} />} disabled={locked} onClick={() => setDeleteOpen(true)}>Xóa điểm</Button>)}
+          {effective.canDelete && <Button color="error" startIcon={<Trash2 size={16} />} disabled={locked} onClick={()=>requestDelete(effective)}>Xóa điểm</Button>}
           <Box component="details"><Box component="summary" sx={{ cursor: 'pointer', py: 1, fontSize: 13 }}>Thuộc tính nguồn khác</Box><Box component="dl" className="enc-properties-list">{Object.entries(effective.attributes).filter(([key]) => !attributeSchema.some(attribute => attribute.key === key)).map(([key, value]) => <Box className="enc-properties-row" key={key}><Box component="dt">{key}</Box><Box component="dd">{typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')}</Box></Box>)}</Box></Box>
         </>}
       </Stack>
