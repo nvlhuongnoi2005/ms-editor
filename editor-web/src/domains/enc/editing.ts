@@ -2,11 +2,17 @@ export type EncGeometry = { type: string; coordinates: unknown };
 export type EncEditFeature = {
   key: string; objectClass: string; sourceId: string; geometry: EncGeometry;
   attributes: Record<string, unknown>; deleted: boolean; canMove: boolean; canDelete: boolean;
+  symbolScale?: number;
 };
 export type EncCredentials = { id: string; token: string; baseRevision: string };
+export type EncAttribute = { key: string; label: string; kind: 'text' | 'number' | 'integer' | 'enum' | 'list'; options?: Array<{ value: number; label: string }> };
 export type EncWorkspace = {
   id: string; baseRevision: string; version: number; cellName: string; sourceChanged: boolean;
-  features: EncEditFeature[]; attributes: Array<{ key: string; label: string; kind: 'text' | 'number' }>;
+  features: EncEditFeature[]; attributes: EncAttribute[];
+  attributesByClass?: Record<string, EncAttribute[]>;
+  attributeDefinitions?: Record<string, EncAttribute>;
+  classAttributes?: Record<string, string[]>;
+  classLabels?: Record<string, string>;
   pointClasses: string[];
   bounds?: [number, number, number, number] | null;
 };
@@ -26,24 +32,34 @@ function sorted(value: unknown): unknown {
   return value;
 }
 export function sameDocument(a: EncEditFeature | undefined, b: EncEditFeature | undefined): boolean {
+  if (a===b) return true;
   return JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
+}
+const historySizes=new WeakMap<object,number>();
+function historySize(entry:Transaction) {
+  let size=historySizes.get(entry);
+  if(size===undefined){size=JSON.stringify(entry).length;historySizes.set(entry,size);}
+  return size;
 }
 export function initialEditing(workspace: EncCredentials, server: EncWorkspace): EncEditState {
   const documents = Object.fromEntries(server.features.map(feature => [feature.key, structuredClone(feature)]));
-  return { schema: 1, revision: crypto.randomUUID(), workspace, version: server.version, saved: structuredClone(documents), documents, undo: [], redo: [] };
+  return { schema: 1, revision: crypto.randomUUID(), workspace, version: server.version, saved: documents, documents, undo: [], redo: [] };
 }
 function replace(documents: Documents, key: string, value?: EncEditFeature): Documents {
   const result = { ...documents };
-  if (value) result[key] = structuredClone(value); else delete result[key];
+  if (value) result[key] = value; else delete result[key];
   return result;
 }
 export function changeFeature(state: EncEditState, key: string, after?: EncEditFeature): EncEditState {
   if (state.pending) throw new Error('Cần xác nhận lần lưu trước khi tiếp tục sửa. Bấm Lưu để kiểm tra lại.');
   const before = state.documents[key];
   if (sameDocument(before, after)) return state;
-  let undo = [...state.undo, { key, before: before && structuredClone(before), after: after && structuredClone(after) }].slice(-150);
-  while (undo.length > 1 && JSON.stringify(undo).length > 4 * 1024 * 1024) undo = undo.slice(1);
-  return { ...state, documents: replace(state.documents, key, after), undo, redo: [] };
+  // Snapshot the caller's object once; documents/history then share immutable values.
+  const snapshot=after&&structuredClone(after);
+  let undo = [...state.undo, { key, before, after:snapshot }].slice(-150);
+  let bytes=2 + Math.max(0,undo.length-1) + undo.reduce((total,entry)=>total+historySize(entry),0);
+  while (undo.length > 1 && bytes > 4 * 1024 * 1024) {bytes-=historySize(undo[0])+1;undo=undo.slice(1);}
+  return { ...state, documents: replace(state.documents, key, snapshot), undo, redo: [] };
 }
 export function travelHistory(state: EncEditState, direction: 'undo' | 'redo'): EncEditState {
   if (state.pending) return state;
@@ -59,7 +75,7 @@ export function commitChanges(state: EncEditState): EncCommit['changes'] {
 }
 export function acknowledgeCommit(state: EncEditState, version: number): EncEditState {
   if (!state.pending || version !== state.pending.expectedVersion + 1) throw new Error('Phản hồi lưu không khớp bản nháp. Giữ nguyên dữ liệu để kiểm tra lại.');
-  return { ...state, version, saved: structuredClone(state.documents), pending: undefined };
+  return { ...state, version, saved: state.documents, pending: undefined };
 }
 export function validateEditingDraft(value: unknown, baseRevision: string): EncEditState {
   const state = value as EncEditState;
@@ -77,6 +93,7 @@ export function validateEditingDraft(value: unknown, baseRevision: string): EncE
       const c = feature.geometry.coordinates;
       if (!Array.isArray(c) || c.length < 2 || c.some(n => typeof n !== 'number' || !Number.isFinite(n)) || Math.abs(c[0]) > 180 || Math.abs(c[1]) > 90) return fail();
     }
+    if (feature.symbolScale !== undefined && (feature.geometry.type !== 'Point' || !Number.isFinite(feature.symbolScale) || feature.symbolScale < 0.5 || feature.symbolScale > 4)) return fail();
   };
   for (const documents of [state.documents, state.saved]) {
     if (Array.isArray(documents) || typeof documents !== 'object' || Object.keys(documents).length > 1000) return fail();
@@ -104,6 +121,12 @@ async function request<T>(credentials: EncCredentials, path: string, body?: unkn
   return result as T;
 }
 export const createEncWorkspace = (credentials: EncCredentials) => request(credentials, '', { ...credentials });
-export const loadEncWorkspace = (credentials: EncCredentials) => request<EncWorkspace>(credentials, `/${credentials.id}`);
+export async function loadEncWorkspace(credentials: EncCredentials) {
+  const workspace = await request<EncWorkspace>(credentials, `/${credentials.id}`);
+  if (workspace.attributeDefinitions && workspace.classAttributes) {
+    workspace.attributesByClass = Object.fromEntries(Object.entries(workspace.classAttributes).map(([className,keys]) => [className,keys.map(key=>workspace.attributeDefinitions![key]).filter(Boolean)]));
+  }
+  return workspace;
+}
 export const loadEncFeature = (credentials: EncCredentials, key: string) => request<EncEditFeature>(credentials, `/${credentials.id}/feature?${new URLSearchParams({ key })}`);
 export const saveEncWorkspace = (credentials: EncCredentials, commit: EncCommit) => request<{ version: number; requestId: string }>(credentials, `/${credentials.id}/commits`, commit);

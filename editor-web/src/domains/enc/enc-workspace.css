@@ -27,15 +27,37 @@
 .enc-properties-header .MuiIconButton-root{width:44px;height:44px;color:var(--enc-ink);flex-shrink:0}
 .enc-properties-body{padding:4px 20px 20px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#a6aaa0 var(--enc-paper)}
 .enc-properties-list{margin:0 0 12px;font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums}
-.enc-edit-toolbar{position:absolute;z-index:2;top:16px;width:300px;max-width:calc(100% - 80px);padding:12px;background:var(--enc-paper)!important;border:1px solid var(--enc-rule);border-radius:3px!important;max-height:calc(100% - 32px);overflow:auto}
+.enc-edit-toolbar{position:absolute;z-index:2;top:10px;right:56px;width:300px;max-width:calc(100% - 80px);padding:12px;background:var(--enc-paper)!important;border:1px solid var(--enc-rule);border-radius:3px!important;max-height:calc(100% - 32px);overflow:auto}
+.enc-edit-control .MuiIconButton-root{color:var(--enc-red);border-radius:2px;padding:0}
+.enc-edit-control .MuiIconButton-root:hover,.enc-edit-control .enc-edit-control-active{background:var(--enc-paper)}
+.enc-edit-symbol-marker{width:44px;height:44px;background:none;outline:none}
+.enc-edit-symbol-marker span{pointer-events:none;background-repeat:no-repeat}
+.enc-transform-box{position:absolute;z-index:1;border:1px solid var(--enc-red);box-sizing:border-box;touch-action:none;transform-origin:center;pointer-events:auto;cursor:not-allowed;outline-offset:4px}
+.enc-transform-box.is-movable{pointer-events:auto;cursor:grab}
+.enc-transform-box.is-transforming{cursor:grabbing}
+.enc-feature-chooser{z-index:6}
+.enc-feature-choices{list-style:none;margin:0;padding:0;overflow:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#a6aaa0 var(--enc-paper)}
+.enc-feature-choice.MuiButtonBase-root{display:flex;width:100%;justify-content:flex-start;align-items:center;gap:12px;text-align:left;padding:14px 20px;min-height:64px;border-bottom:1px solid var(--enc-rule);overflow-wrap:anywhere}
+.enc-feature-choice:hover{background:rgba(139,34,53,.06)}
+.enc-feature-choice.Mui-focusVisible{outline:2px solid #8b2235;outline-offset:-3px;background:rgba(139,34,53,.06)}
+.enc-feature-choice-image{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;flex-shrink:0}
+.enc-transform-box:focus-visible{outline:2px solid var(--enc-red)}
+.enc-transform-caption{position:absolute;bottom:calc(100% + 8px);left:0;white-space:nowrap;font:600 11px/1.5 GeodataSans,sans-serif;color:#8b2235;background:#fbfaf5;padding:1px 5px;pointer-events:none}
+.enc-transform-handle{position:absolute;width:24px;height:24px;padding:0;border:0;background:transparent;pointer-events:auto;touch-action:none}
+.enc-transform-handle::after{content:'';position:absolute;inset:7px;background:#fbfaf5;border:2px solid #8b2235}
+.enc-transform-handle:hover::after,.enc-transform-handle:focus-visible::after{background:#8b2235}
+.enc-transform-handle.nw{left:-12px;top:-12px;cursor:nwse-resize}.enc-transform-handle.ne{right:-12px;top:-12px;cursor:nesw-resize}.enc-transform-handle.se{right:-12px;bottom:-12px;cursor:nwse-resize}.enc-transform-handle.sw{left:-12px;bottom:-12px;cursor:nesw-resize}
+.enc-transform-geometry{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.enc-transform-geometry path{fill:none;stroke:#8b2235;stroke-width:2;vector-effect:non-scaling-stroke}
+.enc-transform-icon{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px;pointer-events:none}
+.enc-edit-placement-preview{pointer-events:none!important;cursor:inherit}
+@media(max-width:700px){.enc-edit-toolbar.has-selection .enc-edit-create-tools{display:none}}
 .enc-edit-toolbar .MuiButton-contained{background:var(--enc-red);color:#fff}
 .enc-edit-toolbar .MuiButton-contained:hover{background:#681626}
 .enc-edit-toolbar .MuiButton-root,.enc-edit-toolbar .MuiIconButton-root,.enc-edit-properties .MuiButton-root{min-height:44px}
 .enc-edit-toolbar .MuiIconButton-root{min-width:44px}
 .enc-edit-properties{width:min(360px,calc(100% - 400px))}
-@media(max-width:1100px) and (min-width:701px){.enc-edit-toolbar{top:auto;bottom:16px;max-height:40%}.enc-edit-properties{max-height:55%}}
-@media(max-width:700px){.enc-edit-toolbar{left:12px!important;top:70px;width:calc(100% - 76px);max-height:calc(52% - 86px);padding:10px}.enc-edit-properties{width:100%;max-height:48%}}
-@media(max-width:700px){.enc-edit-start{top:auto;bottom:12px}}
+@media(max-width:1100px) and (min-width:701px){.enc-edit-toolbar:not(.enc-edit-start){top:auto;bottom:16px;max-height:40%}.enc-edit-properties{max-height:55%}}
+@media(max-width:700px){.enc-edit-toolbar{right:60px;top:10px;width:calc(100% - 76px);max-height:calc(52% - 26px);padding:10px}.enc-edit-toolbar:not(.enc-edit-start){left:12px!important;top:70px;max-height:calc(52% - 86px)}.enc-edit-properties{width:100%;max-height:48%}}
 .enc-properties-row{display:grid;grid-template-columns:minmax(0,104px) minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px solid var(--enc-rule)}
 .enc-properties-row dt{color:var(--enc-muted);overflow-wrap:anywhere}
 .enc-properties-row dd{margin:0;overflow-wrap:anywhere;user-select:text}

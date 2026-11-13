@@ -39,6 +39,7 @@ type editFeature struct {
 	Deleted     bool           `json:"deleted"`
 	CanMove     bool           `json:"canMove"`
 	CanDelete   bool           `json:"canDelete"`
+	SymbolScale float64        `json:"symbolScale,omitempty"`
 }
 type editChange struct {
 	Key   string       `json:"key"`
@@ -50,17 +51,44 @@ type editCommit struct {
 	Changes         []editChange `json:"changes"`
 }
 type editableAttribute struct {
-	Key   string `json:"key"`
-	Label string `json:"label"`
-	Kind  string `json:"kind"`
+	Key     string            `json:"key"`
+	Label   string            `json:"label"`
+	Kind    string            `json:"kind"`
+	Options []attributeOption `json:"options,omitempty"`
 }
 
 var basicAttributes = []editableAttribute{
-	{"OBJNAM", "Tên đối tượng", "text"}, {"NOBJNM", "Tên bản địa", "text"},
-	{"INFORM", "Thông tin", "text"}, {"NINFOM", "Thông tin bản địa", "text"},
-	{"SCAMIN", "Mẫu số tỷ lệ hiển thị tối thiểu", "number"},
+	{Key: "OBJNAM", Label: "Tên đối tượng", Kind: "text"}, {Key: "NOBJNM", Label: "Tên bản địa", Kind: "text"},
+	{Key: "INFORM", Label: "Thông tin", Kind: "text"}, {Key: "NINFOM", Label: "Thông tin bản địa", Kind: "text"},
+	{Key: "SCAMIN", Label: "Mẫu số tỷ lệ hiển thị tối thiểu", Kind: "integer"},
 }
 var pointClasses = []string{"BOYLAT", "BOYCAR", "BOYISD", "BOYSAW", "BOYSPP", "BCNLAT", "BCNCAR", "BCNISD", "BCNSAW", "BCNSPP", "LIGHTS", "LNDMRK", "OBSTRN", "UWTROC", "WRECKS"}
+
+// Source movement has a broader scope than point creation/deletion.
+var movablePointClasses = func() []string {
+	classes := []string{}
+	for class, definition := range editingDictionary.Classes {
+		if class == "SOUNDG" || strings.HasPrefix(class, "M_") {
+			continue
+		}
+		for _, primitive := range definition.Primitives {
+			if primitive == "Point" {
+				classes = append(classes, class)
+				break
+			}
+		}
+	}
+	return classes
+}()
+
+func movablePointClass(class string) bool {
+	for _, name := range movablePointClasses {
+		if name == class {
+			return true
+		}
+	}
+	return false
+}
 
 func pointClass(class string) bool {
 	for _, name := range pointClasses {
@@ -136,7 +164,7 @@ func (h *Handler) editing(ctx context.Context, w http.ResponseWriter, r *http.Re
  FROM enc.workspace w LEFT JOIN enc.workspace_feature f ON f.workspace_id=w.id WHERE w.id=$1 GROUP BY w.id,w.version`, id).Scan(&version, &features); err != nil {
 			return err
 		}
-		respond(w, 200, map[string]any{"id": id, "baseRevision": base, "version": version, "cellName": cell, "sourceChanged": sourceChanged, "bounds": bounds, "features": features, "attributes": basicAttributes, "pointClasses": pointClasses})
+		respond(w, 200, map[string]any{"id": id, "baseRevision": base, "version": version, "cellName": cell, "sourceChanged": sourceChanged, "bounds": bounds, "features": features, "attributes": basicAttributes, "pointClasses": pointClasses, "attributeDefinitions": editingDictionary.Attributes, "classAttributes": editingClassAttributes(), "classLabels": editingClassLabels()})
 		return nil
 	case len(parts) == 2 && parts[1] == "feature" && r.Method == http.MethodGet:
 		feature, err := h.readEditFeature(ctx, h.DB, storage, cell, r.URL.Query().Get("key"))
@@ -216,7 +244,8 @@ func (h *Handler) readEditFeature(ctx context.Context, db editQuerier, storage, 
 	var geometry json.RawMessage
 	var exclusive bool
 	err := db.QueryRow(ctx, `SELECT f.object_class,f.source_id,f.attributes,COALESCE(f.source_geometry,ST_AsGeoJSON(f.geometry)::jsonb),
- CASE WHEN ST_GeometryType(f.geometry)='ST_Point' AND f.object_class=ANY($5::text[]) THEN
+ CASE WHEN (ST_GeometryType(f.geometry)='ST_Point' AND f.object_class=ANY($5::text[]))
+ OR ST_GeometryType(f.geometry) IN ('ST_LineString','ST_MultiLineString','ST_Polygon','ST_MultiPolygon') THEN
  COALESCE(f.attributes->'LNAM_REFS','[]'::jsonb)='[]'::jsonb AND
  NOT EXISTS(SELECT 1 FROM enc.feature other WHERE other.dataset_id=f.dataset_id AND other.cell_name=f.cell_name
  AND (other.object_class,other.source_id)<>(f.object_class,f.source_id)
@@ -225,7 +254,7 @@ func (h *Handler) readEditFeature(ctx context.Context, db editQuerier, storage, 
  WHERE COALESCE(f.attributes->'NAME_RCNM'->>(ids.n::integer-1),'unknown')=COALESCE(other.attributes->'NAME_RCNM'->>(refs.n::integer-1),'unknown'))
  OR (f.lnam IS NOT NULL AND (other.lnam=f.lnam OR COALESCE(other.attributes->'LNAM_REFS','[]'::jsonb) ? f.lnam))
  )) ELSE false END
- FROM enc.feature f WHERE f.dataset_id=$1 AND f.cell_name=$2 AND f.object_class=$3 AND f.source_id=$4`, storage, cell, class, sourceID, pointClasses).Scan(&f.ObjectClass, &f.SourceID, &attrs, &geometry, &exclusive)
+ FROM enc.feature f WHERE f.dataset_id=$1 AND f.cell_name=$2 AND f.object_class=$3 AND f.source_id=$4`, storage, cell, class, sourceID, movablePointClasses).Scan(&f.ObjectClass, &f.SourceID, &attrs, &geometry, &exclusive)
 	if err != nil {
 		return f, err
 	}
@@ -242,8 +271,13 @@ func (h *Handler) readEditFeature(ctx context.Context, db editQuerier, storage, 
 	primitiveTypes, typesOK := f.Attributes["NAME_RCNM"].([]any)
 	primitiveIDs, idsOK := f.Attributes["NAME_RCID"].([]any)
 	isolated := typesOK && idsOK && len(primitiveTypes) == 1 && len(primitiveIDs) == 1 && fmt.Sprint(primitiveTypes[0]) == "110"
-	f.CanMove = isolated && exclusive && pointClass(f.ObjectClass) && f.Geometry.Type == "Point" && json.Unmarshal(f.Geometry.Coordinates, &coordinates) == nil && len(coordinates) == 2
-	f.CanDelete = f.CanMove
+	f.CanMove = isolated && exclusive && movablePointClass(f.ObjectClass) && f.Geometry.Type == "Point" && json.Unmarshal(f.Geometry.Coordinates, &coordinates) == nil && len(coordinates) == 2
+	f.CanDelete = f.CanMove && pointClass(f.ObjectClass)
+	if exclusive && f.Geometry.Type != "Point" && f.ObjectClass != "SOUNDG" && !strings.HasPrefix(f.ObjectClass, "M_") {
+		if err = db.QueryRow(ctx, exclusiveEdgesSQL, storage, cell, class, sourceID).Scan(&f.CanMove); err != nil {
+			return f, err
+		}
+	}
 	return f, nil
 }
 
@@ -251,6 +285,9 @@ func validateEditFeature(after, before *editFeature) error {
 	if after == nil {
 		return nil
 	} // Reset an override to the immutable source.
+	if after.SymbolScale != 0 && (after.Geometry.Type != "Point" || math.IsNaN(after.SymbolScale) || math.IsInf(after.SymbolScale, 0) || after.SymbolScale < 0.5 || after.SymbolScale > 4) {
+		return fmt.Errorf("Kích thước ký hiệu phải từ 50%% đến 400%% và chỉ áp dụng cho điểm.")
+	}
 	if after.Attributes == nil || len(after.Key) > 500 || after.Key != after.ObjectClass+"/"+after.SourceID {
 		return fmt.Errorf("Định danh đối tượng không hợp lệ.")
 	}
@@ -273,9 +310,9 @@ func validateEditFeature(after, before *editFeature) error {
 	if before != nil {
 		original = before.Attributes
 	}
-	allowed := map[string]string{}
-	for _, a := range basicAttributes {
-		allowed[a.Key] = a.Kind
+	allowed := map[string]editableAttribute{}
+	for _, a := range attributesForClass(after.ObjectClass) {
+		allowed[a.Key] = a
 	}
 	keys := map[string]bool{}
 	for k := range original {
@@ -290,23 +327,15 @@ func validateEditFeature(after, before *editFeature) error {
 		if aok == bok && reflect.DeepEqual(a, b) {
 			continue
 		}
-		kind, ok := allowed[key]
+		definition, ok := allowed[key]
 		if !ok {
 			return fmt.Errorf("Thuộc tính %s được bảo vệ trong bản biên tập cơ bản.", key)
 		}
 		if !aok {
 			continue
 		}
-		if kind == "text" {
-			s, ok := a.(string)
-			if !ok || len(s) > 4096 {
-				return fmt.Errorf("Thuộc tính %s phải là văn bản tối đa 4096 byte.", key)
-			}
-		} else {
-			n, ok := a.(float64)
-			if !ok || math.IsNaN(n) || math.IsInf(n, 0) || n < 0 || n > 1e10 || n != math.Trunc(n) {
-				return fmt.Errorf("Thuộc tính %s phải là số nguyên không âm.", key)
-			}
+		if err := validateAttributeValue(definition, a); err != nil {
+			return err
 		}
 	}
 	if before != nil && sameEditGeometry(after.Geometry, before.Geometry) {
@@ -314,6 +343,9 @@ func validateEditFeature(after, before *editFeature) error {
 	}
 	if before != nil && !before.CanMove {
 		return fmt.Errorf("Hình học có liên kết hoặc không thuộc phạm vi biên tập điểm.")
+	}
+	if before != nil && before.Geometry.Type != "Point" {
+		return validateGeometryTransform(after.Geometry, before.Geometry)
 	}
 	var coordinates []float64
 	if after.Geometry.Type != "Point" || json.Unmarshal(after.Geometry.Coordinates, &coordinates) != nil || len(coordinates) != 2 || math.IsNaN(coordinates[0]) || math.IsNaN(coordinates[1]) || math.IsInf(coordinates[0], 0) || math.IsInf(coordinates[1], 0) || math.Abs(coordinates[0]) > 180 || math.Abs(coordinates[1]) > 90 {

@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, IconButton, InputAdornment, Paper, TextField, Typography } from '@mui/material';
 import { Search, X } from 'lucide-react';
-import { encSymbols, normalizeSymbolSearch } from './symbolCatalog';
+import { encSymbols, searchEncSymbols } from './symbolCatalog';
+import { atlasAssets } from './atlasAssets';
 
 type Props = { onClose: () => void };
-const atlasUrl = '/enc/assets/sprites/day_simplified@2x.png?v=14';
+const atlasUrl = atlasAssets.day.png;
 
 export function EncSymbolCatalog({ onClose }: Props) {
   const [query, setQuery] = useState('');
   const [imageError, setImageError] = useState(false);
   const [atlasSize, setAtlasSize] = useState<{ width: number; height: number } | null>(null);
   const searchInput = useRef<HTMLInputElement | null>(null);
-  const symbols = useMemo(() => {
-    const needle = normalizeSymbolSearch(query);
-    return encSymbols.filter(symbol => normalizeSymbolSearch(`${symbol.code} ${symbol.description}`).includes(needle));
-  }, [query]);
+  const symbols = useMemo(() => searchEncSymbols(query), [query]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -28,7 +26,7 @@ export function EncSymbolCatalog({ onClose }: Props) {
     <Box className="enc-symbol-header">
       <Box>
         <Typography component="h2" id="enc-symbol-title">Bảng ký hiệu</Typography>
-        <Typography component="p">Tra cứu mã và ý nghĩa ký hiệu ENC · Mẫu màu Ngày</Typography>
+        <Typography component="p">Tra cứu mã hình, lớp đối tượng và ý nghĩa · Mẫu màu Ngày</Typography>
       </Box>
       <IconButton aria-label="Đóng bảng ký hiệu" onClick={onClose}><X size={20} /></IconButton>
     </Box>
@@ -50,7 +48,7 @@ export function EncSymbolCatalog({ onClose }: Props) {
       <table className="enc-symbol-table" aria-label="Mã, hình ảnh và giải thích ký hiệu ENC">
         <colgroup><col className="enc-symbol-code-column" /><col className="enc-symbol-image-column" /><col /></colgroup>
         <thead><tr><th scope="col">Mã ký hiệu</th><th scope="col">Hình ảnh</th><th scope="col">Giải thích</th></tr></thead>
-        <tbody>{symbols.map(({ code, description, sprite }) => {
+        <tbody>{symbols.map(({ code, description, sprite, classes }) => {
           // Atlas @2x lưu tọa độ theo pixel bitmap. Quy đổi pixelRatio và giữ
           // tỷ lệ ảnh khi thu ký hiệu lớn để vừa cột, tránh bóp méo hình dạng.
           const scale = Math.min(1, 64 / (sprite.width / sprite.pixelRatio), 52 / (sprite.height / sprite.pixelRatio));
@@ -65,7 +63,7 @@ export function EncSymbolCatalog({ onClose }: Props) {
                 backgroundSize:`${atlasSize.width * ratio}px ${atlasSize.height * ratio}px`,
               }} />}
             </Box></td>
-            <td>{description}</td>
+            <td>{description}{classes.length > 0 && <Typography component="p" variant="body2" sx={{mt:0.5,color:'text.secondary',overflowWrap:'anywhere'}}>Lớp: {classes.join(', ')}</Typography>}</td>
           </tr>;
         })}</tbody>
       </table>

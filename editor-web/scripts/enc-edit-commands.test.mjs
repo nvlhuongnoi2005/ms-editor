@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {loadSource} from './test-source.mjs';
+const {createEncPoint,copyEncPoint}=await import(await loadSource('../src/domains/enc/editCommands.ts'));
+test('point copy retains allowed attributes and display scale but creates independent identity and coordinates',()=>{
+  const original={key:'BOYLAT/source',sourceId:'source',objectClass:'BOYLAT',geometry:{type:'Point',coordinates:[105.123456789,21.987654321]},attributes:{OBJNAM:'Buoy',COLOUR:[3],LNAM:'source',NAME_RCID:[1],RCID:1},symbolScale:1.5,canMove:false,canDelete:false,deleted:false};
+  const schema=[{key:'OBJNAM'},{key:'COLOUR'}];
+  const copy=copyEncPoint(original,['BOYLAT'],schema);
+  assert.notEqual(copy.key,original.key);assert.ok(copy.sourceId.startsWith('new:'));
+  assert.deepEqual(copy.attributes,{OBJNAM:'Buoy',COLOUR:[3]});assert.equal(copy.symbolScale,1.5);
+  assert.deepEqual(copy.geometry,original.geometry);assert.ok(copy.canMove&&copy.canDelete);
+  copy.attributes.COLOUR.push(4);copy.geometry.coordinates[0]=1;
+  assert.deepEqual(original.attributes.COLOUR,[3]);assert.equal(original.geometry.coordinates[0],105.123456789);
+  assert.throws(()=>copyEncPoint({...original,geometry:{type:'Polygon',coordinates:[]}},['BOYLAT'],schema));
+  assert.throws(()=>copyEncPoint(original,['LNDMRK'],schema));
+  assert.throws(()=>copyEncPoint({...original,geometry:{type:'Point',coordinates:[105,21,7]}},['BOYLAT'],schema));
+  assert.throws(()=>createEncPoint('BOYLAT',{},[181,21]));
+  assert.deepEqual(copyEncPoint(original,['BOYLAT'],schema,[106,22]).geometry.coordinates,[106,22]);
+  assert.throws(()=>copyEncPoint(original,['BOYLAT'],schema,[181,22]));
+});

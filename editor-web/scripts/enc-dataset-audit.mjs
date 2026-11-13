@@ -14,18 +14,18 @@ const { localEncStyle } = await import(await loadSource('../src/domains/enc/styl
 const { isSectorLight } = await import(sectorURL);
 globalThis.window = {location:{origin:'http://localhost'}};
 const style = localEncStyle('','','day',0,false,6,6,'other');
-const atlas = JSON.parse(await readFile(new URL('../../ENC/sprites/day_simplified@2x.json',import.meta.url),'utf8'));
+const atlas = JSON.parse(await readFile(new URL('../../Presentation_Library/assets/sprites/day_simplified@2x.json',import.meta.url),'utf8'));
 const invalidSprites = new Map();
 for (const theme of ['day','dusk','night']) {
-  const entries = JSON.parse(await readFile(new URL(`../../ENC/sprites/${theme}_simplified@2x.json`,import.meta.url),'utf8'));
-  const png = await readFile(new URL(`../../ENC/sprites/${theme}_simplified@2x.png`,import.meta.url));
+  const entries = JSON.parse(await readFile(new URL(`../../Presentation_Library/assets/sprites/${theme}_simplified@2x.json`,import.meta.url),'utf8'));
+  const png = await readFile(new URL(`../../Presentation_Library/assets/sprites/${theme}_simplified@2x.png`,import.meta.url));
   const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
   for (const [name,r] of Object.entries(entries)) if (r.x<0||r.y<0||r.width<=0||r.height<=0||r.x+r.width>width||r.y+r.height>height) {
     invalidSprites.set(name,[...(invalidSprites.get(name)??[]),theme]);
   }
 }
 const sources = await Promise.all(['sprites.ts','style.ts','lightSectors.ts','infrastructure.ts'].map(file =>
-  readFile(new URL('../src/domains/enc/'+file,import.meta.url),'utf8')));
+  readFile(new URL('../../Presentation_Library/runtime/'+file,import.meta.url),'utf8')));
 const fields = [...new Set(sources.join('\n').match(/'([A-Z][A-Z_0-9]+)'/g).map(value => value.slice(1,-1)))];
 // Group by portrayal attributes to avoid transferring repeated source metadata.
 // OBJNAM's content is immaterial here; only the presence of a name affects rules.

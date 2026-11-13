@@ -50,7 +50,8 @@ WITH tile AS (
 ), masks AS MATERIALIZED (
  SELECT *, CASE WHEN previous IS NULL THEN area ELSE ST_Difference(area,previous) END AS visible FROM ranked
 ), display_profile AS (
- SELECT *, CASE WHEN $1<11 THEN 64 WHEN $1<14 THEN 32 ELSE 16 END AS sounding_spacing
+ SELECT *, CASE WHEN $1<11 THEN 64 WHEN $1<14 THEN 32 ELSE 16 END AS sounding_spacing,
+ (ST_XMax(box)-ST_XMin(box))/512 AS pixel_size
  FROM viewport
 ), cell_safety AS MATERIALIZED (
  -- Use the configured contour; if it is absent, use the next deeper chart contour.
@@ -110,11 +111,32 @@ WITH tile AS (
  -- Coverage ownership then decides which cell may emit the anchor.
  CASE WHEN ST_Dimension(f.geometry)>0 AND ST_CoveredBy(ST_PointOnSurface(f.geometry),m.visible)
  THEN ST_AsMVTGeom(ST_Transform(ST_PointOnSurface(f.geometry),3857),v.box,4096,128,true) END AS symbol_geom,
- ST_AsMVTGeom(ST_Transform(ST_CollectionExtract(
-   CASE WHEN ST_CoveredBy(f.geometry,m.visible) THEN f.geometry
-        ELSE ST_Intersection(ST_MakeValid(f.geometry),m.visible) END,
-   ST_Dimension(f.geometry)+1),3857),v.box,4096,128,true) AS geom
+ ST_AsMVTGeom(ST_CollectionExtract(
+   CASE WHEN reduction.tolerance>0 THEN
+     CASE WHEN ST_CoveredBy(f.geometry,m.visible) THEN rendered.geometry
+       ELSE ST_Intersection(rendered.geometry,ST_Transform(m.visible,3857)) END
+   ELSE ST_Transform(CASE WHEN ST_CoveredBy(f.geometry,m.visible) THEN f.geometry
+     ELSE ST_Intersection(ST_MakeValid(f.geometry),m.visible) END,3857) END,
+   ST_Dimension(f.geometry)+1),v.box,4096,128,true) AS geom
  FROM masks m JOIN enc.feature f ON f.dataset_id=m.dataset_id AND f.cell_name=m.name CROSS JOIN display_profile v
+ CROSS JOIN LATERAL (
+   -- RENDER_LOD_PROFILE: allowlist of land detail only. No alteration of depths,
+   -- coastline, hazards, aids, channels, restrictions or point coordinates.
+   -- Fixed zoom/pixel tolerance, independent of tile position. Simplify the
+   -- original feature BEFORE clipping; shared land/water coverages are excluded.
+   SELECT CASE WHEN $1>=16 THEN 0
+     WHEN ST_Dimension(f.geometry)=1 AND f.object_class IN ('ROADWY','RAILWY','LNDELV')
+       THEN v.pixel_size * CASE WHEN $1<12 THEN 0.5 ELSE 0.25 END
+     WHEN ST_Dimension(f.geometry)=2 AND f.object_class IN ('BUAARE','VEGATN')
+       THEN v.pixel_size * CASE WHEN $1<12 THEN 0.5 ELSE 0.25 END
+     ELSE 0 END AS tolerance
+   -- END_RENDER_LOD_PROFILE
+ ) reduction
+ CROSS JOIN LATERAL (
+   SELECT CASE WHEN reduction.tolerance>0 THEN
+     ST_SimplifyPreserveTopology(ST_Transform(ST_MakeValid(f.geometry),3857),reduction.tolerance)
+   END AS geometry
+ ) rendered
  LEFT JOIN cell_safety safety ON safety.dataset_id=f.dataset_id AND safety.name=f.cell_name
  LEFT JOIN position_quality q ON q.dataset_id=f.dataset_id AND q.cell_name=f.cell_name
  LEFT JOIN LATERAL (

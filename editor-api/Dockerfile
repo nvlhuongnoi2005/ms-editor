@@ -4,7 +4,10 @@ COPY editor-web/package.json editor-web/package-lock.json ./
 RUN npm ci
 COPY editor-web/ ./
 # The symbol catalogue imports atlas JSON outside editor-web at build time.
-COPY ENC/sprites/ /src/ENC/sprites/
+COPY Presentation_Library/runtime/ /src/Presentation_Library/runtime/
+COPY Presentation_Library/manifest.json /src/Presentation_Library/manifest.json
+COPY Presentation_Library/assets/sprites/ /src/Presentation_Library/assets/sprites/
+COPY Presentation_Library/assets/fonts/ /src/Presentation_Library/assets/fonts/
 RUN npm run build:react
 
 FROM golang:1.27-alpine AS build
@@ -26,10 +29,10 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=build /out/editor-api /app/editor-api
 COPY --from=frontend /src/editor-web/dist/ /app/dist/
-COPY ENC/sprites/ /app/enc/sprites/
-COPY ENC/fonts/ /app/enc/fonts/
+COPY Presentation_Library/assets/ /app/Presentation_Library/assets/
+COPY Presentation_Library/manifest.json /app/Presentation_Library/manifest.json
 ENV EDITOR_API_ADDR=0.0.0.0:4173
 ENV EDITOR_STATIC_ROOT=/app/dist
-ENV EDITOR_ENC_ASSETS_ROOT=/app/enc
+ENV EDITOR_ENC_ASSETS_ROOT=/app/Presentation_Library/assets
 EXPOSE 4173
 ENTRYPOINT ["/app/editor-api"]

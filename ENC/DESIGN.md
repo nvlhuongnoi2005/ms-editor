@@ -96,6 +96,68 @@ hiện thành 0. Chi tiết profile và giới hạn dữ liệu nằm trong `RO
 
 ## Kiểm tra thực tế
 
+### Ảnh bảng ký hiệu — 12/11/2026
+
+Bảng ký hiệu, bộ chọn điểm và ảnh MapLibre dùng tài sản đóng gói từ Presentation
+Library với URL có hash, không phụ thuộc API asset root. Đã xem BOYSAW12 trong
+Chrome 1440/390 px trên localhost:4173, với đường dẫn assets API cũ bị ép trả 404:
+ảnh 2048×961 tải thành công, ô ký hiệu hiển thị đúng và không còn cảnh báo lỗi ảnh.
+
+### Tương tác biên tập — 12/11/2026
+
+Giữ bố cục và ký hiệu hiện có. Preview theo frame, cập nhật đối tượng đổi bằng ID;
+không chặn Undo/Redo vì tile nền đang tải. Scope xem/biên tập đổi nguồn tile mà
+không dựng lại toàn bộ style. Ghi nháp gộp các cập nhật liên tiếp, nhưng Lưu và Về
+chế độ xem vẫn chờ ghi an toàn và giữ kiểm tra CAS. Đã kiểm tra Chrome desktop và
+mobile, kể cả tile bị giữ chậm; số đo và giới hạn trong `docs/enc-edit-performance.md`.
+
+### Ký hiệu và thuộc tính theo schema — 12/11/2026
+
+Bộ chọn Loại điểm dùng ô tìm mã lớp/mã sprite/mô tả, có hình cắt từ atlas cạnh
+lựa chọn và giá trị đang chọn. Thả điểm và kéo điểm dùng ký hiệu thực thay pin;
+khung chạm kéo 44 px trong suốt, chỉ gợi ý viền khi hover. Preview dùng theme
+đang xem. Bảng thuộc tính cho thêm trường qua ô tìm schema của đúng lớp, enum/list
+có bộ chọn, số không hợp lệ báo ngay tại trường và khóa Lưu. Không thêm trường
+định danh hoặc cấu trúc nguồn vào biểu mẫu. Nút xóa trường có nhãn truy cập riêng.
+
+Chrome 1440/390 px đã kiểm tra tìm BOYLAT14, preview/đặt sprite, thêm VERLEN,
+chặn số sai và lưu 12.5, Undo/Redo, reload và tiếp tục workspace. Fixture UI không
+thay đối chiếu Chart 1/S-64. Bố cục giữ toolbar trái, thuộc tính phải trên desktop;
+mobile cuộn bảng độc lập, giữ diện tích đặt điểm giữa hai bảng.
+
+### Bỏ thiết lập lớp hiển thị — 12/11/2026
+
+Màn hình không còn khối **Hiển thị hải đồ** hoặc các checkbox tên/sounding/chất
+lượng vị trí. Mặc định hiện cả Base/Standard/Other; không đọc cấu hình ẩn lớp lưu
+trước đây. Theme vẫn chọn trong lề hải đồ. Độ chi tiết được xử lý theo zoom,
+SCAMIN và profile LOD của runtime; giữ geometry gốc trong dữ liệu biên tập.
+Mục Presentation Library bên dưới ghi nhận bố cục ở phiên bản trước thay đổi này.
+
+### Thu gọn công cụ biên tập — 12/11/2026
+
+Mặc định chỉ hiện icon bút trong một MapLibre control ngay dưới navigator góc phải.
+Bấm icon mở/thu gọn bảng; bảng có nút đóng và hỗ trợ Escape. Việc thu gọn chỉ ẩn
+giao diện, không đóng workspace hoặc xóa bản nháp. Khi đang biên tập, bảng thao tác
+giữ vị trí bên trái để không che bảng thuộc tính bên phải. Bản nháp sau reload
+được tiếp tục qua icon → **Tiếp tục bản biên tập**.
+
+Kiểm tra Chrome ở desktop/mobile xác nhận vị trí icon dưới navigator, kích thước
+gọn theo cụm điều hướng, mặc định không có bảng che bản đồ và có thể mở/đóng lại.
+
+### Presentation Library — 12/11/2026
+
+Giữ lề atlas, palette và typography hiện có. Khối **Hiển thị hải đồ** nằm sau
+bộ chọn theme; nhóm các ngưỡng độ sâu theo lưới hai cột, ghi đơn vị m ngay trên
+nhãn. Thay đổi là bản nháp đến khi bấm **Áp dụng hiển thị**. Cấu hình sai thứ tự
+đồng sâu hiển thị lỗi tại khối này và giữ nguyên cấu hình bản đồ đang chạy.
+Tùy chọn nguồn/phạm vi nằm trong disclosure, không chiếm diện tích bản đồ.
+
+Đã xem ảnh Chrome 1440×900 và 390×900: nhãn, nút áp dụng và checkbox đọc được;
+không tràn ngang, panel cuộn độc lập, nút chạm tối thiểu 44 px. Fixture kiểm thử
+giao diện dùng tile rỗng; kết quả này xác nhận bố cục và tương tác, không xác nhận
+nội dung hải đồ hoặc độ phù hợp S-52. Kiểm thử biên tập vẫn qua sau khi chuyển
+sprite/glyph sang Presentation_Library.
+
 Xem desktop và mobile với dữ liệu đã nhập; kiểm tra tên vùng dài, lề mở/đóng,
 tab nhập, trạng thái bản đồ, lựa chọn theme và việc nhìn rõ bản đồ.
 Không dùng số liệu minh họa hay nhãn vùng không có trong metadata nguồn.

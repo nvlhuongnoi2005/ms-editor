@@ -8,6 +8,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
+    "paths": { "maplibre-gl": ["./node_modules/maplibre-gl"] },
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx"

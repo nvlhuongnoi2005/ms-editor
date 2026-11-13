@@ -7,7 +7,6 @@ import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildTopologyGraph, snapCoordinate, type DrawMode, type SnappedVertex } from '../editor/drawing';
 import type { Coordinate, EntityType, GraphFeature, SelectedEntity } from '../../types/osm';
-import type { PointIconName } from './styleRules';
 import { GRAPH_MIN_ZOOM, GraphRenderDiff, GraphTileHandoff, renderCollection, selectedFeatureCollection } from './graphRendering';
 import type { DatasetBounds } from '../../api/datasets';
 import type { GeometryCommandPlan } from '../editor/geometryCommandPlan';

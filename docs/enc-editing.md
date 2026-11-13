@@ -1,18 +1,32 @@
 # Biên tập ENC cơ bản
 
 Phiên bản này bổ sung workspace theo cell, lưu phần thay đổi riêng và biên tập
-thuộc tính/điểm. Hải đồ nguồn, primitive S-57 và catalog công bố được giữ nguyên.
+thuộc tính/điểm và biến đổi đường/vùng độc lập. Hải đồ nguồn, primitive S-57 và catalog công bố được giữ nguyên.
+Luồng preview và ghi nháp đã được tối ưu; xem [cơ chế và số đo](enc-edit-performance.md).
+Chọn trực tiếp, khung kéo/đổi kích thước và quyền biến đổi: [hướng dẫn thao tác](enc-edit-transforms.md).
+Các lệnh sao chép, dán, nhân bản, kích thước và lưu tại con trỏ: [menu chuột phải](enc-context-menu.md).
+
+Khi bấm nơi có nhiều đối tượng chồng nhau, bảng **Chọn đối tượng** liệt kê các
+đối tượng trong bán kính 6 pixel, kèm hình ký hiệu, mã lớp, tên và cell. Chọn một
+dòng để xem chi tiết hoặc biên tập. Các lớp ký hiệu, đường viền, nhãn và mảnh tile
+của cùng đối tượng chỉ xuất hiện một lần. Điểm, đường và vùng khác nhau vẫn được
+liệt kê riêng. Chỉ một đối tượng thì mở trực tiếp; Escape/đóng danh sách không sửa
+dữ liệu. Di chuyển bản đồ hoặc đổi nguồn đóng danh sách để tránh chọn kết quả cũ.
 
 ## Sử dụng
 
-1. Mở ENC đã import, chọn một cell trong **Phạm vi hiển thị** rồi bấm **Biên tập cell**.
-2. Bấm đối tượng trên bản đồ để lấy dữ liệu nguồn đầy đủ. Có thể sửa `OBJNAM`,
-   `NOBJNM`, `INFORM`, `NINFOM`, `SCAMIN`; các trường nguồn còn lại được giữ nguyên.
-3. Chọn **Loại điểm → Thêm điểm**, bấm bản đồ để đặt điểm. Điểm độc lập hỗ trợ kéo
-   dấu ghim hoặc nhập kinh/vĩ độ rồi **Áp dụng tọa độ**. **Xóa điểm** có xác nhận.
+1. Mở ENC đã import, chọn cell trong **Phạm vi hiển thị**, mở icon bút dưới navigator
+   rồi bấm **Biên tập cell**.
+2. Bấm đối tượng trên bản đồ để lấy dữ liệu nguồn đầy đủ. **Thêm trường theo schema**
+   cho tìm mã/tên và thêm thuộc tính được phép cho đúng lớp. Trường enum/list có
+   danh sách giá trị; giá trị số sai chặn Lưu. Có thể xóa thuộc tính được phép.
+3. **Loại điểm** cho tìm mã lớp, mã ký hiệu hoặc mô tả và hiện icon cạnh mỗi lựa chọn.
+   Chọn biến thể rồi **Thêm điểm**: ký hiệu theo con trỏ trước khi đặt, sau khi đặt
+   vẫn dùng sprite và cập nhật theo thuộc tính. Điểm độc lập hỗ trợ kéo ký hiệu hoặc
+   nhập kinh/vĩ độ rồi **Áp dụng tọa độ**. **Xóa điểm** có xác nhận.
 4. Bấm **Lưu** để lưu trên server. **Hoàn tác/Làm lại** giữ tối đa 150 thao tác,
    vẫn hoạt động sau khi lưu; thao tác hoàn tác sau lưu tạo thay đổi cần lưu tiếp.
-5. Sau reload, bấm **Tiếp tục bản biên tập**. Phần thay đổi, tọa độ và Undo/Redo
+5. Sau reload, mở icon bút rồi bấm **Tiếp tục bản biên tập**. Phần thay đổi, tọa độ và Undo/Redo
    được phục hồi từ IndexedDB. Không tự gửi thay đổi khi tải lại trang.
 
 Danh sách **Đối tượng trong bản biên tập** giúp tìm lại điểm đã di chuyển ra khỏi
@@ -42,16 +56,25 @@ Xung đột phiên bản hoặc xung đột bản nháp giữ nguyên bản sao 
 
 ## Phạm vi và giới hạn
 
-- Sửa thuộc tính thông dụng của đối tượng nguồn; chưa có biểu mẫu đầy đủ theo
-  Object/Attribute Catalogue và quy tắc nghiệp vụ của từng lớp S-57.
-- Hình học chỉ sửa/xóa được với điểm 2D thuộc các lớp phao, beacon, đèn, landmark,
-  vật cản, đá ngầm và xác tàu được liệt kê trong API, khi xác định được một
-  IsolatedNode riêng và không có tham chiếu dùng chung. Điểm mới thuộc workspace
-  có định danh riêng, hỗ trợ di chuyển và xóa.
-- SOUNDG, điểm có Z, điểm dùng chung primitive/quan hệ và hình học đường/vùng
-  được bảo vệ. Thuộc tính định danh, liên kết và độ sâu không nhận sửa từ client.
-- Lớp xem trước đánh dấu phần sửa bằng điểm/đường/vùng màu đỏ. Đây là ký hiệu
-  biên tập; chưa dựng lại đầy đủ portrayal S-52 cho đối tượng mới/sửa.
+- Biểu mẫu dùng từ điển GDAL S-57 theo lớp, kiểm tra kiểu và miền enum/list cả ở
+  client lẫn backend. Xem [nguồn schema và giới hạn](../ENC/schema/README.md).
+  Chưa có kiểm tra đầy đủ quy tắc nghiệp vụ của sản phẩm ENC/S-58.
+- Di chuyển điểm nguồn 2D thuộc lớp hỗ trợ Point trong schema (trừ SOUNDG và
+  metadata M_*), khi xác định được một IsolatedNode riêng và không có tham chiếu
+  dùng chung. Ví dụ HRBFAC độc lập được kéo dù không thuộc danh sách tạo điểm.
+  Tạo/xóa điểm vẫn giới hạn ở các lớp phao, beacon, đèn, landmark, vật cản, đá ngầm
+  và xác tàu được liệt kê trong API. Điểm mới có định danh riêng trong workspace.
+- Đường/vùng có cạnh và nút đầu mút thuộc riêng một đối tượng được di chuyển,
+  đổi tỷ lệ đồng đều bằng khung chọn; API kiểm tra đủ primitive và không có liên kết
+  dùng chung. Giữ nguyên đỉnh, lỗ và Z; chưa cho xóa đường/vùng.
+- SOUNDG, điểm có Z, điểm dùng chung primitive/quan hệ và hình học đường/vùng chưa
+  đủ điều kiện độc lập được bảo vệ. Thuộc tính định danh, liên kết và DEPTH dẫn xuất của SOUNDG không
+  nhận sửa từ client. VALSOU được phép ở những lớp có định nghĩa trường này.
+- Điểm trong preview dùng cùng biểu thức chọn sprite, kích thước và pivot của
+  Presentation Library làm mặc định; có thể điều chỉnh kích thước hiển thị 50–400%
+  trong bản biên tập bằng metadata `symbolScale`. Icon theo theme Ngày/Chạng vạng/Đêm. Đường/vùng vẫn đánh
+  dấu màu đỏ. Chưa dựng lại toàn bộ ngữ cảnh CSP hoặc kiểm tra phù hợp S-52 đầy đủ
+  cho đối tượng mới/sửa, đặc biệt quan hệ độ sâu xung quanh và compound symbols.
 - Tối đa 500 đối tượng cho mỗi lần lưu, payload 4 MiB; 1000 override/workspace.
 - Chưa có duyệt/công bố workspace, merge nguồn mới, xuất `.000`/chuỗi update,
   kiểm tra S-58 đầy đủ hoặc chức năng biên tập topology.

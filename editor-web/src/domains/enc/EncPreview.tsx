@@ -2,13 +2,17 @@ import { lazy, useCallback, useEffect, useRef, useState, type MouseEvent } from 
 import { Alert, Box, Button, CircularProgress, CssBaseline, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { BookOpen, Layers3, RotateCcw, Sun, Sunset, Moon, Trash2, Upload, X } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
-import type { StyleSpecification } from 'maplibre-gl';
+import type { StyleSpecification, VectorTileSource } from 'maplibre-gl';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './enc-workspace.css';
 import { localEncStyle, type EncTheme } from './style';
 import { EncPropertiesPanel } from './EncPropertiesPanel';
 import { EncEditing } from './EncEditing';
+import { pickEncFeature, pickEncFeatures } from './featurePicking';
+import { EncFeatureChooser } from './EncFeatureChooser';
+import { defaultPresentationSettings as presentation } from '../../../../Presentation_Library/runtime/profile';
+import { bundledEncAsset } from './atlasAssets';
 import type { EncCredentials } from './editing';
 import { installSectorImages } from './lightSectors';
 import { WorkspaceNavigation } from '../../shared/WorkspaceNavigation';
@@ -48,6 +52,7 @@ export function EncPreview() {
   const [catalogRevision, setCatalogRevision] = useState(0);
   const [lastImportId, setLastImportId] = useState('');
   const initialCameraKey = useRef('');
+  const appliedStyleKey = useRef('');
   const cellScope = useRef(datasetId);
   const [cells, setCells] = useState<Cell[]>([]);
   const [cellName, setCellName] = useState('');
@@ -60,8 +65,11 @@ export function EncPreview() {
   const [deleteError, setDeleteError] = useState('');
   const [deleteNotice, setDeleteNotice] = useState('');
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const [choices,setChoices]=useState<Record<string,unknown>[]>([]);
+  const clearSelection=useCallback(()=>{setSelected(null);setChoices([]);},[]);
   const [editingWorkspace, setEditingWorkspace] = useState<EncCredentials | null>(null);
   const editingActive = Boolean(editingWorkspace);
+  useEffect(()=>setChoices([]),[source,datasetId,cellName,editingWorkspace?.id]);
   const dataset = datasets.find(item => item.id === datasetId);
   const importSummary = dataset ?? datasets.find(item => item.id === lastImportId);
   const cell = cells.find(item => item.name === cellName);
@@ -69,13 +77,13 @@ export function EncPreview() {
   const position = (value: number, positive: string, negative: string) => `${Math.floor(Math.abs(value))}°${((Math.abs(value) % 1) * 60).toFixed(2).padStart(5,'0')}′${value < 0 ? negative : positive}`;
 
   useEffect(() => {
-    if (!selected || importOpen || deleteTarget || symbolsOpen) return;
+    if ((!selected&&!choices.length) || importOpen || deleteTarget || symbolsOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelected(null);
+      if (event.key === 'Escape') {if(choices.length)setChoices([]);else setSelected(null);}
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [selected, importOpen, deleteTarget, symbolsOpen]);
+  }, [selected, choices, importOpen, deleteTarget, symbolsOpen]);
 
   useEffect(() => {
     if (!container.current) return;
@@ -93,10 +101,7 @@ export function EncPreview() {
       hoverFrame = undefined; hoverPoint = undefined; canvas.style.cursor = '';
     };
     const featureAt = (point: maplibregl.Point) => {
-      if (!instance.isStyleLoaded()) return undefined;
-      const features = instance.queryRenderedFeatures([[point.x - 6, point.y - 6], [point.x + 6, point.y + 6]]);
-      return features.find(item => item.source === 'enc' && ['enc', 'enc_lines', 'enc_symbols'].includes(item.sourceLayer ?? ''))
-        ?? features.find(item => item.source === 'regions');
+      return pickEncFeature(instance, point);
     };
     instance.on('mousemove', event => {
       hoverPoint = event.point;
@@ -104,17 +109,20 @@ export function EncPreview() {
       // per paint; clicks still inspect their exact position synchronously.
       if (hoverFrame === undefined) hoverFrame = requestAnimationFrame(() => {
         hoverFrame = undefined;
-        canvas.style.cursor = !instance.isMoving() && hoverPoint && featureAt(hoverPoint) ? 'pointer' : '';
+        const feature=!instance.isMoving()&&hoverPoint?featureAt(hoverPoint):undefined;
+        canvas.style.cursor = feature ? 'pointer' : '';
       });
     });
     instance.on('movestart', resetCursor);
     instance.on('style.load', resetCursor);
+    instance.on('movestart',()=>setChoices([]));
+    instance.on('style.load',()=>setChoices([]));
     canvas.addEventListener('mouseleave', resetCursor);
     instance.on('click', event => {
-      if (!instance.isStyleLoaded()) return;
-      const feature = featureAt(event.point);
-      setSelected(feature?.properties ?? null);
-      if (feature && innerWidth <= 700) setPanelOpen(false);
+      const features = pickEncFeatures(instance,event.point);
+      setChoices(features.length>1?features.map(feature=>feature.properties):[]);
+      if(features.length<=1)setSelected(features[0]?.properties??null);
+      if (features.length && innerWidth <= 700) setPanelOpen(false);
     });
     map.current = instance;
     return () => { resetCursor(); canvas.removeEventListener('mouseleave', resetCursor); removeSectorImages(); instance.remove(); map.current = null; };
@@ -160,34 +168,43 @@ export function EncPreview() {
     if (!instance) return;
     const controller = new AbortController();
     setSelected(null); setError('');
-    instance.setTransformRequest(editingWorkspace ? url => {
+    instance.setTransformRequest(url => {
       const target = new URL(url, location.origin);
-      return target.origin === location.origin && target.pathname.startsWith(`/api/enc/workspaces/${editingWorkspace.id}/tiles/`)
+      const asset=target.origin===location.origin ? bundledEncAsset(target.pathname) : undefined;
+      if(asset)return {url:new URL(asset,location.origin).href};
+      return editingWorkspace && target.origin === location.origin && target.pathname.startsWith(`/api/enc/workspaces/${editingWorkspace.id}/tiles/`)
         ? { url, headers: { 'X-ENC-Workspace-Token': editingWorkspace.token } } : { url };
-    } : null);
+    });
     instance.getCanvas().style.cursor = '';
     let failed = false;
     const idle = () => { if (!controller.signal.aborted && !failed) setState('ready'); };
     const failure = (event: maplibregl.ErrorEvent) => { if (!controller.signal.aborted) { failed = true; setState('error'); setError(event.error.message); } };
     instance.on('error', failure);
     if (!editingWorkspace && source === 'local' && ((datasetId && dataset?.state !== 'ready') || !cells.length)) {
+      appliedStyleKey.current='';
       setState('empty');
-      instance.setStyle(localEncStyle('', '', theme, catalogRevision, true),
+      instance.setStyle(localEncStyle('', '', theme, catalogRevision, true, presentation.safetyContour, presentation.safetyDepth, presentation.category, presentation),
         { diff: instance.isStyleLoaded() === true });
     } else {
       setState('loading');
       const load = async () => {
         try {
-          const style = source === 'local' ? localEncStyle(editingWorkspace ? '' : datasetId, cellName, theme, editingWorkspace ? 0 : catalogRevision) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
+          const style = source === 'local' ? localEncStyle(editingWorkspace ? '' : datasetId, cellName, theme, editingWorkspace ? 0 : catalogRevision, false, presentation.safetyContour, presentation.safetyDepth, presentation.category, presentation) : await fetch(`/enc/demo/style/${theme}`, { signal: controller.signal }).then(readJSON<StyleSpecification>);
           if (editingWorkspace && style.sources.enc?.type === 'vector') {
             style.sources.enc.tiles = style.sources.enc.tiles?.map(url => url.replace('/api/enc/tiles/', `/api/enc/workspaces/${editingWorkspace.id}/tiles/`));
           }
           if (controller.signal.aborted) return;
           if (typeof style.sprite === 'string') style.sprite = new URL(style.sprite, location.origin).href;
           instance.once('idle', idle);
-          // A settings change can arrive before the preceding style has loaded.
-          // MapLibre can only diff a fully loaded style; otherwise replace it.
-          instance.setStyle(style, { diff: instance.isStyleLoaded() === true });
+          const styleKey=JSON.stringify([source,theme,datasetId,cellName,catalogRevision,cells.length,reload]);
+          const encSource=instance.getSource('enc');
+          if(source==='local' && appliedStyleKey.current===styleKey && encSource?.type==='vector' && style.sources.enc?.type==='vector') {
+            // Switching workspace scope changes tile URLs/auth, not the portrayal rules.
+            (encSource as VectorTileSource).setTiles(style.sources.enc.tiles!);
+          } else {
+            instance.setStyle(style, { diff: instance.isStyleLoaded() === true });
+            appliedStyleKey.current=styleKey;
+          }
         } catch (reason) { if (!controller.signal.aborted) { setState('error'); setError(reason instanceof Error ? reason.message : String(reason)); } }
       };
       void load();
@@ -349,8 +366,9 @@ export function EncPreview() {
           </Stack>
         </Paper> : <Paper className="enc-collapsed" elevation={0} sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}><Button sx={{ minHeight: 44 }} startIcon={<Layers3 size={18} />} onClick={() => setPanelOpen(true)} aria-label="Mở bảng hiển thị hải đồ">Hiển thị hải đồ</Button></Paper>}
         {symbolsOpen && <DeferredDialog onClose={closeSymbols}><EncSymbolCatalog onClose={closeSymbols} /></DeferredDialog>}
-        <Box sx={{ display: symbolsOpen ? 'none' : 'contents' }}><EncEditing map={map.current} selected={selected} cell={cell} sidebarOpen={panelOpen} enabled={source === 'local'} onActive={setEditingWorkspace} onClearSelection={() => setSelected(null)} /></Box>
-        {selected && !symbolsOpen && !editingActive && <EncPropertiesPanel properties={selected} onClose={() => setSelected(null)} onFitBounds={bounds => {
+        <Box sx={{ display: symbolsOpen ? 'none' : 'contents' }}><EncEditing selectionPending={choices.length>0} map={map.current} selected={selected} cell={cell} sidebarOpen={panelOpen} enabled={source === 'local'} theme={theme} onActive={setEditingWorkspace} onClearSelection={clearSelection} /></Box>
+        {!!choices.length && !symbolsOpen && <EncFeatureChooser features={choices} theme={theme} editing={editingActive} onClose={()=>setChoices([])} onChoose={properties=>{setChoices([]);setSelected({...properties});}} />}
+        {selected && !choices.length && !symbolsOpen && !editingActive && <EncPropertiesPanel properties={selected} theme={theme} onClose={() => setSelected(null)} onFitBounds={bounds => {
           map.current?.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], {
             padding: { left: panelOpen && innerWidth > 700 ? 354 : 30, right: innerWidth > 700 ? 420 : 30, top: panelOpen && innerWidth <= 700 ? 260 : 40, bottom: innerWidth <= 700 ? Math.round(innerHeight * 0.46) : 40 }, duration: 500,
           });

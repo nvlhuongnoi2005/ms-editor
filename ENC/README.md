@@ -1,6 +1,8 @@
 # ENC domain
 
-`ENC/` chứa tài sản và hợp đồng riêng cho luồng Electronic Navigational Chart.
+`ENC/` chứa hợp đồng và công cụ riêng cho luồng Electronic Navigational Chart.
+Tài liệu chuẩn, sprite, glyph và runtime hiển thị tập trung tại
+[Presentation_Library](../Presentation_Library/README.md), là nguồn đang được màn hình ENC và Docker sử dụng.
 Nó không dùng model node/way/relation, importer hoặc renderer của OSM.
 
 Biên tập cơ bản đã có workspace theo cell, sửa thuộc tính/điểm, lưu riêng và

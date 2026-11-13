@@ -241,7 +241,7 @@ test('every possible symbol output exists in each shipped theme', async () => {
   const names = [...new Set([sprites.pointSprites,sprites.areaSprites,sprites.linePointSprites,sprites.patternSprites,sprites.lineSprites]
     .flatMap(registry => Object.values(registry).flatMap(outputs)))];
   for (const theme of ['day','dusk','night']) {
-    const atlas = JSON.parse(await readFile(new URL(`../../ENC/sprites/${theme}_simplified@2x.json`,import.meta.url),'utf8'));
+    const atlas = JSON.parse(await readFile(new URL(`../../Presentation_Library/assets/sprites/${theme}_simplified@2x.json`,import.meta.url),'utf8'));
     assert.equal(Object.keys(atlas).length,499);
     for (const name of names) assert.ok(atlas[name],`${theme}: ${name}`);
   }

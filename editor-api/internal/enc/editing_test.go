@@ -141,12 +141,15 @@ func TestEditingPersistence(t *testing.T) {
 		{"LNDARE", "five", `{"OBJNAM":"Land"}`, `{"type":"Polygon","coordinates":[[[105,21],[106,21],[106,22],[105,21]]]}`},
 		{"BOYLAT", "six", `{"LNAM_REFS":["missing"]}`, `{"type":"Point","coordinates":[105,21]}`},
 		{"BOYLAT", "seven", `{"NAME_RCNM":[120],"NAME_RCID":[99]}`, `{"type":"Point","coordinates":[105,21]}`},
+		{"HRBFAC", "marina", `{"CATHAF":[5],"NAME_RCNM":[110],"NAME_RCID":[9000]}`, `{"type":"Point","coordinates":[105,21]}`},
+		{"HRBFAC", "shared-marina", `{"CATHAF":[5],"NAME_RCNM":[110],"NAME_RCID":[2]}`, `{"type":"Point","coordinates":[105,21]}`},
 	} {
 		if _, err = db.Exec(ctx, `INSERT INTO enc.feature(dataset_id,cell_name,object_class,source_id,geometry_kind,geometry,source_geometry,attributes) VALUES($1,'TESTCELL',$2,$3,'test',ST_Force2D(ST_GeomFromGeoJSON($4)),$4::jsonb,$5::jsonb)`, dataset, f.class, f.id, f.geometry, f.attributes); err != nil {
 			t.Fatal(err)
 		}
 	}
 	h := &Handler{DB: db}
+	testExclusiveGeometry(t, db, dataset)
 	workspace := "20000000-0000-4000-8000-000000000002"
 	token := strings.Repeat("a", 64)
 	call := func(method, path string, body any, access string) (int, map[string]any) {
@@ -177,6 +180,19 @@ func TestEditingPersistence(t *testing.T) {
 		t.Fatalf("pinned source tile %d: %v", status, result)
 	}
 	one, err := h.readEditFeature(ctx, db, dataset, "TESTCELL", "BOYLAT/one")
+	marina, marinaErr := h.readEditFeature(ctx, db, dataset, "TESTCELL", "HRBFAC/marina")
+	if marinaErr != nil || !marina.CanMove || marina.CanDelete || pointClass("HRBFAC") {
+		t.Fatalf("source marina movement must be independent of creation/deletion: %+v %v", marina, marinaErr)
+	}
+	movedMarina := marina
+	movedMarina.Geometry.Coordinates = json.RawMessage(`[106,22]`)
+	if err := validateEditFeature(&movedMarina, &marina); err != nil {
+		t.Fatal(err)
+	}
+	sharedMarina, sharedErr := h.readEditFeature(ctx, db, dataset, "TESTCELL", "HRBFAC/shared-marina")
+	if sharedErr != nil || sharedMarina.CanMove || sharedMarina.CanDelete {
+		t.Fatalf("shared marina must stay protected: %+v %v", sharedMarina, sharedErr)
+	}
 	if err != nil || !one.CanMove {
 		t.Fatalf("isolated point: %+v, %v", one, err)
 	}

@@ -1,0 +1,8782 @@
+{
+  "source": "OSGeo/GDAL v3.11.5 S-57 dictionaries; editor validation profile, not full ENC product validation",
+  "checksums": {
+    "s57attributes.csv": "f4b6dfe2e82fea5e7ee433e13683292a3fa09bb66750428e4b1578f99a46d2de",
+    "s57expectedinput.csv": "d5b09a5c4248f3eb0906a4e3ac68d7380c86f819d70deae3662e736f0597bc6c",
+    "s57objectclasses.csv": "06acd7c27d8b9cc0e02db9136aff60c9c95cfad2f5c0cbbd9cdf8aa4d07d8716"
+  },
+  "attributes": {
+    "AGENCY": {
+      "key": "AGENCY",
+      "label": "Agency responsible for production",
+      "kind": "text"
+    },
+    "BCNSHP": {
+      "key": "BCNSHP",
+      "label": "Beacon shape",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "stake, pole, perch, post"
+        },
+        {
+          "value": 2,
+          "label": "whity"
+        },
+        {
+          "value": 3,
+          "label": "beacon tower"
+        },
+        {
+          "value": 4,
+          "label": "lattice beacon"
+        },
+        {
+          "value": 5,
+          "label": "pile beacon"
+        },
+        {
+          "value": 6,
+          "label": "cairn"
+        },
+        {
+          "value": 7,
+          "label": "buoyant beacon"
+        }
+      ]
+    },
+    "BUISHP": {
+      "key": "BUISHP",
+      "label": "Building shape",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 5,
+          "label": "high-rise building"
+        },
+        {
+          "value": 6,
+          "label": "pyramid"
+        },
+        {
+          "value": 7,
+          "label": "cylindrical"
+        },
+        {
+          "value": 8,
+          "label": "spherical"
+        },
+        {
+          "value": 9,
+          "label": "cubic"
+        }
+      ]
+    },
+    "BOYSHP": {
+      "key": "BOYSHP",
+      "label": "Buoy shape",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "conical (nun, ogival)"
+        },
+        {
+          "value": 2,
+          "label": "can (cylindrical)"
+        },
+        {
+          "value": 3,
+          "label": "spherical"
+        },
+        {
+          "value": 4,
+          "label": "pillar"
+        },
+        {
+          "value": 5,
+          "label": "spar (spindle)"
+        },
+        {
+          "value": 6,
+          "label": "barrel (tun)"
+        },
+        {
+          "value": 7,
+          "label": "super-buoy"
+        },
+        {
+          "value": 8,
+          "label": "ice buoy"
+        }
+      ]
+    },
+    "BURDEP": {
+      "key": "BURDEP",
+      "label": "Buried depth",
+      "kind": "number"
+    },
+    "CALSGN": {
+      "key": "CALSGN",
+      "label": "Call sign",
+      "kind": "text"
+    },
+    "CATAIR": {
+      "key": "CATAIR",
+      "label": "Category of airport/airfield",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "military aeroplane airport"
+        },
+        {
+          "value": 2,
+          "label": "civil aeroplane airport"
+        },
+        {
+          "value": 3,
+          "label": "military heliport"
+        },
+        {
+          "value": 4,
+          "label": "civil heliport"
+        },
+        {
+          "value": 5,
+          "label": "glider airfield"
+        },
+        {
+          "value": 6,
+          "label": "small planes airfield"
+        },
+        {
+          "value": 8,
+          "label": "emergency airfield"
+        }
+      ]
+    },
+    "CATACH": {
+      "key": "CATACH",
+      "label": "Category of anchorage",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "unrestricted anchorage"
+        },
+        {
+          "value": 2,
+          "label": "deep water anchorage"
+        },
+        {
+          "value": 3,
+          "label": "tanker anchorage"
+        },
+        {
+          "value": 4,
+          "label": "explosives anchorage"
+        },
+        {
+          "value": 5,
+          "label": "quarantine anchorage"
+        },
+        {
+          "value": 6,
+          "label": "sea-plane anchorage"
+        },
+        {
+          "value": 7,
+          "label": "small craft anchorage"
+        },
+        {
+          "value": 8,
+          "label": "small craft mooring area"
+        },
+        {
+          "value": 9,
+          "label": "anchorage for periods up to 24 hours"
+        }
+      ]
+    },
+    "CATBRG": {
+      "key": "CATBRG",
+      "label": "Category of bridge",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "fixed bridge"
+        },
+        {
+          "value": 2,
+          "label": "opening bridge"
+        },
+        {
+          "value": 3,
+          "label": "swing bridge"
+        },
+        {
+          "value": 4,
+          "label": "lifting bridge"
+        },
+        {
+          "value": 5,
+          "label": "bascule bridge"
+        },
+        {
+          "value": 6,
+          "label": "pontoon bridge"
+        },
+        {
+          "value": 7,
+          "label": "draw bridge"
+        },
+        {
+          "value": 8,
+          "label": "transporter bridge"
+        },
+        {
+          "value": 9,
+          "label": "footbridge"
+        },
+        {
+          "value": 10,
+          "label": "viaduct"
+        },
+        {
+          "value": 11,
+          "label": "aqueduct"
+        },
+        {
+          "value": 12,
+          "label": "suspension bridge"
+        }
+      ]
+    },
+    "CATBUA": {
+      "key": "CATBUA",
+      "label": "Category of built-up area",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "urban area"
+        },
+        {
+          "value": 2,
+          "label": "settlement"
+        },
+        {
+          "value": 3,
+          "label": "village"
+        },
+        {
+          "value": 4,
+          "label": "town"
+        },
+        {
+          "value": 5,
+          "label": "city"
+        },
+        {
+          "value": 6,
+          "label": "holiday village"
+        }
+      ]
+    },
+    "CATCBL": {
+      "key": "CATCBL",
+      "label": "Category of cable",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "power line"
+        },
+        {
+          "value": 3,
+          "label": "transmission line"
+        },
+        {
+          "value": 4,
+          "label": "telephone"
+        },
+        {
+          "value": 5,
+          "label": "telegraph"
+        },
+        {
+          "value": 6,
+          "label": "mooring cable/chain"
+        }
+      ]
+    },
+    "CATCAN": {
+      "key": "CATCAN",
+      "label": "Category of canal",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "transportation"
+        },
+        {
+          "value": 2,
+          "label": "drainage"
+        },
+        {
+          "value": 3,
+          "label": "irrigation"
+        }
+      ]
+    },
+    "CATCAM": {
+      "key": "CATCAM",
+      "label": "Category of cardinal mark",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "north cardinal mark"
+        },
+        {
+          "value": 2,
+          "label": "east cardinal mark"
+        },
+        {
+          "value": 3,
+          "label": "south cardinal mark"
+        },
+        {
+          "value": 4,
+          "label": "west cardinal mark"
+        }
+      ]
+    },
+    "CATCHP": {
+      "key": "CATCHP",
+      "label": "Category of checkpoint",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "custom"
+        }
+      ]
+    },
+    "CATCOA": {
+      "key": "CATCOA",
+      "label": "Category of coastline",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "steep coast"
+        },
+        {
+          "value": 2,
+          "label": "flat coast"
+        },
+        {
+          "value": 3,
+          "label": "sandy shore"
+        },
+        {
+          "value": 4,
+          "label": "stony shore"
+        },
+        {
+          "value": 5,
+          "label": "shingly shore"
+        },
+        {
+          "value": 6,
+          "label": "glacier (seaward end)"
+        },
+        {
+          "value": 7,
+          "label": "mangrove"
+        },
+        {
+          "value": 8,
+          "label": "marshy shore"
+        },
+        {
+          "value": 9,
+          "label": "coral reef"
+        },
+        {
+          "value": 10,
+          "label": "ice coast"
+        }
+      ]
+    },
+    "CATCTR": {
+      "key": "CATCTR",
+      "label": "Category of control point",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "triangulation point"
+        },
+        {
+          "value": 2,
+          "label": "observation spot"
+        },
+        {
+          "value": 3,
+          "label": "fixed point"
+        },
+        {
+          "value": 4,
+          "label": "bench-mark"
+        },
+        {
+          "value": 5,
+          "label": "boundary mark"
+        },
+        {
+          "value": 6,
+          "label": "horizontal control, main station"
+        },
+        {
+          "value": 7,
+          "label": "horizontal control, secondary station"
+        }
+      ]
+    },
+    "CATCON": {
+      "key": "CATCON",
+      "label": "Category of conveyor",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "aerial cableway (telepheric)"
+        },
+        {
+          "value": 2,
+          "label": "belt conveyor"
+        }
+      ]
+    },
+    "CATCOV": {
+      "key": "CATCOV",
+      "label": "Category of coverage",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "coverage available"
+        },
+        {
+          "value": 2,
+          "label": "no coverage available"
+        }
+      ]
+    },
+    "CATCRN": {
+      "key": "CATCRN",
+      "label": "Category of crane",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 2,
+          "label": "container crane/gantry"
+        },
+        {
+          "value": 3,
+          "label": "sheerlegs"
+        },
+        {
+          "value": 4,
+          "label": "travelling crane"
+        },
+        {
+          "value": 5,
+          "label": "A-frame"
+        }
+      ]
+    },
+    "CATDAM": {
+      "key": "CATDAM",
+      "label": "Category of dam",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "weir"
+        },
+        {
+          "value": 2,
+          "label": "dam"
+        },
+        {
+          "value": 3,
+          "label": "flood barrage"
+        }
+      ]
+    },
+    "CATDIS": {
+      "key": "CATDIS",
+      "label": "Category of distance mark",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "distance mark not physically installed"
+        },
+        {
+          "value": 2,
+          "label": "visible mark, pole"
+        },
+        {
+          "value": 3,
+          "label": "visible mark, board"
+        },
+        {
+          "value": 4,
+          "label": "visible mark, unknown shape"
+        }
+      ]
+    },
+    "CATDOC": {
+      "key": "CATDOC",
+      "label": "Category of dock",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "tidal"
+        },
+        {
+          "value": 2,
+          "label": "non-tidal (wet dock)"
+        }
+      ]
+    },
+    "CATDPG": {
+      "key": "CATDPG",
+      "label": "Category of dumping ground",
+      "kind": "list",
+      "options": [
+        {
+          "value": 2,
+          "label": "chemical waste dumping ground"
+        },
+        {
+          "value": 3,
+          "label": "nuclear waste dumping ground"
+        },
+        {
+          "value": 4,
+          "label": "explosives dumping ground"
+        },
+        {
+          "value": 5,
+          "label": "spoil ground"
+        },
+        {
+          "value": 6,
+          "label": "vessel dumping ground"
+        }
+      ]
+    },
+    "CATFNC": {
+      "key": "CATFNC",
+      "label": "Category of fence/wall",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "fence"
+        },
+        {
+          "value": 3,
+          "label": "hedge"
+        },
+        {
+          "value": 4,
+          "label": "wall"
+        }
+      ]
+    },
+    "CATFRY": {
+      "key": "CATFRY",
+      "label": "Category of ferry",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "'free-moving' ferry"
+        },
+        {
+          "value": 2,
+          "label": "cable ferry"
+        },
+        {
+          "value": 3,
+          "label": "ice ferry"
+        }
+      ]
+    },
+    "CATFIF": {
+      "key": "CATFIF",
+      "label": "Category of fishing  facility",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "fishing stake"
+        },
+        {
+          "value": 2,
+          "label": "fish trap"
+        },
+        {
+          "value": 3,
+          "label": "fish weir"
+        },
+        {
+          "value": 4,
+          "label": "tunny net"
+        }
+      ]
+    },
+    "CATFOG": {
+      "key": "CATFOG",
+      "label": "Category of fog signal",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "explosive"
+        },
+        {
+          "value": 2,
+          "label": "diaphone"
+        },
+        {
+          "value": 3,
+          "label": "siren"
+        },
+        {
+          "value": 4,
+          "label": "nautophone"
+        },
+        {
+          "value": 5,
+          "label": "reed"
+        },
+        {
+          "value": 6,
+          "label": "tyfon"
+        },
+        {
+          "value": 7,
+          "label": "bell"
+        },
+        {
+          "value": 8,
+          "label": "whistle"
+        },
+        {
+          "value": 9,
+          "label": "gong"
+        },
+        {
+          "value": 10,
+          "label": "horn"
+        }
+      ]
+    },
+    "CATFOR": {
+      "key": "CATFOR",
+      "label": "Category of fortified structure",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "castle"
+        },
+        {
+          "value": 2,
+          "label": "fort"
+        },
+        {
+          "value": 3,
+          "label": "battery"
+        },
+        {
+          "value": 4,
+          "label": "blockhouse"
+        },
+        {
+          "value": 5,
+          "label": "Martello tower"
+        }
+      ]
+    },
+    "CATGAT": {
+      "key": "CATGAT",
+      "label": "Category of gate",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 2,
+          "label": "flood barrage gate"
+        },
+        {
+          "value": 3,
+          "label": "caisson"
+        },
+        {
+          "value": 4,
+          "label": "lock gate"
+        },
+        {
+          "value": 5,
+          "label": "dyke gate"
+        }
+      ]
+    },
+    "CATHAF": {
+      "key": "CATHAF",
+      "label": "Category of harbour facility",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "RoRo-terminal"
+        },
+        {
+          "value": 3,
+          "label": "ferry terminal"
+        },
+        {
+          "value": 4,
+          "label": "fishing harbour"
+        },
+        {
+          "value": 5,
+          "label": "yacht harbour/marina"
+        },
+        {
+          "value": 6,
+          "label": "naval base"
+        },
+        {
+          "value": 7,
+          "label": "tanker terminal"
+        },
+        {
+          "value": 8,
+          "label": "passenger terminal"
+        },
+        {
+          "value": 9,
+          "label": "shipyard"
+        },
+        {
+          "value": 10,
+          "label": "container terminal"
+        },
+        {
+          "value": 11,
+          "label": "bulk terminal"
+        }
+      ]
+    },
+    "CATHLK": {
+      "key": "CATHLK",
+      "label": "Category of hulk",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "floating restaurant"
+        },
+        {
+          "value": 2,
+          "label": "historic ship"
+        },
+        {
+          "value": 3,
+          "label": "museum"
+        },
+        {
+          "value": 4,
+          "label": "accomodation"
+        },
+        {
+          "value": 5,
+          "label": "floating breakwater"
+        }
+      ]
+    },
+    "CATICE": {
+      "key": "CATICE",
+      "label": "Category of ice",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "fast ice"
+        },
+        {
+          "value": 5,
+          "label": "glacier"
+        },
+        {
+          "value": 8,
+          "label": "polar ice"
+        }
+      ]
+    },
+    "CATINB": {
+      "key": "CATINB",
+      "label": "Category of installation buoy",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "catenary anchor leg mooring (CALM)"
+        },
+        {
+          "value": 2,
+          "label": "single buoy mooring (SBM or SPM)"
+        }
+      ]
+    },
+    "CATLND": {
+      "key": "CATLND",
+      "label": "Category of land region",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "fen"
+        },
+        {
+          "value": 2,
+          "label": "marsh"
+        },
+        {
+          "value": 3,
+          "label": "moor/bog"
+        },
+        {
+          "value": 4,
+          "label": "heathland"
+        },
+        {
+          "value": 5,
+          "label": "mountain range"
+        },
+        {
+          "value": 6,
+          "label": "lowlands"
+        },
+        {
+          "value": 7,
+          "label": "canyon lands"
+        },
+        {
+          "value": 8,
+          "label": "paddy field"
+        },
+        {
+          "value": 9,
+          "label": "agricultural land"
+        },
+        {
+          "value": 10,
+          "label": "savanna/grassland"
+        },
+        {
+          "value": 11,
+          "label": "parkland"
+        },
+        {
+          "value": 12,
+          "label": "swamp"
+        },
+        {
+          "value": 13,
+          "label": "landslide"
+        },
+        {
+          "value": 14,
+          "label": "lava flow"
+        },
+        {
+          "value": 15,
+          "label": "salt pan"
+        },
+        {
+          "value": 16,
+          "label": "moraine"
+        },
+        {
+          "value": 17,
+          "label": "crater"
+        },
+        {
+          "value": 18,
+          "label": "cave"
+        },
+        {
+          "value": 19,
+          "label": "rock column or pinnacle"
+        }
+      ]
+    },
+    "CATLMK": {
+      "key": "CATLMK",
+      "label": "Category of landmark",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "cairn"
+        },
+        {
+          "value": 2,
+          "label": "cemetery"
+        },
+        {
+          "value": 3,
+          "label": "chimney"
+        },
+        {
+          "value": 4,
+          "label": "dish aerial"
+        },
+        {
+          "value": 5,
+          "label": "flagstaff (flagpole)"
+        },
+        {
+          "value": 6,
+          "label": "flare stack"
+        },
+        {
+          "value": 7,
+          "label": "mast"
+        },
+        {
+          "value": 8,
+          "label": "windsock"
+        },
+        {
+          "value": 9,
+          "label": "monument"
+        },
+        {
+          "value": 10,
+          "label": "column (pillar)"
+        },
+        {
+          "value": 11,
+          "label": "memorial plaque"
+        },
+        {
+          "value": 12,
+          "label": "obelisk"
+        },
+        {
+          "value": 13,
+          "label": "statue"
+        },
+        {
+          "value": 14,
+          "label": "cross"
+        },
+        {
+          "value": 15,
+          "label": "dome"
+        },
+        {
+          "value": 16,
+          "label": "radar scanner"
+        },
+        {
+          "value": 17,
+          "label": "tower"
+        },
+        {
+          "value": 18,
+          "label": "windmill"
+        },
+        {
+          "value": 19,
+          "label": "windmotor"
+        },
+        {
+          "value": 20,
+          "label": "spire/minaret"
+        }
+      ]
+    },
+    "CATLAM": {
+      "key": "CATLAM",
+      "label": "Category of lateral mark",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "port-hand lateral mark"
+        },
+        {
+          "value": 2,
+          "label": "starboard-hand lateral mark"
+        },
+        {
+          "value": 3,
+          "label": "preferred channel to starboard lateral mark"
+        },
+        {
+          "value": 4,
+          "label": "preferred channel to port lateral mark"
+        }
+      ]
+    },
+    "CATLIT": {
+      "key": "CATLIT",
+      "label": "Category of light",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "directional function"
+        },
+        {
+          "value": 4,
+          "label": "leading light"
+        },
+        {
+          "value": 5,
+          "label": "aero light"
+        },
+        {
+          "value": 6,
+          "label": "air obstruction light"
+        },
+        {
+          "value": 7,
+          "label": "fog detector light"
+        },
+        {
+          "value": 8,
+          "label": "flood light"
+        },
+        {
+          "value": 9,
+          "label": "strip light"
+        },
+        {
+          "value": 10,
+          "label": "subsidiary light"
+        },
+        {
+          "value": 11,
+          "label": "spotlight"
+        },
+        {
+          "value": 12,
+          "label": "front"
+        },
+        {
+          "value": 13,
+          "label": "rear"
+        },
+        {
+          "value": 14,
+          "label": "lower"
+        },
+        {
+          "value": 15,
+          "label": "upper"
+        },
+        {
+          "value": 16,
+          "label": "moiré effect"
+        },
+        {
+          "value": 17,
+          "label": "emergency"
+        },
+        {
+          "value": 18,
+          "label": "bearing light"
+        },
+        {
+          "value": 19,
+          "label": "horizontally disposed"
+        },
+        {
+          "value": 20,
+          "label": "vertically disposed"
+        }
+      ]
+    },
+    "CATMFA": {
+      "key": "CATMFA",
+      "label": "Category of marine farm/culture",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "crustaceans"
+        },
+        {
+          "value": 2,
+          "label": "oyster/mussels"
+        },
+        {
+          "value": 3,
+          "label": "fish"
+        },
+        {
+          "value": 4,
+          "label": "seaweed"
+        }
+      ]
+    },
+    "CATMPA": {
+      "key": "CATMPA",
+      "label": "Category of military practice area",
+      "kind": "list",
+      "options": [
+        {
+          "value": 2,
+          "label": "torpedo exercise area"
+        },
+        {
+          "value": 3,
+          "label": "submarine exercise area"
+        },
+        {
+          "value": 4,
+          "label": "firing danger area"
+        },
+        {
+          "value": 5,
+          "label": "mine-laying practice area"
+        },
+        {
+          "value": 6,
+          "label": "small arms firing range"
+        }
+      ]
+    },
+    "CATMOR": {
+      "key": "CATMOR",
+      "label": "Category of mooring/warping facility",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "dolphin"
+        },
+        {
+          "value": 2,
+          "label": "deviation dolphin"
+        },
+        {
+          "value": 3,
+          "label": "bollard"
+        },
+        {
+          "value": 4,
+          "label": "tie-up wall"
+        },
+        {
+          "value": 5,
+          "label": "post or pile"
+        },
+        {
+          "value": 6,
+          "label": "chain/wire/cable"
+        },
+        {
+          "value": 7,
+          "label": "mooring buoy"
+        }
+      ]
+    },
+    "CATNAV": {
+      "key": "CATNAV",
+      "label": "Category of navigation line",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "clearing line"
+        },
+        {
+          "value": 2,
+          "label": "transit line"
+        },
+        {
+          "value": 3,
+          "label": "leading line bearing a recommended track"
+        }
+      ]
+    },
+    "CATOBS": {
+      "key": "CATOBS",
+      "label": "Category of obstruction",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "snag / stump"
+        },
+        {
+          "value": 2,
+          "label": "wellhead"
+        },
+        {
+          "value": 3,
+          "label": "diffuser"
+        },
+        {
+          "value": 4,
+          "label": "crib"
+        },
+        {
+          "value": 5,
+          "label": "fish haven"
+        },
+        {
+          "value": 6,
+          "label": "foul area"
+        },
+        {
+          "value": 7,
+          "label": "foul ground"
+        },
+        {
+          "value": 8,
+          "label": "ice boom"
+        },
+        {
+          "value": 9,
+          "label": "ground tackle"
+        }
+      ]
+    },
+    "CATOFP": {
+      "key": "CATOFP",
+      "label": "Category of offshore platform",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "oil derrick / rig"
+        },
+        {
+          "value": 2,
+          "label": "production platform"
+        },
+        {
+          "value": 3,
+          "label": "observation / research platform"
+        },
+        {
+          "value": 4,
+          "label": "articulated loading platform (ALP)"
+        },
+        {
+          "value": 5,
+          "label": "single anchor leg mooring (SALM)"
+        },
+        {
+          "value": 6,
+          "label": "mooring tower"
+        },
+        {
+          "value": 7,
+          "label": "artificial island"
+        },
+        {
+          "value": 8,
+          "label": "floating production, storage and off-loading vessel (FPSO)"
+        },
+        {
+          "value": 9,
+          "label": "accomodation platform"
+        },
+        {
+          "value": 10,
+          "label": "navigation, communication and control buoy (NCCB)"
+        }
+      ]
+    },
+    "CATOLB": {
+      "key": "CATOLB",
+      "label": "Category of oil barrier",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "oil retention (high pressure pipe)"
+        },
+        {
+          "value": 2,
+          "label": "floating oil barrier"
+        }
+      ]
+    },
+    "CATPLE": {
+      "key": "CATPLE",
+      "label": "Category of pile",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "stake"
+        },
+        {
+          "value": 3,
+          "label": "post"
+        },
+        {
+          "value": 4,
+          "label": "tripodal"
+        }
+      ]
+    },
+    "CATPIL": {
+      "key": "CATPIL",
+      "label": "Category of pilot boarding place",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "boarding by pilot-cruising vessel"
+        },
+        {
+          "value": 2,
+          "label": "boarding by helicopter"
+        },
+        {
+          "value": 3,
+          "label": "pilot comes out from shore"
+        }
+      ]
+    },
+    "CATPIP": {
+      "key": "CATPIP",
+      "label": "Category of pipeline / pipe",
+      "kind": "list",
+      "options": [
+        {
+          "value": 2,
+          "label": "outfall pipe"
+        },
+        {
+          "value": 3,
+          "label": "intake pipe"
+        },
+        {
+          "value": 4,
+          "label": "sewer"
+        },
+        {
+          "value": 5,
+          "label": "bubbler system"
+        },
+        {
+          "value": 6,
+          "label": "supply pipe"
+        }
+      ]
+    },
+    "CATPRA": {
+      "key": "CATPRA",
+      "label": "Category of production area",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "quarry"
+        },
+        {
+          "value": 2,
+          "label": "mine"
+        },
+        {
+          "value": 3,
+          "label": "stockpile"
+        },
+        {
+          "value": 4,
+          "label": "power station area"
+        },
+        {
+          "value": 5,
+          "label": "refinery area"
+        },
+        {
+          "value": 6,
+          "label": "timber yard"
+        },
+        {
+          "value": 7,
+          "label": "factory area"
+        },
+        {
+          "value": 8,
+          "label": "tank farm"
+        },
+        {
+          "value": 9,
+          "label": "wind farm"
+        }
+      ]
+    },
+    "CATPYL": {
+      "key": "CATPYL",
+      "label": "Category of pylon",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "power transmission pylon/pole"
+        },
+        {
+          "value": 2,
+          "label": "telephone/telegraph pylon/pole"
+        },
+        {
+          "value": 3,
+          "label": "aerial cableway/sky pylon"
+        },
+        {
+          "value": 4,
+          "label": "bridge pylon/tower"
+        },
+        {
+          "value": 5,
+          "label": "bridge pier"
+        }
+      ]
+    },
+    "CATQUA": {
+      "key": "CATQUA",
+      "label": "Category of quality of data",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "data quality A"
+        },
+        {
+          "value": 2,
+          "label": "data quality B"
+        },
+        {
+          "value": 3,
+          "label": "data quality C"
+        },
+        {
+          "value": 4,
+          "label": "data quality D"
+        },
+        {
+          "value": 5,
+          "label": "data quality E"
+        },
+        {
+          "value": 6,
+          "label": "quality not evaluated"
+        }
+      ]
+    },
+    "CATRAS": {
+      "key": "CATRAS",
+      "label": "Category of radar station",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "radar surveillance station"
+        },
+        {
+          "value": 2,
+          "label": "coast radar station"
+        }
+      ]
+    },
+    "CATRTB": {
+      "key": "CATRTB",
+      "label": "Category of radar transponder beacon",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "ramark, radar beacon transmitting continuously"
+        },
+        {
+          "value": 2,
+          "label": "racon, radar transponder beacon"
+        },
+        {
+          "value": 3,
+          "label": "leading racon/radar transponder beacon"
+        }
+      ]
+    },
+    "CATROS": {
+      "key": "CATROS",
+      "label": "Category of radio station",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "circular (non-directional) marine or aero-marine radiobeacon"
+        },
+        {
+          "value": 2,
+          "label": "directional radiobeacon"
+        },
+        {
+          "value": 3,
+          "label": "rotating-pattern radiobeacon"
+        },
+        {
+          "value": 4,
+          "label": "Consol beacon"
+        },
+        {
+          "value": 5,
+          "label": "radio direction-finding station"
+        },
+        {
+          "value": 6,
+          "label": "coast radio station providing QTG service"
+        },
+        {
+          "value": 7,
+          "label": "aeronautical radiobeacon"
+        },
+        {
+          "value": 8,
+          "label": "Decca"
+        },
+        {
+          "value": 9,
+          "label": "Loran C"
+        },
+        {
+          "value": 10,
+          "label": "Differential GPS"
+        },
+        {
+          "value": 11,
+          "label": "Toran"
+        },
+        {
+          "value": 12,
+          "label": "Omega"
+        },
+        {
+          "value": 13,
+          "label": "Syledis"
+        },
+        {
+          "value": 14,
+          "label": "Chaika (Chayka)"
+        }
+      ]
+    },
+    "CATTRK": {
+      "key": "CATTRK",
+      "label": "Category of recommended track",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "based on a system of fixed marks"
+        },
+        {
+          "value": 2,
+          "label": "not based on a system of fixed marks"
+        }
+      ]
+    },
+    "CATRSC": {
+      "key": "CATRSC",
+      "label": "Category of rescue station",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "rescue station with lifeboat"
+        },
+        {
+          "value": 2,
+          "label": "rescue station with rocket"
+        },
+        {
+          "value": 4,
+          "label": "refuge for shipwrecked mariners"
+        },
+        {
+          "value": 5,
+          "label": "refuge for intertidal area walkers"
+        },
+        {
+          "value": 6,
+          "label": "lifeboat lying at a mooring"
+        }
+      ]
+    },
+    "CATREA": {
+      "key": "CATREA",
+      "label": "Category of restricted area",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "offshore safety zone"
+        },
+        {
+          "value": 4,
+          "label": "nature reserve"
+        },
+        {
+          "value": 5,
+          "label": "bird sanctuary"
+        },
+        {
+          "value": 6,
+          "label": "game preserve"
+        },
+        {
+          "value": 7,
+          "label": "seal sanctuary"
+        },
+        {
+          "value": 8,
+          "label": "degaussing range"
+        },
+        {
+          "value": 9,
+          "label": "military area"
+        },
+        {
+          "value": 10,
+          "label": "historic wreck area"
+        },
+        {
+          "value": 12,
+          "label": "navigational aid safety zone"
+        },
+        {
+          "value": 14,
+          "label": "minefield"
+        },
+        {
+          "value": 18,
+          "label": "swimming area"
+        },
+        {
+          "value": 19,
+          "label": "waiting area"
+        },
+        {
+          "value": 20,
+          "label": "research area"
+        },
+        {
+          "value": 21,
+          "label": "dredging area"
+        },
+        {
+          "value": 22,
+          "label": "fish sanctuary"
+        },
+        {
+          "value": 23,
+          "label": "ecological reserve"
+        },
+        {
+          "value": 24,
+          "label": "no wake area"
+        },
+        {
+          "value": 25,
+          "label": "swinging area"
+        }
+      ]
+    },
+    "CATROD": {
+      "key": "CATROD",
+      "label": "Category of road",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "motorway"
+        },
+        {
+          "value": 2,
+          "label": "major road"
+        },
+        {
+          "value": 3,
+          "label": "minor road"
+        },
+        {
+          "value": 4,
+          "label": "track / path"
+        },
+        {
+          "value": 5,
+          "label": "major street"
+        },
+        {
+          "value": 6,
+          "label": "minor street"
+        },
+        {
+          "value": 7,
+          "label": "crossing"
+        }
+      ]
+    },
+    "CATRUN": {
+      "key": "CATRUN",
+      "label": "Category of runway",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "aeroplane"
+        },
+        {
+          "value": 2,
+          "label": "helicopter landing pad"
+        }
+      ]
+    },
+    "CATSEA": {
+      "key": "CATSEA",
+      "label": "Category of sea area",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 2,
+          "label": "gat"
+        },
+        {
+          "value": 3,
+          "label": "bank"
+        },
+        {
+          "value": 4,
+          "label": "deep"
+        },
+        {
+          "value": 5,
+          "label": "bay"
+        },
+        {
+          "value": 6,
+          "label": "trench"
+        },
+        {
+          "value": 7,
+          "label": "basin"
+        },
+        {
+          "value": 8,
+          "label": "mud flats"
+        },
+        {
+          "value": 9,
+          "label": "reef"
+        },
+        {
+          "value": 10,
+          "label": "ledge"
+        },
+        {
+          "value": 11,
+          "label": "canyon"
+        },
+        {
+          "value": 12,
+          "label": "narrows"
+        },
+        {
+          "value": 13,
+          "label": "shoal"
+        },
+        {
+          "value": 14,
+          "label": "knoll"
+        },
+        {
+          "value": 15,
+          "label": "ridge"
+        },
+        {
+          "value": 16,
+          "label": "seamount"
+        },
+        {
+          "value": 17,
+          "label": "pinnacle"
+        },
+        {
+          "value": 18,
+          "label": "abyssal plain"
+        },
+        {
+          "value": 19,
+          "label": "plateau"
+        },
+        {
+          "value": 20,
+          "label": "spur"
+        },
+        {
+          "value": 21,
+          "label": "shelf"
+        },
+        {
+          "value": 22,
+          "label": "trough"
+        },
+        {
+          "value": 23,
+          "label": "saddle"
+        },
+        {
+          "value": 24,
+          "label": "abyssal hills"
+        },
+        {
+          "value": 25,
+          "label": "apron"
+        },
+        {
+          "value": 26,
+          "label": "archipelagic apron"
+        },
+        {
+          "value": 27,
+          "label": "borderland"
+        },
+        {
+          "value": 28,
+          "label": "continental margin"
+        },
+        {
+          "value": 29,
+          "label": "continental rise"
+        },
+        {
+          "value": 30,
+          "label": "escarpment"
+        },
+        {
+          "value": 31,
+          "label": "fan"
+        },
+        {
+          "value": 32,
+          "label": "fracture zone"
+        },
+        {
+          "value": 33,
+          "label": "gap"
+        },
+        {
+          "value": 34,
+          "label": "guyot"
+        },
+        {
+          "value": 35,
+          "label": "hill"
+        },
+        {
+          "value": 36,
+          "label": "hole"
+        },
+        {
+          "value": 37,
+          "label": "levee"
+        },
+        {
+          "value": 38,
+          "label": "median valley"
+        },
+        {
+          "value": 39,
+          "label": "moat"
+        },
+        {
+          "value": 40,
+          "label": "mountains"
+        },
+        {
+          "value": 41,
+          "label": "peak"
+        },
+        {
+          "value": 42,
+          "label": "province"
+        },
+        {
+          "value": 43,
+          "label": "rise"
+        },
+        {
+          "value": 44,
+          "label": "seachannel"
+        },
+        {
+          "value": 45,
+          "label": "seamount chain"
+        },
+        {
+          "value": 46,
+          "label": "shelf edge"
+        },
+        {
+          "value": 47,
+          "label": "sill"
+        },
+        {
+          "value": 48,
+          "label": "slope"
+        },
+        {
+          "value": 49,
+          "label": "terrace"
+        },
+        {
+          "value": 50,
+          "label": "valley"
+        },
+        {
+          "value": 51,
+          "label": "canal"
+        },
+        {
+          "value": 52,
+          "label": "lake"
+        },
+        {
+          "value": 53,
+          "label": "river"
+        }
+      ]
+    },
+    "CATSLC": {
+      "key": "CATSLC",
+      "label": "Category of shoreline construction",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "breakwater"
+        },
+        {
+          "value": 2,
+          "label": "groyne (groin)"
+        },
+        {
+          "value": 3,
+          "label": "mole"
+        },
+        {
+          "value": 4,
+          "label": "pier ( jetty)"
+        },
+        {
+          "value": 5,
+          "label": "promenadepier"
+        },
+        {
+          "value": 6,
+          "label": "wharf (quay)"
+        },
+        {
+          "value": 7,
+          "label": "training wall"
+        },
+        {
+          "value": 8,
+          "label": "rip rap"
+        },
+        {
+          "value": 9,
+          "label": "revetment"
+        },
+        {
+          "value": 10,
+          "label": "sea wall"
+        },
+        {
+          "value": 11,
+          "label": "landing steps"
+        },
+        {
+          "value": 12,
+          "label": "ramp"
+        },
+        {
+          "value": 13,
+          "label": "slipway"
+        },
+        {
+          "value": 14,
+          "label": "fender"
+        },
+        {
+          "value": 15,
+          "label": "solid face wharf"
+        },
+        {
+          "value": 16,
+          "label": "open face wharf"
+        }
+      ]
+    },
+    "CATSIT": {
+      "key": "CATSIT",
+      "label": "Category of signal station, traffic",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "port control"
+        },
+        {
+          "value": 2,
+          "label": "port entry and departure"
+        },
+        {
+          "value": 3,
+          "label": "International Port Traffic"
+        },
+        {
+          "value": 4,
+          "label": "berthing"
+        },
+        {
+          "value": 5,
+          "label": "dock"
+        },
+        {
+          "value": 6,
+          "label": "lock"
+        },
+        {
+          "value": 7,
+          "label": "flood barrage"
+        },
+        {
+          "value": 8,
+          "label": "bridge passage"
+        },
+        {
+          "value": 9,
+          "label": "dredging"
+        }
+      ]
+    },
+    "CATSIW": {
+      "key": "CATSIW",
+      "label": "Category of signal station, warning",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "danger"
+        },
+        {
+          "value": 2,
+          "label": "maritime obstruction"
+        },
+        {
+          "value": 3,
+          "label": "cable"
+        },
+        {
+          "value": 4,
+          "label": "military practice"
+        },
+        {
+          "value": 5,
+          "label": "distress"
+        },
+        {
+          "value": 6,
+          "label": "weather"
+        },
+        {
+          "value": 7,
+          "label": "storm"
+        },
+        {
+          "value": 8,
+          "label": "ice"
+        },
+        {
+          "value": 9,
+          "label": "time"
+        },
+        {
+          "value": 10,
+          "label": "tide"
+        },
+        {
+          "value": 11,
+          "label": "tidal stream"
+        },
+        {
+          "value": 12,
+          "label": "tide gauge"
+        },
+        {
+          "value": 13,
+          "label": "tide scale"
+        },
+        {
+          "value": 14,
+          "label": "diving"
+        }
+      ]
+    },
+    "CATSIL": {
+      "key": "CATSIL",
+      "label": "Category of silo/tank",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "silo in general"
+        },
+        {
+          "value": 2,
+          "label": "tank in general"
+        },
+        {
+          "value": 3,
+          "label": "grain elevator"
+        },
+        {
+          "value": 4,
+          "label": "water tower"
+        }
+      ]
+    },
+    "CATSLO": {
+      "key": "CATSLO",
+      "label": "Category of slope",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "cutting"
+        },
+        {
+          "value": 2,
+          "label": "embankment"
+        },
+        {
+          "value": 3,
+          "label": "dune"
+        },
+        {
+          "value": 4,
+          "label": "hill"
+        },
+        {
+          "value": 5,
+          "label": "pingo"
+        },
+        {
+          "value": 6,
+          "label": "cliff"
+        },
+        {
+          "value": 7,
+          "label": "scree"
+        }
+      ]
+    },
+    "CATSCF": {
+      "key": "CATSCF",
+      "label": "Category of small craft facility",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "visitor`s berth"
+        },
+        {
+          "value": 2,
+          "label": "nautical club"
+        },
+        {
+          "value": 3,
+          "label": "boat hoist"
+        },
+        {
+          "value": 4,
+          "label": "sailmaker"
+        },
+        {
+          "value": 5,
+          "label": "boatyard"
+        },
+        {
+          "value": 6,
+          "label": "public inn"
+        },
+        {
+          "value": 7,
+          "label": "restaurant"
+        },
+        {
+          "value": 8,
+          "label": "chandler"
+        },
+        {
+          "value": 9,
+          "label": "provisions"
+        },
+        {
+          "value": 10,
+          "label": "doctor"
+        },
+        {
+          "value": 11,
+          "label": "pharmacy"
+        },
+        {
+          "value": 12,
+          "label": "water tap"
+        },
+        {
+          "value": 13,
+          "label": "fuel station"
+        },
+        {
+          "value": 14,
+          "label": "electricity"
+        },
+        {
+          "value": 15,
+          "label": "bottle gas"
+        },
+        {
+          "value": 16,
+          "label": "showers"
+        },
+        {
+          "value": 17,
+          "label": "launderette"
+        },
+        {
+          "value": 18,
+          "label": "public toilets"
+        },
+        {
+          "value": 19,
+          "label": "post box"
+        },
+        {
+          "value": 20,
+          "label": "public telephone"
+        },
+        {
+          "value": 21,
+          "label": "refuse bin"
+        },
+        {
+          "value": 22,
+          "label": "car park"
+        },
+        {
+          "value": 23,
+          "label": "parking for boats and trailers"
+        },
+        {
+          "value": 24,
+          "label": "caravan site"
+        },
+        {
+          "value": 25,
+          "label": "camping site"
+        },
+        {
+          "value": 26,
+          "label": "sewerage pump-out station"
+        },
+        {
+          "value": 27,
+          "label": "emergency telephone"
+        },
+        {
+          "value": 28,
+          "label": "landing / launching place for boats"
+        },
+        {
+          "value": 29,
+          "label": "visitors mooring"
+        },
+        {
+          "value": 30,
+          "label": "scrubbing berth"
+        },
+        {
+          "value": 31,
+          "label": "picnic area"
+        }
+      ]
+    },
+    "CATSPM": {
+      "key": "CATSPM",
+      "label": "Category of special purpose mark",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "firing danger area mark"
+        },
+        {
+          "value": 2,
+          "label": "target mark"
+        },
+        {
+          "value": 3,
+          "label": "marker ship mark"
+        },
+        {
+          "value": 4,
+          "label": "degaussing range mark"
+        },
+        {
+          "value": 5,
+          "label": "barge mark"
+        },
+        {
+          "value": 6,
+          "label": "cable mark"
+        },
+        {
+          "value": 7,
+          "label": "spoil ground mark"
+        },
+        {
+          "value": 8,
+          "label": "outfall mark"
+        },
+        {
+          "value": 9,
+          "label": "ODAS (Ocean-Data-Acquisition-System)"
+        },
+        {
+          "value": 10,
+          "label": "recording mark"
+        },
+        {
+          "value": 11,
+          "label": "seaplane anchorage mark"
+        },
+        {
+          "value": 12,
+          "label": "recreation zone mark"
+        },
+        {
+          "value": 13,
+          "label": "private mark"
+        },
+        {
+          "value": 14,
+          "label": "mooring mark"
+        },
+        {
+          "value": 15,
+          "label": "LANBY (Large Automatic Navigational Buoy)"
+        },
+        {
+          "value": 16,
+          "label": "leading mark"
+        },
+        {
+          "value": 17,
+          "label": "measured distance mark"
+        },
+        {
+          "value": 18,
+          "label": "notice mark"
+        },
+        {
+          "value": 19,
+          "label": "TSS mark (Traffic Separation Scheme)"
+        },
+        {
+          "value": 20,
+          "label": "anchoring prohibited mark"
+        },
+        {
+          "value": 21,
+          "label": "berthing prohibited mark"
+        },
+        {
+          "value": 22,
+          "label": "overtaking prohibited mark"
+        },
+        {
+          "value": 23,
+          "label": "two-way traffic prohibited mark"
+        },
+        {
+          "value": 24,
+          "label": "'reduced wake' mark"
+        },
+        {
+          "value": 25,
+          "label": "speed limit mark"
+        },
+        {
+          "value": 26,
+          "label": "stop mark"
+        },
+        {
+          "value": 27,
+          "label": "general warning mark"
+        },
+        {
+          "value": 28,
+          "label": "'sound ship's siren' mark"
+        },
+        {
+          "value": 29,
+          "label": "restricted vertical clearence mark"
+        },
+        {
+          "value": 30,
+          "label": "maximum vessel's draught mark"
+        },
+        {
+          "value": 31,
+          "label": "restricted horizontal clearance mark"
+        },
+        {
+          "value": 32,
+          "label": "strong current warning mark"
+        },
+        {
+          "value": 33,
+          "label": "berthing permitted mark"
+        },
+        {
+          "value": 34,
+          "label": "overhead power cable mark"
+        },
+        {
+          "value": 35,
+          "label": "'channel edge gradient' mark"
+        },
+        {
+          "value": 36,
+          "label": "telephone mark"
+        },
+        {
+          "value": 37,
+          "label": "ferry crossing mark"
+        },
+        {
+          "value": 39,
+          "label": "pipline mark"
+        },
+        {
+          "value": 40,
+          "label": "anchorage mark"
+        },
+        {
+          "value": 41,
+          "label": "clearing mark"
+        },
+        {
+          "value": 42,
+          "label": "control mark"
+        },
+        {
+          "value": 43,
+          "label": "diving mark"
+        },
+        {
+          "value": 44,
+          "label": "refuge beacon"
+        },
+        {
+          "value": 45,
+          "label": "foul ground mark"
+        },
+        {
+          "value": 46,
+          "label": "yachting mark"
+        },
+        {
+          "value": 47,
+          "label": "heliport mark"
+        },
+        {
+          "value": 48,
+          "label": "GPS mark"
+        },
+        {
+          "value": 49,
+          "label": "seaplane landing mark"
+        },
+        {
+          "value": 50,
+          "label": "entry prohibited mark"
+        },
+        {
+          "value": 51,
+          "label": "work in progress mark"
+        },
+        {
+          "value": 52,
+          "label": "mark with unknown purpose"
+        }
+      ]
+    },
+    "CATTSS": {
+      "key": "CATTSS",
+      "label": "Category of Traffic Separation Scheme",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "IMO - adopted"
+        },
+        {
+          "value": 2,
+          "label": "not IMO - adopted"
+        }
+      ]
+    },
+    "CATVEG": {
+      "key": "CATVEG",
+      "label": "Category of vegetation",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "grassland"
+        },
+        {
+          "value": 3,
+          "label": "bush"
+        },
+        {
+          "value": 4,
+          "label": "deciduous wood"
+        },
+        {
+          "value": 5,
+          "label": "coniferous  wood"
+        },
+        {
+          "value": 6,
+          "label": "wood in general (inc mixed wood)"
+        },
+        {
+          "value": 7,
+          "label": "mangroves"
+        },
+        {
+          "value": 10,
+          "label": "mixed crops"
+        },
+        {
+          "value": 11,
+          "label": "reed"
+        },
+        {
+          "value": 12,
+          "label": "moos"
+        },
+        {
+          "value": 13,
+          "label": "tree in general"
+        },
+        {
+          "value": 14,
+          "label": "evergreen tree"
+        },
+        {
+          "value": 15,
+          "label": "coniferous tree"
+        },
+        {
+          "value": 16,
+          "label": "palm tree"
+        },
+        {
+          "value": 17,
+          "label": "nipa palm tree"
+        },
+        {
+          "value": 18,
+          "label": "casuarina tree"
+        },
+        {
+          "value": 19,
+          "label": "eucalypt tree"
+        },
+        {
+          "value": 20,
+          "label": "deciduous tree"
+        },
+        {
+          "value": 21,
+          "label": "mangrove tree"
+        },
+        {
+          "value": 22,
+          "label": "filao tree"
+        }
+      ]
+    },
+    "CATWAT": {
+      "key": "CATWAT",
+      "label": "Category of water turbulence",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "breakers"
+        },
+        {
+          "value": 2,
+          "label": "eddies"
+        },
+        {
+          "value": 3,
+          "label": "overfalls"
+        },
+        {
+          "value": 4,
+          "label": "tide rips"
+        },
+        {
+          "value": 5,
+          "label": "bombora"
+        }
+      ]
+    },
+    "CATWED": {
+      "key": "CATWED",
+      "label": "Category of weed/kelp",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "kelp"
+        },
+        {
+          "value": 2,
+          "label": "sea weed"
+        },
+        {
+          "value": 3,
+          "label": "sea grass"
+        },
+        {
+          "value": 4,
+          "label": "saragasso"
+        }
+      ]
+    },
+    "CATWRK": {
+      "key": "CATWRK",
+      "label": "Category of wreck",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "non-dangerous wreck"
+        },
+        {
+          "value": 2,
+          "label": "dangerous wreck"
+        },
+        {
+          "value": 3,
+          "label": "distributed remains of wreck"
+        },
+        {
+          "value": 4,
+          "label": "wreck showing mast/masts"
+        },
+        {
+          "value": 5,
+          "label": "wreck showing any portion of hull or superstructure"
+        }
+      ]
+    },
+    "CATZOC": {
+      "key": "CATZOC",
+      "label": "Category of zone of confidence data",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "zone of confidence A1"
+        },
+        {
+          "value": 2,
+          "label": "zone of confidence A2"
+        },
+        {
+          "value": 3,
+          "label": "zone of confidence B"
+        },
+        {
+          "value": 4,
+          "label": "zone of confidence C"
+        },
+        {
+          "value": 5,
+          "label": "zone of confidence D"
+        },
+        {
+          "value": 6,
+          "label": "zone of confidence U (data not assessed)"
+        }
+      ]
+    },
+    "COLOUR": {
+      "key": "COLOUR",
+      "label": "Colour",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "white"
+        },
+        {
+          "value": 2,
+          "label": "black"
+        },
+        {
+          "value": 3,
+          "label": "red"
+        },
+        {
+          "value": 4,
+          "label": "green"
+        },
+        {
+          "value": 5,
+          "label": "blue"
+        },
+        {
+          "value": 6,
+          "label": "yellow"
+        },
+        {
+          "value": 7,
+          "label": "grey"
+        },
+        {
+          "value": 8,
+          "label": "brown"
+        },
+        {
+          "value": 9,
+          "label": "amber"
+        },
+        {
+          "value": 10,
+          "label": "violet"
+        },
+        {
+          "value": 11,
+          "label": "orange"
+        },
+        {
+          "value": 12,
+          "label": "magenta"
+        },
+        {
+          "value": 13,
+          "label": "pink"
+        }
+      ]
+    },
+    "COLPAT": {
+      "key": "COLPAT",
+      "label": "Colour pattern",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "horizontal stripes"
+        },
+        {
+          "value": 2,
+          "label": "vertical stripes"
+        },
+        {
+          "value": 3,
+          "label": "diagonal stripes"
+        },
+        {
+          "value": 4,
+          "label": "squared"
+        },
+        {
+          "value": 5,
+          "label": "stripes (direction unknown)"
+        },
+        {
+          "value": 6,
+          "label": "border stripes"
+        }
+      ]
+    },
+    "COMCHA": {
+      "key": "COMCHA",
+      "label": "Communication channel",
+      "kind": "text"
+    },
+    "CPDATE": {
+      "key": "CPDATE",
+      "label": "Compilation date",
+      "kind": "text"
+    },
+    "CSCALE": {
+      "key": "CSCALE",
+      "label": "Compilation scale",
+      "kind": "integer"
+    },
+    "CONDTN": {
+      "key": "CONDTN",
+      "label": "Condition",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "under construction"
+        },
+        {
+          "value": 2,
+          "label": "ruined"
+        },
+        {
+          "value": 3,
+          "label": "under reclamation"
+        },
+        {
+          "value": 4,
+          "label": "wingless"
+        },
+        {
+          "value": 5,
+          "label": "planned construction"
+        }
+      ]
+    },
+    "CONRAD": {
+      "key": "CONRAD",
+      "label": "Conspicuous, Radar",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "radar conspicuous"
+        },
+        {
+          "value": 2,
+          "label": "not radar conspicuous"
+        },
+        {
+          "value": 3,
+          "label": "radar conspicuous (has radar reflector)"
+        }
+      ]
+    },
+    "CONVIS": {
+      "key": "CONVIS",
+      "label": "Conspicuous, visual",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "visual conspicuous"
+        },
+        {
+          "value": 2,
+          "label": "not visual conspicuous"
+        }
+      ]
+    },
+    "CURVEL": {
+      "key": "CURVEL",
+      "label": "Current velocity",
+      "kind": "number"
+    },
+    "DATEND": {
+      "key": "DATEND",
+      "label": "Date end",
+      "kind": "text"
+    },
+    "DATSTA": {
+      "key": "DATSTA",
+      "label": "Date start",
+      "kind": "text"
+    },
+    "DRVAL1": {
+      "key": "DRVAL1",
+      "label": "Depth range value 1",
+      "kind": "number"
+    },
+    "DRVAL2": {
+      "key": "DRVAL2",
+      "label": "Depth range value 2",
+      "kind": "number"
+    },
+    "DUNITS": {
+      "key": "DUNITS",
+      "label": "Depth units",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "metres"
+        },
+        {
+          "value": 2,
+          "label": "fathoms and feet"
+        },
+        {
+          "value": 3,
+          "label": "feet"
+        },
+        {
+          "value": 4,
+          "label": "fathoms and fractions"
+        }
+      ]
+    },
+    "ELEVAT": {
+      "key": "ELEVAT",
+      "label": "Cao độ (m)",
+      "kind": "number"
+    },
+    "ESTRNG": {
+      "key": "ESTRNG",
+      "label": "Estimated range of transmission",
+      "kind": "number"
+    },
+    "EXCLIT": {
+      "key": "EXCLIT",
+      "label": "Exhibition condition of light",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "light shown without change of character"
+        },
+        {
+          "value": 2,
+          "label": "daytime light"
+        },
+        {
+          "value": 3,
+          "label": "fog light"
+        },
+        {
+          "value": 4,
+          "label": "night light"
+        }
+      ]
+    },
+    "EXPSOU": {
+      "key": "EXPSOU",
+      "label": "Exposition of sounding",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "within the range of depth of the surrounding depth area"
+        },
+        {
+          "value": 2,
+          "label": "shoaler than range of depth of the surrounding depth area"
+        },
+        {
+          "value": 3,
+          "label": "deeper than range of depth of the surrounding depth area"
+        }
+      ]
+    },
+    "FUNCTN": {
+      "key": "FUNCTN",
+      "label": "Function",
+      "kind": "list",
+      "options": [
+        {
+          "value": 2,
+          "label": "harbour-master's office"
+        },
+        {
+          "value": 3,
+          "label": "custom office"
+        },
+        {
+          "value": 4,
+          "label": "health office"
+        },
+        {
+          "value": 5,
+          "label": "hospital"
+        },
+        {
+          "value": 6,
+          "label": "post office"
+        },
+        {
+          "value": 7,
+          "label": "hotel"
+        },
+        {
+          "value": 8,
+          "label": "railway station"
+        },
+        {
+          "value": 9,
+          "label": "police station"
+        },
+        {
+          "value": 10,
+          "label": "water-police station"
+        },
+        {
+          "value": 11,
+          "label": "pilot office"
+        },
+        {
+          "value": 12,
+          "label": "pilot lookout"
+        },
+        {
+          "value": 13,
+          "label": "bank office"
+        },
+        {
+          "value": 14,
+          "label": "headquarters for district control"
+        },
+        {
+          "value": 15,
+          "label": "transit shed/warehouse"
+        },
+        {
+          "value": 16,
+          "label": "factory"
+        },
+        {
+          "value": 17,
+          "label": "power station"
+        },
+        {
+          "value": 18,
+          "label": "administrative"
+        },
+        {
+          "value": 19,
+          "label": "educational facility"
+        },
+        {
+          "value": 20,
+          "label": "church"
+        },
+        {
+          "value": 21,
+          "label": "chapel"
+        },
+        {
+          "value": 22,
+          "label": "temple"
+        },
+        {
+          "value": 23,
+          "label": "pagoda"
+        },
+        {
+          "value": 24,
+          "label": "shinto shrine"
+        },
+        {
+          "value": 25,
+          "label": "buddhist temple"
+        },
+        {
+          "value": 26,
+          "label": "mosque"
+        },
+        {
+          "value": 27,
+          "label": "marabout"
+        },
+        {
+          "value": 28,
+          "label": "lookout"
+        },
+        {
+          "value": 29,
+          "label": "communication"
+        },
+        {
+          "value": 30,
+          "label": "television"
+        },
+        {
+          "value": 31,
+          "label": "radio"
+        },
+        {
+          "value": 32,
+          "label": "radar"
+        },
+        {
+          "value": 33,
+          "label": "light support"
+        },
+        {
+          "value": 34,
+          "label": "microwave"
+        },
+        {
+          "value": 35,
+          "label": "cooling"
+        },
+        {
+          "value": 36,
+          "label": "observation"
+        },
+        {
+          "value": 37,
+          "label": "timeball"
+        },
+        {
+          "value": 38,
+          "label": "clock"
+        },
+        {
+          "value": 39,
+          "label": "control"
+        },
+        {
+          "value": 40,
+          "label": "airship mooring"
+        },
+        {
+          "value": 41,
+          "label": "stadium"
+        },
+        {
+          "value": 42,
+          "label": "bus station"
+        }
+      ]
+    },
+    "HEIGHT": {
+      "key": "HEIGHT",
+      "label": "Chiều cao (m)",
+      "kind": "number"
+    },
+    "HUNITS": {
+      "key": "HUNITS",
+      "label": "Height/length units",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "metres"
+        },
+        {
+          "value": 2,
+          "label": "feet"
+        }
+      ]
+    },
+    "HORACC": {
+      "key": "HORACC",
+      "label": "Horizontal accuracy",
+      "kind": "number"
+    },
+    "HORCLR": {
+      "key": "HORCLR",
+      "label": "Horizontal clearance",
+      "kind": "number"
+    },
+    "HORLEN": {
+      "key": "HORLEN",
+      "label": "Horizontal length",
+      "kind": "number"
+    },
+    "HORWID": {
+      "key": "HORWID",
+      "label": "Horizontal width",
+      "kind": "number"
+    },
+    "ICEFAC": {
+      "key": "ICEFAC",
+      "label": "Ice factor",
+      "kind": "number"
+    },
+    "INFORM": {
+      "key": "INFORM",
+      "label": "Thông tin",
+      "kind": "text"
+    },
+    "JRSDTN": {
+      "key": "JRSDTN",
+      "label": "Jurisdiction",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "international"
+        },
+        {
+          "value": 2,
+          "label": "national"
+        },
+        {
+          "value": 3,
+          "label": "national sub-division"
+        }
+      ]
+    },
+    "LIFCAP": {
+      "key": "LIFCAP",
+      "label": "Lifting capacity",
+      "kind": "number"
+    },
+    "LITCHR": {
+      "key": "LITCHR",
+      "label": "Light characteristic",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "fixed"
+        },
+        {
+          "value": 2,
+          "label": "flashing"
+        },
+        {
+          "value": 3,
+          "label": "long-flashing"
+        },
+        {
+          "value": 4,
+          "label": "quick-flashing"
+        },
+        {
+          "value": 5,
+          "label": "very quick-flashing"
+        },
+        {
+          "value": 6,
+          "label": "ultra quick-flashing"
+        },
+        {
+          "value": 7,
+          "label": "isophased"
+        },
+        {
+          "value": 8,
+          "label": "occulting"
+        },
+        {
+          "value": 9,
+          "label": "interrupted quick-flashing"
+        },
+        {
+          "value": 10,
+          "label": "interrupted very quick-flashing"
+        },
+        {
+          "value": 11,
+          "label": "interrupted ultra quick-flashing"
+        },
+        {
+          "value": 12,
+          "label": "morse"
+        },
+        {
+          "value": 13,
+          "label": "fixed / flash"
+        },
+        {
+          "value": 14,
+          "label": "flash / long-flash"
+        },
+        {
+          "value": 15,
+          "label": "occulting / flash"
+        },
+        {
+          "value": 16,
+          "label": "fixed / long-flash"
+        },
+        {
+          "value": 17,
+          "label": "occulting alternating"
+        },
+        {
+          "value": 18,
+          "label": "long-flash alternating"
+        },
+        {
+          "value": 19,
+          "label": "flash alternating"
+        },
+        {
+          "value": 20,
+          "label": "group alternating"
+        },
+        {
+          "value": 25,
+          "label": "quick-flash plus long-flash"
+        },
+        {
+          "value": 26,
+          "label": "very quick-flash plus long-flash"
+        },
+        {
+          "value": 27,
+          "label": "ultra quick-flash plus long-flash"
+        },
+        {
+          "value": 28,
+          "label": "alternating"
+        },
+        {
+          "value": 29,
+          "label": "fixed and alternating flashing"
+        }
+      ]
+    },
+    "LITVIS": {
+      "key": "LITVIS",
+      "label": "Light visibility",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "high intensity"
+        },
+        {
+          "value": 2,
+          "label": "low intensity"
+        },
+        {
+          "value": 3,
+          "label": "faint"
+        },
+        {
+          "value": 4,
+          "label": "intensified"
+        },
+        {
+          "value": 5,
+          "label": "unintensified"
+        },
+        {
+          "value": 6,
+          "label": "visibility deliberately restricted"
+        },
+        {
+          "value": 7,
+          "label": "obscured"
+        },
+        {
+          "value": 8,
+          "label": "partially obscured"
+        }
+      ]
+    },
+    "MARSYS": {
+      "key": "MARSYS",
+      "label": "Marks navigational - System of",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "IALA A"
+        },
+        {
+          "value": 2,
+          "label": "IALA B"
+        },
+        {
+          "value": 9,
+          "label": "no system"
+        },
+        {
+          "value": 10,
+          "label": "other sytem"
+        }
+      ]
+    },
+    "MLTYLT": {
+      "key": "MLTYLT",
+      "label": "Multiplicity of lights",
+      "kind": "integer"
+    },
+    "NATION": {
+      "key": "NATION",
+      "label": "Nationality",
+      "kind": "text"
+    },
+    "NATCON": {
+      "key": "NATCON",
+      "label": "Nature of construction",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "masonry"
+        },
+        {
+          "value": 2,
+          "label": "concreted"
+        },
+        {
+          "value": 3,
+          "label": "loose boulders"
+        },
+        {
+          "value": 4,
+          "label": "hard surfaced"
+        },
+        {
+          "value": 5,
+          "label": "unsurfaced"
+        },
+        {
+          "value": 6,
+          "label": "wooden"
+        },
+        {
+          "value": 7,
+          "label": "metal"
+        },
+        {
+          "value": 8,
+          "label": "glass reinforced plastic (GRP)"
+        },
+        {
+          "value": 9,
+          "label": "painted"
+        }
+      ]
+    },
+    "NATSUR": {
+      "key": "NATSUR",
+      "label": "Nature of surface",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "mud"
+        },
+        {
+          "value": 2,
+          "label": "clay"
+        },
+        {
+          "value": 3,
+          "label": "silt"
+        },
+        {
+          "value": 4,
+          "label": "sand"
+        },
+        {
+          "value": 5,
+          "label": "stone"
+        },
+        {
+          "value": 6,
+          "label": "gravel"
+        },
+        {
+          "value": 7,
+          "label": "pebbles"
+        },
+        {
+          "value": 8,
+          "label": "cobbles"
+        },
+        {
+          "value": 9,
+          "label": "rock"
+        },
+        {
+          "value": 11,
+          "label": "lava"
+        },
+        {
+          "value": 14,
+          "label": "coral"
+        },
+        {
+          "value": 17,
+          "label": "shells"
+        },
+        {
+          "value": 18,
+          "label": "boulder"
+        }
+      ]
+    },
+    "NATQUA": {
+      "key": "NATQUA",
+      "label": "Nature of surface - qualifying terms",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "fine"
+        },
+        {
+          "value": 2,
+          "label": "medium"
+        },
+        {
+          "value": 3,
+          "label": "coarse"
+        },
+        {
+          "value": 4,
+          "label": "broken"
+        },
+        {
+          "value": 5,
+          "label": "sticky"
+        },
+        {
+          "value": 6,
+          "label": "soft"
+        },
+        {
+          "value": 7,
+          "label": "stiff"
+        },
+        {
+          "value": 8,
+          "label": "volcanic"
+        },
+        {
+          "value": 9,
+          "label": "calcareous"
+        },
+        {
+          "value": 10,
+          "label": "hard"
+        }
+      ]
+    },
+    "NMDATE": {
+      "key": "NMDATE",
+      "label": "Notice to Mariners date",
+      "kind": "text"
+    },
+    "OBJNAM": {
+      "key": "OBJNAM",
+      "label": "Tên đối tượng",
+      "kind": "text"
+    },
+    "ORIENT": {
+      "key": "ORIENT",
+      "label": "Orientation",
+      "kind": "number"
+    },
+    "PEREND": {
+      "key": "PEREND",
+      "label": "Periodic date end",
+      "kind": "text"
+    },
+    "PERSTA": {
+      "key": "PERSTA",
+      "label": "Periodic date start",
+      "kind": "text"
+    },
+    "PICREP": {
+      "key": "PICREP",
+      "label": "Pictorial representation",
+      "kind": "text"
+    },
+    "PILDST": {
+      "key": "PILDST",
+      "label": "Pilot district",
+      "kind": "text"
+    },
+    "PRCTRY": {
+      "key": "PRCTRY",
+      "label": "Producing country",
+      "kind": "text"
+    },
+    "PRODCT": {
+      "key": "PRODCT",
+      "label": "Product",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "oil"
+        },
+        {
+          "value": 2,
+          "label": "gas"
+        },
+        {
+          "value": 3,
+          "label": "water"
+        },
+        {
+          "value": 4,
+          "label": "stone"
+        },
+        {
+          "value": 5,
+          "label": "coal"
+        },
+        {
+          "value": 6,
+          "label": "ore"
+        },
+        {
+          "value": 7,
+          "label": "chemicals"
+        },
+        {
+          "value": 8,
+          "label": "drinking water"
+        },
+        {
+          "value": 9,
+          "label": "milk"
+        },
+        {
+          "value": 10,
+          "label": "bauxite"
+        },
+        {
+          "value": 11,
+          "label": "coke"
+        },
+        {
+          "value": 12,
+          "label": "iron ingots"
+        },
+        {
+          "value": 13,
+          "label": "salt"
+        },
+        {
+          "value": 14,
+          "label": "sand"
+        },
+        {
+          "value": 15,
+          "label": "timber"
+        },
+        {
+          "value": 16,
+          "label": "sawdust / wood chips"
+        },
+        {
+          "value": 17,
+          "label": "scrap metal"
+        },
+        {
+          "value": 18,
+          "label": "liquified natural gas (LNG)"
+        },
+        {
+          "value": 19,
+          "label": "liquified petroleum gas (LPG)"
+        },
+        {
+          "value": 20,
+          "label": "wine"
+        },
+        {
+          "value": 21,
+          "label": "cement"
+        },
+        {
+          "value": 22,
+          "label": "grain"
+        }
+      ]
+    },
+    "PUBREF": {
+      "key": "PUBREF",
+      "label": "Publication reference",
+      "kind": "text"
+    },
+    "QUASOU": {
+      "key": "QUASOU",
+      "label": "Quality of sounding measurement",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "depth known"
+        },
+        {
+          "value": 2,
+          "label": "depth unknown"
+        },
+        {
+          "value": 3,
+          "label": "doubtful sounding"
+        },
+        {
+          "value": 4,
+          "label": "unreliable sounding"
+        },
+        {
+          "value": 5,
+          "label": "no bottom found at value shown"
+        },
+        {
+          "value": 6,
+          "label": "least depth known"
+        },
+        {
+          "value": 7,
+          "label": "least depth unknown, safe clearance at value shown"
+        },
+        {
+          "value": 8,
+          "label": "value reported (not surveyed)"
+        },
+        {
+          "value": 9,
+          "label": "value reported (not confirmed)"
+        },
+        {
+          "value": 10,
+          "label": "maintained depth"
+        },
+        {
+          "value": 11,
+          "label": "not reguraly maintained"
+        }
+      ]
+    },
+    "RADWAL": {
+      "key": "RADWAL",
+      "label": "Radar wave length",
+      "kind": "text"
+    },
+    "RADIUS": {
+      "key": "RADIUS",
+      "label": "Radius",
+      "kind": "number"
+    },
+    "RECDAT": {
+      "key": "RECDAT",
+      "label": "Recording date",
+      "kind": "text"
+    },
+    "RECIND": {
+      "key": "RECIND",
+      "label": "Recording indication",
+      "kind": "text"
+    },
+    "RYRMGV": {
+      "key": "RYRMGV",
+      "label": "Reference year for magnetic variation",
+      "kind": "text"
+    },
+    "RESTRN": {
+      "key": "RESTRN",
+      "label": "Restriction",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "anchoring prohibited"
+        },
+        {
+          "value": 2,
+          "label": "anchoring restricted"
+        },
+        {
+          "value": 3,
+          "label": "fishing prohibited"
+        },
+        {
+          "value": 4,
+          "label": "fishing restricted"
+        },
+        {
+          "value": 5,
+          "label": "trawling prohibited"
+        },
+        {
+          "value": 6,
+          "label": "trawling restricted"
+        },
+        {
+          "value": 7,
+          "label": "entry prohibited"
+        },
+        {
+          "value": 8,
+          "label": "entry restricted"
+        },
+        {
+          "value": 9,
+          "label": "dredging prohibited"
+        },
+        {
+          "value": 10,
+          "label": "dredging restricted"
+        },
+        {
+          "value": 11,
+          "label": "diving prohibited"
+        },
+        {
+          "value": 12,
+          "label": "diving restricted"
+        },
+        {
+          "value": 13,
+          "label": "no wake"
+        },
+        {
+          "value": 14,
+          "label": "area to be avoided"
+        },
+        {
+          "value": 15,
+          "label": "construction prohibited"
+        }
+      ]
+    },
+    "SCAMAX": {
+      "key": "SCAMAX",
+      "label": "Scale maximum",
+      "kind": "integer"
+    },
+    "SCAMIN": {
+      "key": "SCAMIN",
+      "label": "Mẫu số tỷ lệ hiển thị tối thiểu",
+      "kind": "integer"
+    },
+    "SCVAL1": {
+      "key": "SCVAL1",
+      "label": "Scale value one",
+      "kind": "integer"
+    },
+    "SCVAL2": {
+      "key": "SCVAL2",
+      "label": "Scale value two",
+      "kind": "integer"
+    },
+    "SECTR1": {
+      "key": "SECTR1",
+      "label": "Sector limit one",
+      "kind": "number"
+    },
+    "SECTR2": {
+      "key": "SECTR2",
+      "label": "Sector limit two",
+      "kind": "number"
+    },
+    "SHIPAM": {
+      "key": "SHIPAM",
+      "label": "Shift parameters",
+      "kind": "text"
+    },
+    "SIGFRQ": {
+      "key": "SIGFRQ",
+      "label": "Signal frequency",
+      "kind": "integer"
+    },
+    "SIGGEN": {
+      "key": "SIGGEN",
+      "label": "Signal generation",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "automatically"
+        },
+        {
+          "value": 2,
+          "label": "by wave action"
+        },
+        {
+          "value": 3,
+          "label": "by hand"
+        },
+        {
+          "value": 4,
+          "label": "by wind"
+        }
+      ]
+    },
+    "SIGGRP": {
+      "key": "SIGGRP",
+      "label": "Signal group",
+      "kind": "text"
+    },
+    "SIGPER": {
+      "key": "SIGPER",
+      "label": "Signal period",
+      "kind": "number"
+    },
+    "SIGSEQ": {
+      "key": "SIGSEQ",
+      "label": "Signal sequence",
+      "kind": "text"
+    },
+    "SOUACC": {
+      "key": "SOUACC",
+      "label": "Sounding accuracy",
+      "kind": "number"
+    },
+    "SDISMX": {
+      "key": "SDISMX",
+      "label": "Sounding distance - maximum",
+      "kind": "integer"
+    },
+    "SDISMN": {
+      "key": "SDISMN",
+      "label": "Sounding distance - minimum",
+      "kind": "integer"
+    },
+    "SORDAT": {
+      "key": "SORDAT",
+      "label": "Source date",
+      "kind": "text"
+    },
+    "SORIND": {
+      "key": "SORIND",
+      "label": "Source indication",
+      "kind": "text"
+    },
+    "STATUS": {
+      "key": "STATUS",
+      "label": "Status",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "permanent"
+        },
+        {
+          "value": 2,
+          "label": "occasional"
+        },
+        {
+          "value": 3,
+          "label": "recommended"
+        },
+        {
+          "value": 4,
+          "label": "disused"
+        },
+        {
+          "value": 5,
+          "label": "periodically/intermittent"
+        },
+        {
+          "value": 6,
+          "label": "reserved"
+        },
+        {
+          "value": 7,
+          "label": "temporary"
+        },
+        {
+          "value": 8,
+          "label": "private"
+        },
+        {
+          "value": 9,
+          "label": "mandatory"
+        },
+        {
+          "value": 11,
+          "label": "extinguished"
+        },
+        {
+          "value": 12,
+          "label": "illuminated"
+        },
+        {
+          "value": 13,
+          "label": "historic"
+        },
+        {
+          "value": 14,
+          "label": "public"
+        },
+        {
+          "value": 15,
+          "label": "synchronized"
+        },
+        {
+          "value": 16,
+          "label": "watched"
+        },
+        {
+          "value": 17,
+          "label": "un-watched"
+        },
+        {
+          "value": 18,
+          "label": "existence doubtful"
+        }
+      ]
+    },
+    "SURATH": {
+      "key": "SURATH",
+      "label": "Survey authority",
+      "kind": "text"
+    },
+    "SUREND": {
+      "key": "SUREND",
+      "label": "Survey date - end",
+      "kind": "text"
+    },
+    "SURSTA": {
+      "key": "SURSTA",
+      "label": "Survey date - start",
+      "kind": "text"
+    },
+    "SURTYP": {
+      "key": "SURTYP",
+      "label": "Survey type",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "reconnaissance/sketch survey"
+        },
+        {
+          "value": 2,
+          "label": "controlled survey"
+        },
+        {
+          "value": 4,
+          "label": "examintion survey"
+        },
+        {
+          "value": 5,
+          "label": "passage survey"
+        },
+        {
+          "value": 6,
+          "label": "remotely sensed"
+        }
+      ]
+    },
+    "TECSOU": {
+      "key": "TECSOU",
+      "label": "Technique of sounding measurement",
+      "kind": "list",
+      "options": [
+        {
+          "value": 1,
+          "label": "found by echo-sounder"
+        },
+        {
+          "value": 2,
+          "label": "found by side scan sonar"
+        },
+        {
+          "value": 3,
+          "label": "found by multi-beam"
+        },
+        {
+          "value": 4,
+          "label": "found by diver"
+        },
+        {
+          "value": 5,
+          "label": "found by lead-line"
+        },
+        {
+          "value": 6,
+          "label": "swept by wire-drag"
+        },
+        {
+          "value": 7,
+          "label": "found by laser"
+        },
+        {
+          "value": 8,
+          "label": "swept by vertical acoustic system"
+        },
+        {
+          "value": 9,
+          "label": "found by electromagnetic sensor"
+        },
+        {
+          "value": 10,
+          "label": "photogrammetry"
+        },
+        {
+          "value": 11,
+          "label": "satelite imagery"
+        },
+        {
+          "value": 12,
+          "label": "found by levelling"
+        },
+        {
+          "value": 13,
+          "label": "swept by side-scan sonar"
+        },
+        {
+          "value": 14,
+          "label": "computer generated"
+        }
+      ]
+    },
+    "TXTDSC": {
+      "key": "TXTDSC",
+      "label": "Textual description",
+      "kind": "text"
+    },
+    "TS_TSP": {
+      "key": "TS_TSP",
+      "label": "Tidal stream - panel values",
+      "kind": "text"
+    },
+    "TS_TSV": {
+      "key": "TS_TSV",
+      "label": "Tidal stream, current - time series values",
+      "kind": "text"
+    },
+    "T_ACWL": {
+      "key": "T_ACWL",
+      "label": "Tide - accuracy of water level",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "better than 0.1m and 10 minutes"
+        },
+        {
+          "value": 2,
+          "label": "worse than 0.1m or 10 minutes"
+        }
+      ]
+    },
+    "T_HWLW": {
+      "key": "T_HWLW",
+      "label": "Tide - high and low water values",
+      "kind": "text"
+    },
+    "T_MTOD": {
+      "key": "T_MTOD",
+      "label": "Tide - method of tidal prediction",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "simplified harmonic method of tidal prediction"
+        },
+        {
+          "value": 2,
+          "label": "full harmonic method of tidal prediction"
+        },
+        {
+          "value": 3,
+          "label": "height and time difference non-harmonic method"
+        }
+      ]
+    },
+    "T_THDF": {
+      "key": "T_THDF",
+      "label": "Tide - time and height differences",
+      "kind": "text"
+    },
+    "T_TINT": {
+      "key": "T_TINT",
+      "label": "Tide, current - time interval of values",
+      "kind": "integer"
+    },
+    "T_TSVL": {
+      "key": "T_TSVL",
+      "label": "Tide - time series values",
+      "kind": "text"
+    },
+    "T_VAHC": {
+      "key": "T_VAHC",
+      "label": "Tide - value of harmonic constituents",
+      "kind": "text"
+    },
+    "TIMEND": {
+      "key": "TIMEND",
+      "label": "Time end",
+      "kind": "text"
+    },
+    "TIMSTA": {
+      "key": "TIMSTA",
+      "label": "Time start",
+      "kind": "text"
+    },
+    "TOPSHP": {
+      "key": "TOPSHP",
+      "label": "Topmark/daymark shape",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "cone, point up"
+        },
+        {
+          "value": 2,
+          "label": "cone, point down"
+        },
+        {
+          "value": 3,
+          "label": "sphere"
+        },
+        {
+          "value": 4,
+          "label": "2 sphere"
+        },
+        {
+          "value": 5,
+          "label": "cylinder (can)"
+        },
+        {
+          "value": 6,
+          "label": "board"
+        },
+        {
+          "value": 7,
+          "label": "x-shape (St. Andrew's cross)"
+        },
+        {
+          "value": 8,
+          "label": "upright cross (St. George cross)"
+        },
+        {
+          "value": 9,
+          "label": "cube, point up"
+        },
+        {
+          "value": 10,
+          "label": "2 cones, point to point"
+        },
+        {
+          "value": 11,
+          "label": "2 cones, base to base"
+        },
+        {
+          "value": 12,
+          "label": "rhombus (diamond)"
+        },
+        {
+          "value": 13,
+          "label": "2 cones (points upward)"
+        },
+        {
+          "value": 14,
+          "label": "2 cones (points downward)"
+        },
+        {
+          "value": 15,
+          "label": "besom, point up (broom or perch)"
+        },
+        {
+          "value": 16,
+          "label": "besom, point down (broom or perch)"
+        },
+        {
+          "value": 17,
+          "label": "flag"
+        },
+        {
+          "value": 18,
+          "label": "sphere over rhombus"
+        },
+        {
+          "value": 19,
+          "label": "square"
+        },
+        {
+          "value": 20,
+          "label": "rectangle, horizontal"
+        },
+        {
+          "value": 21,
+          "label": "rectangle, vertical"
+        },
+        {
+          "value": 22,
+          "label": "trapezium, up"
+        },
+        {
+          "value": 23,
+          "label": "trapezium, down"
+        },
+        {
+          "value": 24,
+          "label": "triangle, point up"
+        },
+        {
+          "value": 25,
+          "label": "triangle, point down"
+        },
+        {
+          "value": 26,
+          "label": "circle"
+        },
+        {
+          "value": 27,
+          "label": "two upright crosses (one over the other)"
+        },
+        {
+          "value": 28,
+          "label": "T-shape"
+        },
+        {
+          "value": 29,
+          "label": "triangle pointing up over a circle"
+        },
+        {
+          "value": 30,
+          "label": "upright cross over a circle"
+        },
+        {
+          "value": 31,
+          "label": "rhombus over a circle"
+        },
+        {
+          "value": 32,
+          "label": "circle over a triangle pointing up"
+        },
+        {
+          "value": 33,
+          "label": "other shape (see INFORM)"
+        }
+      ]
+    },
+    "TRAFIC": {
+      "key": "TRAFIC",
+      "label": "Traffic flow",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "inbound"
+        },
+        {
+          "value": 2,
+          "label": "outbound"
+        },
+        {
+          "value": 3,
+          "label": "one-way"
+        },
+        {
+          "value": 4,
+          "label": "two-way"
+        }
+      ]
+    },
+    "VALACM": {
+      "key": "VALACM",
+      "label": "Value of annual change in magnetic variation",
+      "kind": "number"
+    },
+    "VALDCO": {
+      "key": "VALDCO",
+      "label": "Value of depth contour",
+      "kind": "number"
+    },
+    "VALLMA": {
+      "key": "VALLMA",
+      "label": "Value of local magnetic anomaly",
+      "kind": "number"
+    },
+    "VALMAG": {
+      "key": "VALMAG",
+      "label": "Value of magnetic variation",
+      "kind": "number"
+    },
+    "VALMXR": {
+      "key": "VALMXR",
+      "label": "Value of maximum range",
+      "kind": "number"
+    },
+    "VALNMR": {
+      "key": "VALNMR",
+      "label": "Value of nominal range",
+      "kind": "number"
+    },
+    "VALSOU": {
+      "key": "VALSOU",
+      "label": "Độ sâu đo được (m)",
+      "kind": "number"
+    },
+    "VERACC": {
+      "key": "VERACC",
+      "label": "Vertical accuracy",
+      "kind": "number"
+    },
+    "VERCLR": {
+      "key": "VERCLR",
+      "label": "Vertical clearance",
+      "kind": "number"
+    },
+    "VERCCL": {
+      "key": "VERCCL",
+      "label": "Vertical clearance, closed",
+      "kind": "number"
+    },
+    "VERCOP": {
+      "key": "VERCOP",
+      "label": "Vertical clearance, open",
+      "kind": "number"
+    },
+    "VERCSA": {
+      "key": "VERCSA",
+      "label": "Vertical clearance, safe",
+      "kind": "number"
+    },
+    "VERDAT": {
+      "key": "VERDAT",
+      "label": "Vertical datum",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "Mean low water springs"
+        },
+        {
+          "value": 2,
+          "label": "Mean lower low water springs"
+        },
+        {
+          "value": 3,
+          "label": "Mean sea level"
+        },
+        {
+          "value": 4,
+          "label": "Lowest low water"
+        },
+        {
+          "value": 5,
+          "label": "Mean low water"
+        },
+        {
+          "value": 6,
+          "label": "Lowest low water springs"
+        },
+        {
+          "value": 7,
+          "label": "Approximate mean low water springs"
+        },
+        {
+          "value": 8,
+          "label": "Indian spring low water"
+        },
+        {
+          "value": 9,
+          "label": "Low water springs"
+        },
+        {
+          "value": 10,
+          "label": "Approximate lowest astronomical tide"
+        },
+        {
+          "value": 11,
+          "label": "Nearly lowest low water"
+        },
+        {
+          "value": 12,
+          "label": "Mean lower low water"
+        },
+        {
+          "value": 13,
+          "label": "Low water"
+        },
+        {
+          "value": 14,
+          "label": "Approximate mean low water"
+        },
+        {
+          "value": 15,
+          "label": "Approximate mean lower low water"
+        },
+        {
+          "value": 16,
+          "label": "Mean high water"
+        },
+        {
+          "value": 17,
+          "label": "Mean high water springs"
+        },
+        {
+          "value": 18,
+          "label": "High water"
+        },
+        {
+          "value": 19,
+          "label": "Approximate mean sea level"
+        },
+        {
+          "value": 20,
+          "label": "High water springs"
+        },
+        {
+          "value": 21,
+          "label": "Mean higher high water"
+        },
+        {
+          "value": 22,
+          "label": "Equinoctial spring low water"
+        },
+        {
+          "value": 23,
+          "label": "Lowest astronomical tide"
+        },
+        {
+          "value": 24,
+          "label": "Local datum"
+        },
+        {
+          "value": 25,
+          "label": "International Great Lakes Datum 1985"
+        },
+        {
+          "value": 26,
+          "label": "Mean water level"
+        },
+        {
+          "value": 27,
+          "label": "Lower low water large tide"
+        },
+        {
+          "value": 28,
+          "label": "Higher high water lage tide"
+        },
+        {
+          "value": 29,
+          "label": "Nearly highest high water"
+        }
+      ]
+    },
+    "VERLEN": {
+      "key": "VERLEN",
+      "label": "Vertical length",
+      "kind": "number"
+    },
+    "WATLEV": {
+      "key": "WATLEV",
+      "label": "Water level effect",
+      "kind": "enum",
+      "options": [
+        {
+          "value": 1,
+          "label": "partly submerged at high water"
+        },
+        {
+          "value": 2,
+          "label": "always dry"
+        },
+        {
+          "value": 3,
+          "label": "always under water/submerged"
+        },
+        {
+          "value": 4,
+          "label": "covers and uncovers"
+        },
+        {
+          "value": 5,
+          "label": "awash"
+        },
+        {
+          "value": 6,
+          "label": "subject to inundation or flooding"
+        }
+      ]
+    },
+    "CLSDEF": {
+      "key": "CLSDEF",
+      "label": "Object class definition",
+      "kind": "text"
+    },
+    "CLSNAM": {
+      "key": "CLSNAM",
+      "label": "Object class name",
+      "kind": "text"
+    },
+    "SYMINS": {
+      "key": "SYMINS",
+      "label": "Symbol instruction",
+      "kind": "text"
+    }
+  },
+  "classes": {
+    "ADMARE": {
+      "label": "Administration area (Named)",
+      "attributes": [
+        "INFORM",
+        "JRSDTN",
+        "NATION",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "AIRARE": {
+      "label": "Airport / airfield",
+      "attributes": [
+        "CATAIR",
+        "CONDTN",
+        "CONVIS",
+        "INFORM",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "ACHBRT": {
+      "label": "Anchor berth",
+      "attributes": [
+        "CATACH",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RADIUS",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "ACHARE": {
+      "label": "Anchorage area",
+      "attributes": [
+        "CATACH",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "BCNCAR": {
+      "label": "Beacon, cardinal",
+      "attributes": [
+        "BCNSHP",
+        "CATCAM",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BCNISD": {
+      "label": "Beacon, isolated danger",
+      "attributes": [
+        "BCNSHP",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BCNLAT": {
+      "label": "Beacon, lateral",
+      "attributes": [
+        "BCNSHP",
+        "CATLAM",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BCNSAW": {
+      "label": "Beacon, safe water",
+      "attributes": [
+        "BCNSHP",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BCNSPP": {
+      "label": "Beacon, special purpose/general",
+      "attributes": [
+        "BCNSHP",
+        "CATSPM",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BERTHS": {
+      "label": "Berth",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "BRIDGE": {
+      "label": "Bridge",
+      "attributes": [
+        "CATBRG",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HORACC",
+        "HORCLR",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERCCL",
+        "VERCLR",
+        "VERCOP",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "BUISGL": {
+      "label": "Building, single",
+      "attributes": [
+        "BUISHP",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "ELEVAT",
+        "FUNCTN",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "BUAARE": {
+      "label": "Built-up area",
+      "attributes": [
+        "CATBUA",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "BOYCAR": {
+      "label": "Buoy, cardinal",
+      "attributes": [
+        "BOYSHP",
+        "CATCAM",
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BOYINB": {
+      "label": "Buoy, installation",
+      "attributes": [
+        "BOYSHP",
+        "CATINB",
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BOYISD": {
+      "label": "Buoy, isolated danger",
+      "attributes": [
+        "BOYSHP",
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BOYLAT": {
+      "label": "Buoy, lateral",
+      "attributes": [
+        "BOYSHP",
+        "CATLAM",
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BOYSAW": {
+      "label": "Buoy, safe water",
+      "attributes": [
+        "BOYSHP",
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "BOYSPP": {
+      "label": "Buoy, special purpose/general",
+      "attributes": [
+        "BOYSHP",
+        "CATSPM",
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "CBLARE": {
+      "label": "Cable area",
+      "attributes": [
+        "CATCBL",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "CBLOHD": {
+      "label": "Cable, overhead",
+      "attributes": [
+        "CATCBL",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ICEFAC",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERCLR",
+        "VERCSA",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "CBLSUB": {
+      "label": "Cable, submarine",
+      "attributes": [
+        "BURDEP",
+        "CATCBL",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "CANALS": {
+      "label": "Canal",
+      "attributes": [
+        "CATCAN",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "HORACC",
+        "HORCLR",
+        "HORWID",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "CANBNK": {
+      "label": "Canal bank",
+      "attributes": [
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "CTSARE": {
+      "label": "Cargo transshipment area",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "CAUSWY": {
+      "label": "Causeway",
+      "attributes": [
+        "CONDTN",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "CTNARE": {
+      "label": "Caution area",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "CHKPNT": {
+      "label": "Checkpoint",
+      "attributes": [
+        "CATCHP",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "CGUSTA": {
+      "label": "Coastguard station",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "COALNE": {
+      "label": "Coastline",
+      "attributes": [
+        "CATCOA",
+        "COLOUR",
+        "CONRAD",
+        "CONVIS",
+        "ELEVAT",
+        "INFORM",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "CONZNE": {
+      "label": "Contiguous zone",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "NATION",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "COSARE": {
+      "label": "Continental shelf area",
+      "attributes": [
+        "INFORM",
+        "NATION",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "CTRPNT": {
+      "label": "Control point",
+      "attributes": [
+        "CATCTR",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "INFORM",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "CONVYR": {
+      "label": "Conveyor",
+      "attributes": [
+        "CATCON",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "LIFCAP",
+        "OBJNAM",
+        "PICREP",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERCLR",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "CRANES": {
+      "label": "Crane",
+      "attributes": [
+        "CATCRN",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "HEIGHT",
+        "INFORM",
+        "LIFCAP",
+        "OBJNAM",
+        "ORIENT",
+        "PICREP",
+        "RADIUS",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERCLR",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "CURENT": {
+      "label": "Current - non - gravitational",
+      "attributes": [
+        "CURVEL",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "CUSZNE": {
+      "label": "Custom zone",
+      "attributes": [
+        "INFORM",
+        "NATION",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "DAMCON": {
+      "label": "Dam",
+      "attributes": [
+        "CATDAM",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "DAYMAR": {
+      "label": "Daymark",
+      "attributes": [
+        "CATSPM",
+        "COLOUR",
+        "COLPAT",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TOPSHP",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "DWRTCL": {
+      "label": "Deep water route centerline",
+      "attributes": [
+        "CATTRK",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TRAFIC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "DWRTPT": {
+      "label": "Deep water route part",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TRAFIC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "DEPARE": {
+      "label": "Depth area",
+      "attributes": [
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "DEPCNT": {
+      "label": "Depth contour",
+      "attributes": [
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VALDCO",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "DISMAR": {
+      "label": "Distance mark",
+      "attributes": [
+        "CATDIS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "DOCARE": {
+      "label": "Dock area",
+      "attributes": [
+        "CATDOC",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "HORACC",
+        "HORCLR",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "DRGARE": {
+      "label": "Dredged area",
+      "attributes": [
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "TECSOU",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "DRYDOC": {
+      "label": "Dry dock",
+      "attributes": [
+        "CONDTN",
+        "DRVAL1",
+        "HORACC",
+        "HORCLR",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "OBJNAM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "DMPGRD": {
+      "label": "Dumping ground",
+      "attributes": [
+        "CATDPG",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "DYKCON": {
+      "label": "Dyke",
+      "attributes": [
+        "CONDTN",
+        "CONRAD",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "EXEZNE": {
+      "label": "Exclusive Economic Zone",
+      "attributes": [
+        "INFORM",
+        "NATION",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "FAIRWY": {
+      "label": "Fairway",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TRAFIC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "FNCLNE": {
+      "label": "Fence/wall",
+      "attributes": [
+        "CATFNC",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "FERYRT": {
+      "label": "Ferry route",
+      "attributes": [
+        "CATFRY",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "FSHZNE": {
+      "label": "Fishery zone",
+      "attributes": [
+        "INFORM",
+        "NATION",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "FSHFAC": {
+      "label": "Fishing facility",
+      "attributes": [
+        "CATFIF",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "FSHGRD": {
+      "label": "Fishing ground",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "FLODOC": {
+      "label": "Floating dock",
+      "attributes": [
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "HORACC",
+        "HORCLR",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "LIFCAP",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "FOGSIG": {
+      "label": "Fog signal",
+      "attributes": [
+        "CATFOG",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SIGFRQ",
+        "SIGGEN",
+        "SIGGRP",
+        "SIGPER",
+        "SIGSEQ",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VALMXR"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "FORSTC": {
+      "label": "Fortified structure",
+      "attributes": [
+        "CATFOR",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "FRPARE": {
+      "label": "Free port area",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "GATCON": {
+      "label": "Gate",
+      "attributes": [
+        "CATGAT",
+        "CONDTN",
+        "DRVAL1",
+        "HORACC",
+        "HORCLR",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERCLR",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "GRIDRN": {
+      "label": "Gridiron",
+      "attributes": [
+        "HORACC",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "HRBARE": {
+      "label": "Harbour area (administrative)",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "HRBFAC": {
+      "label": "Harbour facility",
+      "attributes": [
+        "CATHAF",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "HULKES": {
+      "label": "Hulk",
+      "attributes": [
+        "CATHLK",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "HORACC",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "ICEARE": {
+      "label": "Ice area",
+      "attributes": [
+        "CATICE",
+        "CONVIS",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "ICNARE": {
+      "label": "Incineration area",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "ISTZNE": {
+      "label": "Inshore traffic zone",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "LAKARE": {
+      "label": "Lake",
+      "attributes": [
+        "ELEVAT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "LAKSHR": {
+      "label": "Lake shore",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "LNDARE": {
+      "label": "Land area",
+      "attributes": [
+        "CONDTN",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "LNDELV": {
+      "label": "Land elevation",
+      "attributes": [
+        "CONVIS",
+        "ELEVAT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point",
+        "Line"
+      ]
+    },
+    "LNDRGN": {
+      "label": "Land region",
+      "attributes": [
+        "CATLND",
+        "INFORM",
+        "NATQUA",
+        "NATSUR",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "LNDMRK": {
+      "label": "Landmark",
+      "attributes": [
+        "CATLMK",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "ELEVAT",
+        "FUNCTN",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "LIGHTS": {
+      "label": "Light",
+      "attributes": [
+        "CATLIT",
+        "COLOUR",
+        "DATEND",
+        "DATSTA",
+        "EXCLIT",
+        "HEIGHT",
+        "INFORM",
+        "LITCHR",
+        "LITVIS",
+        "MARSYS",
+        "MLTYLT",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SECTR1",
+        "SECTR2",
+        "SIGGRP",
+        "SIGPER",
+        "SIGSEQ",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VALNMR",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "LITFLT": {
+      "label": "Light float",
+      "attributes": [
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HORACC",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "MARSYS",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "LITVES": {
+      "label": "Light vessel",
+      "attributes": [
+        "COLOUR",
+        "COLPAT",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HORACC",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "LOCMAG": {
+      "label": "Local magnetic anomaly",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VALLMA"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "LOKBSN": {
+      "label": "Lock basin",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "HORACC",
+        "HORCLR",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "LOGPON": {
+      "label": "Log pond",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "MAGVAR": {
+      "label": "Magnetic variation",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "RYRMGV",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "VALACM",
+        "VALMAG"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "MARCUL": {
+      "label": "Marine farm/culture",
+      "attributes": [
+        "CATMFA",
+        "DATEND",
+        "DATSTA",
+        "EXPSOU",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TXTDSC",
+        "VALSOU",
+        "VERACC",
+        "VERDAT",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "MIPARE": {
+      "label": "Military practice area",
+      "attributes": [
+        "CATMPA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "MORFAC": {
+      "label": "Mooring/warping facility",
+      "attributes": [
+        "BOYSHP",
+        "CATMOR",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "NAVLNE": {
+      "label": "Navigation line",
+      "attributes": [
+        "CATNAV",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "OBSTRN": {
+      "label": "Obstruction",
+      "attributes": [
+        "CATOBS",
+        "CONDTN",
+        "EXPSOU",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "NATQUA",
+        "NATSUR",
+        "OBJNAM",
+        "PRODCT",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TXTDSC",
+        "VALSOU",
+        "VERACC",
+        "VERDAT",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "OFSPLF": {
+      "label": "Offshore platform",
+      "attributes": [
+        "CATOFP",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "OSPARE": {
+      "label": "Offshore production area",
+      "attributes": [
+        "CATPRA",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "OILBAR": {
+      "label": "Oil barrier",
+      "attributes": [
+        "CATOLB",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "PILPNT": {
+      "label": "Pile",
+      "attributes": [
+        "CATPLE",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "PILBOP": {
+      "label": "Pilot boarding place",
+      "attributes": [
+        "CATPIL",
+        "COMCHA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PILDST",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "PIPARE": {
+      "label": "Pipeline area",
+      "attributes": [
+        "CATPIP",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "PIPOHD": {
+      "label": "Pipeline, overhead",
+      "attributes": [
+        "CATPIP",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERCLR",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "PIPSOL": {
+      "label": "Pipeline, submarine/on land",
+      "attributes": [
+        "BURDEP",
+        "CATPIP",
+        "CONDTN",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line"
+      ]
+    },
+    "PONTON": {
+      "label": "Pontoon",
+      "attributes": [
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "PRCARE": {
+      "label": "Precautionary area",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "PRDARE": {
+      "label": "Production / storage area",
+      "attributes": [
+        "CATPRA",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "PICREP",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "PYLONS": {
+      "label": "Pylon/bridge support",
+      "attributes": [
+        "CATPYL",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "RADLNE": {
+      "label": "Radar line",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "RADRNG": {
+      "label": "Radar range",
+      "attributes": [
+        "COMCHA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "RADRFL": {
+      "label": "Radar reflector",
+      "attributes": [
+        "HEIGHT",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "RADSTA": {
+      "label": "Radar station",
+      "attributes": [
+        "CATRAS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VALMXR",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "RTPBCN": {
+      "label": "Radar transponder beacon",
+      "attributes": [
+        "CATRTB",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RADWAL",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SECTR1",
+        "SECTR2",
+        "SIGGRP",
+        "SIGSEQ",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VALMXR"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "RDOCAL": {
+      "label": "Radio calling-in point",
+      "attributes": [
+        "COMCHA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TRAFIC",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Line"
+      ]
+    },
+    "RDOSTA": {
+      "label": "Radio station",
+      "attributes": [
+        "CALSGN",
+        "CATROS",
+        "COMCHA",
+        "DATEND",
+        "DATSTA",
+        "ESTRNG",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SIGFRQ",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "RAILWY": {
+      "label": "Railway",
+      "attributes": [
+        "CONDTN",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "RAPIDS": {
+      "label": "Rapids",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "RCRTCL": {
+      "label": "Recommended route centerline",
+      "attributes": [
+        "CATTRK",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TRAFIC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "RECTRC": {
+      "label": "Recommended track",
+      "attributes": [
+        "CATTRK",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TRAFIC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "RCTLPT": {
+      "label": "Recommended Traffic Lane Part",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "ORIENT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "RSCSTA": {
+      "label": "Rescue station",
+      "attributes": [
+        "CATRSC",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "RESARE": {
+      "label": "Restricted area",
+      "attributes": [
+        "CATREA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "RETRFL": {
+      "label": "Retro-reflector",
+      "attributes": [
+        "COLOUR",
+        "COLPAT",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "RIVERS": {
+      "label": "River",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "RIVBNK": {
+      "label": "River bank",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "ROADWY": {
+      "label": "Road",
+      "attributes": [
+        "CATROD",
+        "CONDTN",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "RUNWAY": {
+      "label": "Runway",
+      "attributes": [
+        "CATRUN",
+        "CONDTN",
+        "CONVIS",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "SNDWAV": {
+      "label": "Sand waves",
+      "attributes": [
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "SEAARE": {
+      "label": "Sea area / named water area",
+      "attributes": [
+        "CATSEA",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "SPLARE": {
+      "label": "Sea-plane landing area",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "SBDARE": {
+      "label": "Seabed area",
+      "attributes": [
+        "COLOUR",
+        "INFORM",
+        "NATQUA",
+        "NATSUR",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "SLCONS": {
+      "label": "Shoreline Construction",
+      "attributes": [
+        "CATSLC",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "HORACC",
+        "HORCLR",
+        "HORLEN",
+        "HORWID",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "SISTAT": {
+      "label": "Signal station, traffic",
+      "attributes": [
+        "CATSIT",
+        "COMCHA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "SISTAW": {
+      "label": "Signal station, warning",
+      "attributes": [
+        "CATSIW",
+        "COMCHA",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "SILTNK": {
+      "label": "Silo / tank",
+      "attributes": [
+        "BUISHP",
+        "CATSIL",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "PICREP",
+        "PRODCT",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "SLOTOP": {
+      "label": "Slope topline",
+      "attributes": [
+        "CATSLO",
+        "COLOUR",
+        "CONRAD",
+        "CONVIS",
+        "ELEVAT",
+        "INFORM",
+        "NATCON",
+        "NATQUA",
+        "NATSUR",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "SLOGRD": {
+      "label": "Sloping ground",
+      "attributes": [
+        "CATSLO",
+        "COLOUR",
+        "CONRAD",
+        "CONVIS",
+        "INFORM",
+        "NATCON",
+        "NATQUA",
+        "NATSUR",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "SMCFAC": {
+      "label": "Small craft facility",
+      "attributes": [
+        "CATSCF",
+        "INFORM",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "SOUNDG": {
+      "label": "Sounding",
+      "attributes": [
+        "EXPSOU",
+        "INFORM",
+        "OBJNAM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "SPRING": {
+      "label": "Spring",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "SQUARE": {
+      "label": "Square",
+      "attributes": [
+        "CONDTN",
+        "INFORM",
+        "NATCON",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "STSLNE": {
+      "label": "Straight territorial sea baseline",
+      "attributes": [
+        "INFORM",
+        "NATION",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "SUBTLN": {
+      "label": "Submarine transit lane",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "SWPARE": {
+      "label": "Swept Area",
+      "attributes": [
+        "DRVAL1",
+        "INFORM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "TECSOU",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "TESARE": {
+      "label": "Territorial sea area",
+      "attributes": [
+        "INFORM",
+        "NATION",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "TS_PRH": {
+      "label": "Tidal stream - harmonic prediction",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "T_MTOD",
+        "T_VAHC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "TS_PNH": {
+      "label": "Tidal stream - non-harmonic prediction",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "T_MTOD",
+        "T_THDF"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "TS_PAD": {
+      "label": "Tidal stream panel data",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TS_TSP",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "TS_TIS": {
+      "label": "Tidal stream - time series",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TIMEND",
+        "TIMSTA",
+        "TS_TSV",
+        "TXTDSC",
+        "T_TINT"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "T_HMON": {
+      "label": "Tide - harmonic prediction",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "T_ACWL",
+        "T_MTOD",
+        "T_VAHC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "T_NHMN": {
+      "label": "Tide - non-harmonic prediction",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "T_ACWL",
+        "T_MTOD",
+        "T_THDF"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "T_TIMS": {
+      "label": "Tidal stream - time series",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TIMEND",
+        "TIMSTA",
+        "TXTDSC",
+        "T_ACWL",
+        "T_HWLW",
+        "T_TINT",
+        "T_TSVL"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "TIDEWY": {
+      "label": "Tideway",
+      "attributes": [
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line",
+        "Area"
+      ]
+    },
+    "TOPMAR": {
+      "label": "Top mark",
+      "attributes": [
+        "COLOUR",
+        "COLPAT",
+        "DATEND",
+        "DATSTA",
+        "HEIGHT",
+        "INFORM",
+        "MARSYS",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TOPSHP",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "TSELNE": {
+      "label": "Traffic Separation Line",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "TSSBND": {
+      "label": "Traffic Separation Scheme  Boundary",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "TSSCRS": {
+      "label": "Traffic Separation Scheme Crossing",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "TSSLPT": {
+      "label": "Traffic Separation Scheme  Lane part",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "ORIENT",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "TSSRON": {
+      "label": "Traffic Separation Scheme  Roundabout",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "TSEZNE": {
+      "label": "Traffic Separation Zone",
+      "attributes": [
+        "CATTSS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "TUNNEL": {
+      "label": "Tunnel",
+      "attributes": [
+        "BURDEP",
+        "CONDTN",
+        "HORACC",
+        "HORCLR",
+        "INFORM",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "TXTDSC",
+        "VERACC",
+        "VERCLR"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "TWRTPT": {
+      "label": "Two-way route  part",
+      "attributes": [
+        "CATTRK",
+        "DATEND",
+        "DATSTA",
+        "DRVAL1",
+        "DRVAL2",
+        "INFORM",
+        "ORIENT",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TRAFIC",
+        "TXTDSC",
+        "VERDAT"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "UWTROC": {
+      "label": "Underwater rock / awash rock",
+      "attributes": [
+        "EXPSOU",
+        "INFORM",
+        "NATQUA",
+        "NATSUR",
+        "OBJNAM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TXTDSC",
+        "VALSOU",
+        "VERDAT",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point"
+      ]
+    },
+    "UNSARE": {
+      "label": "Unsurveyed area",
+      "attributes": [
+        "INFORM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "VEGATN": {
+      "label": "Vegetation",
+      "attributes": [
+        "CATVEG",
+        "CONVIS",
+        "ELEVAT",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERDAT",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "WATTUR": {
+      "label": "Water turbulence",
+      "attributes": [
+        "CATWAT",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Line",
+        "Area"
+      ]
+    },
+    "WATFAL": {
+      "label": "Waterfall",
+      "attributes": [
+        "CONVIS",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC",
+        "VERACC",
+        "VERLEN"
+      ],
+      "primitives": [
+        "Point",
+        "Line"
+      ]
+    },
+    "WEDKLP": {
+      "label": "Weed/Kelp",
+      "attributes": [
+        "CATWED",
+        "INFORM",
+        "OBJNAM",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "WRECKS": {
+      "label": "Wreck",
+      "attributes": [
+        "CATWRK",
+        "CONRAD",
+        "CONVIS",
+        "EXPSOU",
+        "HEIGHT",
+        "INFORM",
+        "OBJNAM",
+        "QUASOU",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "SOUACC",
+        "STATUS",
+        "TECSOU",
+        "TXTDSC",
+        "VALSOU",
+        "VERACC",
+        "VERDAT",
+        "VERLEN",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "TS_FEB": {
+      "label": "Tidal stream - flood/ebb",
+      "attributes": [
+        "CURVEL",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "OBJNAM",
+        "ORIENT",
+        "PEREND",
+        "PERSTA",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Point",
+        "Area"
+      ]
+    },
+    "ARCSLN": {
+      "label": "Archipelagix Sea Lane",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "NATION",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Area"
+      ]
+    },
+    "ASLXIS": {
+      "label": "Archipelagix Sea Lane axis",
+      "attributes": [
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "NATION",
+        "OBJNAM",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "TXTDSC"
+      ],
+      "primitives": [
+        "Line"
+      ]
+    },
+    "NEWOBJ": {
+      "label": "New object",
+      "attributes": [
+        "CLSDEF",
+        "CLSNAM",
+        "COLOUR",
+        "COLPAT",
+        "CONDTN",
+        "CONRAD",
+        "CONVIS",
+        "DATEND",
+        "DATSTA",
+        "INFORM",
+        "NATION",
+        "OBJNAM",
+        "PEREND",
+        "PERSTA",
+        "PICREP",
+        "RECDAT",
+        "RECIND",
+        "RESTRN",
+        "SCAMAX",
+        "SCAMIN",
+        "SORDAT",
+        "SORIND",
+        "STATUS",
+        "SYMINS",
+        "TXTDSC",
+        "WATLEV"
+      ],
+      "primitives": [
+        "Line",
+        "Area",
+        "Point"
+      ]
+    }
+  }
+}

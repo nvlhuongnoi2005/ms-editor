@@ -40,7 +40,7 @@ export function findEditorIssues(features: GraphFeature[], changedKeys: Readonly
   const issues: EditorIssue[] = [];
   for (const feature of features) {
     if (!changedKeys.has(keyOf(feature))) continue;
-    const { entityType, entityId, tags, nodeIds, members, topologyNode } = feature.properties;
+    const { entityType, tags, nodeIds, members, topologyNode } = feature.properties;
     const label = labelOf(feature);
 
     for (const [tagKey, value] of Object.entries(tags)) {

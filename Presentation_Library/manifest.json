@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "geodata-enc-presentation",
+  "rendererVersion": 17,
+  "assetVersion": 14,
+  "target": {
+    "standard": "S-52 Annex A",
+    "edition": "4.0(.4)"
+  },
+  "implementedSymbolCatalogue": "4.0(.3), December 2020",
+  "status": "partial",
+  "verification": {
+    "fullLookupTables": false,
+    "fullConditionalSymbology": false,
+    "officialColourTables": false,
+    "s64Validated": false
+  },
+  "documents": [
+    {
+      "file": "documents/AnnexAS52_Arborescence_4.0.4.pdf",
+      "sha256": "099b02f3756fe30b8bb30189bab63fd27108136b4a0c360bb6f9f71fa2268c62",
+      "bytes": 599226,
+      "sourceUrl": "https://iho.int/uploads/user/pubs/standards/s-52/AnnexAS52_Arborescence_4.0.4.pdf",
+      "purpose": "structure-only"
+    },
+    {
+      "file": "documents/S-4 Ed 4.10.0_FINAL.pdf",
+      "sha256": "e3a8d49f1bd357c15fb6bfc5d82028e3bf946365fd6dc06526c825f650844f09",
+      "bytes": 16408649,
+      "sourceUrl": "https://iho.int/en/standards-and-specifications",
+      "purpose": "reference"
+    },
+    {
+      "file": "documents/S-52 Edition 6.1.1 - June 2015.pdf",
+      "sha256": "66fa7301ea2a5624fed6f474e1ffafd80e3828fd8fb13ffbb32c1a249ec96536",
+      "bytes": 761208,
+      "sourceUrl": "https://iho.int/uploads/user/pubs/standards/s-52/S-52%20Edition%206.1.1%20-%20June%202015.pdf",
+      "purpose": "reference"
+    },
+    {
+      "file": "documents/S-52 PresLib Ed 4.0.3 Part I Addendum_Clean.pdf",
+      "sha256": "9a494ff1ff0d75f912f1d1acb50ebe6a1716b9c78fb3267455b484c9bc2da68d",
+      "bytes": 5778203,
+      "sourceUrl": "https://iho.int/en/standards-and-specifications",
+      "purpose": "reference"
+    }
+  ],
+  "assets": {
+    "sprites": "assets/sprites",
+    "fonts": "assets/fonts",
+    "themes": [
+      "day",
+      "dusk",
+      "night"
+    ],
+    "imagesPerTheme": 499
+  },
+  "missing": [
+    {
+      "id": "preslib-404-part-i",
+      "description": "S-52 PresLib 4.0(.4) Part I and Part II"
+    },
+    {
+      "id": "colour-tables",
+      "description": "Appendix A official colour tables"
+    },
+    {
+      "id": "lookup-tables",
+      "description": "Appendices B-F official five lookup tables"
+    },
+    {
+      "id": "csp",
+      "description": "Complete official CSP procedures and DAI 4.0(.4)"
+    },
+    {
+      "id": "validation",
+      "description": "ECDIS Chart 1 and applicable S-64 test data/results"
+    }
+  ]
+}

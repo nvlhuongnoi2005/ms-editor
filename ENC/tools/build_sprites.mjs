@@ -8,7 +8,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const root=fileURLToPath(new URL('../sprites/',import.meta.url));
+const root=fileURLToPath(new URL('../../Presentation_Library/assets/sprites/',import.meta.url));
 const manifest=JSON.parse(await readFile(join(root,'sources/manifest.json'),'utf8'));
 const colours=JSON.parse(await readFile(join(root,'sources/colors.json'),'utf8')).library;
 const themes=['day','dusk','night'];

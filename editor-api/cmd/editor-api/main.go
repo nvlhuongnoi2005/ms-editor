@@ -454,7 +454,7 @@ func encAssetsRoot() string {
 	if root := getenv("EDITOR_ENC_ASSETS_ROOT", ""); root != "" {
 		return root
 	}
-	for _, root := range []string{filepath.Join("..", "ENC"), "ENC", filepath.Join("..", "..", "ENC")} {
+	for _, root := range []string{filepath.Join("..", "Presentation_Library", "assets"), filepath.Join("Presentation_Library", "assets"), filepath.Join("..", "..", "Presentation_Library", "assets"), filepath.Join("..", "..", "..", "Presentation_Library", "assets")} {
 		if info, err := os.Stat(root); err == nil && info.IsDir() {
 			absolute, err := filepath.Abs(root)
 			if err == nil {
@@ -462,7 +462,7 @@ func encAssetsRoot() string {
 			}
 		}
 	}
-	return filepath.Join("..", "ENC")
+	return filepath.Join("..", "Presentation_Library", "assets")
 }
 func ensureSpatialIndexes(ctx context.Context, db *pgxpool.Pool) error {
 	for _, statement := range []string{

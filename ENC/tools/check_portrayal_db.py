@@ -65,8 +65,8 @@ INSERT INTO s52_feature(dataset_id,cell_name,object_class,source_id,geometry_kin
     requests = [(12, 2048, 2047, scope) for scope in ('', 'A')]
     requests += [(14, 8192, 8191, scope) for scope in ('', 'A')]
     requests += [(12, 2048, 2047, scope) for scope in ('', 'A')]
-    setup += "PREPARE s52_query(int,int,int,text,text,double precision,double precision) AS " + query + ";\n"
-    setup += "\n".join(f"EXECUTE s52_query({z},{x},{y},'','{scope}',6,6);" for z, x, y, scope in requests)
+    setup += "PREPARE s52_query(int,int,int,text,text,double precision,double precision,text) AS " + query + ";\n"
+    setup += "\n".join(f"EXECUTE s52_query({z},{x},{y},'','{scope}',6,6,'');" for z, x, y, scope in requests)
     setup += "\nROLLBACK;"
     result = subprocess.run(["docker", "exec", "-i", args.container, "psql", "-U", "enc_owner", "-d", "enc_canonical",
                              "-X", "-qAt", "-v", "ON_ERROR_STOP=1"], input=setup, text=True, capture_output=True)

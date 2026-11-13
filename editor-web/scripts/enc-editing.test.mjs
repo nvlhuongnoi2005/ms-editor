@@ -48,3 +48,14 @@ test('attribute key order creates no false changes and history stays bounded', (
   for (let i = 0; i < 200; i++) state = changeFeature(state, point.key, { ...point, attributes: { OBJNAM: String(i) } });
   assert.equal(state.undo.length, 150);
 });
+
+test('cached history accounting retains the original 4 MiB history limit for large geometry',()=>{
+  const point=feature();
+  point.geometry={type:'LineString',coordinates:Array.from({length:16000},()=>[105.123456789,21.987654321])};
+  let state=initial([point]);
+  for(let i=0;i<8;i++)state=changeFeature(state,point.key,{...point,attributes:{OBJNAM:String(i)}});
+  assert.ok(state.undo.length<8);
+  assert.ok(JSON.stringify(state.undo).length<=4*1024*1024 || state.undo.length===1);
+  const restored=travelHistory(travelHistory(state,'undo'),'redo');
+  assert.deepEqual(restored.documents,state.documents);
+});
